@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
-	"time"
 )
 
 const dir = "var"
@@ -56,43 +55,48 @@ func TestExclusiveLock(t *testing.T) {
 	}
 	key := []byte("somekey")
 
-	// test timing:
-	// - :00 start both goroutines
-	// - :00 A pause 1 sec
-	// - :00 B pause 2 sec
-	// - :01 A lock
-	// - :01 A write
-	// - :01 A pause 2 sec
-	// - :02 B try to lock but block
-	// - :03 A confirm own value
-	// - :03 A unlock
-	// - :03 A pause 1 sec
-	// - :03 B write
-	// - :03 B unlock
-	// - :03 B pause 1 sec
-	// - :04 A confirm B's value
-	// - :04 B confirm own value
+	// these channels are used for barrier rendevous
+	goA := make(chan bool)
+	goB := make(chan bool)
+	doneA := make(chan bool)
+	doneB := make(chan bool)
+	// test sequence:
+	// - B wait
+	// - A lock
+	// - A signal B
+	// - A write
+	// - B try to lock but block
+	// - A confirm own value
+	// - A unlock
+	// - A wait
+	// - B write
+	// - B unlock
+	// - B signal A
+	// - A confirm B's value
+	// - B confirm own value
+	// - return
 
 	valA := []byte("valueA")
-	valB := []byte("valueA")
+	valB := []byte("valueB")
+
+	finishedA := false
+	finishedB := false
 
 	// goroutine A
 	go func() {
-		// - :00 A pause 1 sec
-		time.Sleep(1 * time.Second)
-		// - :01 A lock
-		err := db.ExLock(key)
+		// - A lock
+		fd, err := db.ExLock(key)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// - :01 A write
+		// - A signal B
+		goB <- true
+		// - A write
 		err = db.Put(key, valA)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// - :01 A pause 2 sec
-		time.Sleep(2 * time.Second)
-		// - :03 A confirm own value
+		// - A confirm own value
 		got, err := db.Get(key)
 		if err != nil {
 			t.Fatal(err)
@@ -100,14 +104,14 @@ func TestExclusiveLock(t *testing.T) {
 		if bytes.Compare(valA, got) != 0 {
 			t.Fatalf("expected %s, got %s", string(valA), string(got))
 		}
-		// - :03 A unlock
-		err = db.Unlock(key)
+		// - A unlock
+		err = db.Unlock(fd)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// - :03 A pause 1 sec
-		time.Sleep(1 * time.Second)
-		// - :04 A confirm B's value
+		// - A wait
+		<-goA
+		// - A confirm B's value
 		got, err = db.Get(key)
 		if err != nil {
 			t.Fatal(err)
@@ -115,29 +119,31 @@ func TestExclusiveLock(t *testing.T) {
 		if bytes.Compare(valB, got) != 0 {
 			t.Fatalf("expected %s, got %s", string(valB), string(got))
 		}
+		finishedA = true
+		doneA <- true
 	}()
 
 	go func() {
-		// - :00 B pause 2 sec
-		time.Sleep(2 * time.Second)
-		// - :02 B try to lock but block
-		err := db.ExLock(key)
+		// - B wait
+		<-goB
+		// - B try to lock but block
+		fd, err := db.ExLock(key)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// - :03 B write
+		// - B write
 		err = db.Put(key, valB)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// - :03 B unlock
-		err = db.Unlock(key)
+		// - B unlock
+		err = db.Unlock(fd)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// - :03 B pause 1 sec
-		time.Sleep(1 * time.Second)
-		// - :04 B confirm own value
+		// - B signal A
+		goA <- true
+		// - B confirm own value
 		got, err := db.Get(key)
 		if err != nil {
 			t.Fatal(err)
@@ -145,6 +151,13 @@ func TestExclusiveLock(t *testing.T) {
 		if bytes.Compare(valB, got) != 0 {
 			t.Fatalf("expected %s, got %s", string(valB), string(got))
 		}
+		finishedB = true
+		doneB <- true
 	}()
 
+	<-doneA
+	<-doneB
+	if finishedA == false || finishedB == false {
+		t.Fatalf("finishedA: %t, finishedB: %t", finishedA, finishedB)
+	}
 }
