@@ -221,3 +221,65 @@ func TestLock(t *testing.T) {
 		t.Fatalf("finishedA: %t, finishedB: %t", finishedA, finishedB)
 	}
 }
+
+func TestConcurrent(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := []byte("somekey")
+	valA := []byte("valueA")
+	valB := []byte("valueB")
+	finishedA := false
+	finishedB := false
+	doneA := make(chan bool)
+	doneB := make(chan bool)
+
+	// attempt to cause collisions by having both A and B do concurrent reads and writes
+
+	go func() {
+		for i := 0; i < 100000; i++ {
+			err = db.Put(key, valA)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := db.Get(key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// the result must be either A or B, otherwise it's
+			// corrupt due to a lack of locking in Put() or Get()
+			if bytes.Compare(valA, got) != 0 && bytes.Compare(valB, got) != 0 {
+				t.Fatalf("expected %s or %s, got %s", string(valA), string(valB), string(got))
+			}
+		}
+		finishedA = true
+		doneA <- true
+	}()
+
+	go func() {
+		for i := 0; i < 100000; i++ {
+			err = db.Put(key, valB)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := db.Get(key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// the result must be either A or B, otherwise it's
+			// corrupt due to a lack of locking in Put() or Get()
+			if bytes.Compare(valA, got) != 0 && bytes.Compare(valB, got) != 0 {
+				t.Fatalf("expected %s or %s, got %s", string(valA), string(valB), string(got))
+			}
+		}
+		finishedB = true
+		doneB <- true
+	}()
+
+	<-doneA
+	<-doneB
+	if finishedA == false || finishedB == false {
+		t.Fatalf("finishedA: %t, finishedB: %t", finishedA, finishedB)
+	}
+}
