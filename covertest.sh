@@ -1,14 +1,13 @@
 #!/bin/bash 
 
 minpct=80
-cmd="go test -cover ./..."
+cmd="go test -v -timeout 10s -cover ./..."
 tmp=/tmp/$$
 
-$cmd > $tmp 2>&1 
-pct=$(cat $tmp | perl -ne 'print if s/.*coverage:\s+(\d+)\..*/$1/')
-if [ "$pct" -le "$minpct" ] 
+$cmd 2>&1 | tee $tmp  
+pct=$(cat $tmp | tail -1 | perl -ne 'print if s/.*coverage:\s+(\d+)\..*/$1/m')
+if test "$pct" -le "$minpct"  
 then
-	cat $tmp
 	echo FAIL coverage less than $minpct
 	exit 1
 fi

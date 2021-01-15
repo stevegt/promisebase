@@ -1,7 +1,14 @@
 package pitbase
 
-// ShLock uses syscall.Flock to get a shared lock (LOCK_SH) on the
-// file referenced by `key`.
-func (db *Db) ShLock(key []byte) (fd uintptr, err error) {
-	return
+import (
+	"os"
+)
+
+// Inode contains various file-related items such as file descriptor,
+// file handle, maybe some methods, etc.
+type Inode struct {
+	fd   uintptr
+	fh   *os.File
+	path string
+	key  []byte
 }
