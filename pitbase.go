@@ -35,15 +35,34 @@ func init() {
 	}
 }
 
+func mkdir(dir string) (err error) {
+	if _, err = os.Stat(dir); os.IsNotExist(err) {
+		err = os.Mkdir(dir, 0755) // XXX perms too open?
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
 // Open creates a db object and its directory (if one doesn't already exist)
 func Open(dir string) (db *Db, err error) {
 	db = &Db{}
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err := os.Mkdir(dir, 0755)
-		if err != nil {
-			return db, err
-		}
+	err = mkdir(dir)
+	if err != nil {
+		return
 	}
+
+	err = mkdir(fmt.Sprintf("%s/objects", dir))
+	if err != nil {
+		return
+	}
+
+	err = mkdir(fmt.Sprintf("%s/refs", dir))
+	if err != nil {
+		return
+	}
+
 	db.Dir = dir
 	db.inode, err = db.openKey([]byte(""), os.O_RDONLY)
 	if err != nil {
@@ -321,13 +340,6 @@ func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
 	path := db.RefPath(ref)
 
 	// rename temp file to key file
-	dir := fmt.Sprintf("%s/refs", db.Dir)
-	if _, err = os.Stat(dir); os.IsNotExist(err) {
-		err = os.Mkdir(dir, 0755)
-		if err != nil {
-			return
-		}
-	}
 	err = os.Rename(inode.path, path)
 	if err != nil {
 		return
@@ -336,10 +348,16 @@ func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
 	return
 }
 
+// GetRef takes a reference, parses the ref file, and returns the algorithm and key.
+func (db *Db) GetRef(ref string) (algo string, key []byte, err error) {
+	// XXX see last half of TestPutRef for ideas
+	return
+}
+
 // Path takes a key containing arbitrary 8-bit bytes and returns a safe
 // hex-encoded pathname.
 func (db *Db) Path(key []byte) (path string) {
-	path = fmt.Sprintf("%s/%x", db.Dir, key)
+	path = fmt.Sprintf("%s/objects/%x", db.Dir, key)
 	return
 }
 

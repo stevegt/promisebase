@@ -334,6 +334,29 @@ func TestPutRef(t *testing.T) {
 	}
 }
 
+func TestGetRef(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := "someref"
+	key := Hash("sha256", []byte("someval"))
+	err = db.PutRef("sha256", key, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotalgo, gotkey, err := db.GetRef(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotalgo != "sha256" {
+		t.Fatalf("expected 'sha256', got '%s'", string(gotalgo))
+	}
+	if bytes.Compare(key, gotkey) != 0 {
+		t.Fatalf("expected %s, got %s", string(key), string(gotkey))
+	}
+}
+
 func TestPath(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
