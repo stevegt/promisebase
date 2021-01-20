@@ -1,7 +1,6 @@
 package pitbase
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime/debug"
@@ -14,6 +13,15 @@ import (
 type Db struct {
 	Dir   string
 	inode Inode
+}
+
+// Inode contains various file-related items such as file descriptor,
+// file handle, maybe some methods, etc.
+type Inode struct {
+	fd   uintptr
+	fh   *os.File
+	path string
+	key  []byte
 }
 
 func init() {
@@ -55,7 +63,7 @@ func (db *Db) Put(key []byte, val []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	defer inode.close()
+	defer inode.Close()
 	// lock inode
 	err = inode.ExLock()
 	if err != nil {
@@ -86,7 +94,7 @@ func (db *Db) Get(key []byte) (val []byte, err error) {
 	if err != nil {
 		return
 	}
-	defer inode.close()
+	defer inode.Close()
 	err = inode.ShLock()
 	if err != nil {
 		return
@@ -105,7 +113,7 @@ func (db *Db) Rm(key []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	defer inode.close()
+	defer inode.Close()
 	err = inode.ExLock()
 	if err != nil {
 		return err
@@ -120,7 +128,7 @@ func (db *Db) Rm(key []byte) (err error) {
 
 func (db *Db) openKey(key []byte, flag int) (inode Inode, err error) {
 	inode.key = key
-	inode.path = fmt.Sprintf("%s/%s", db.Dir, string(key))
+	inode.path = db.Path(key)
 	inode.fh, err = os.OpenFile(inode.path, flag, 0644)
 	if err != nil {
 		return
@@ -129,7 +137,8 @@ func (db *Db) openKey(key []byte, flag int) (inode Inode, err error) {
 	return
 }
 
-func (inode *Inode) close() (err error) {
+// Close closes an inode
+func (inode *Inode) Close() (err error) {
 	return inode.fh.Close()
 }
 

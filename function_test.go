@@ -2,6 +2,8 @@ package pitbase
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -28,7 +30,7 @@ func TestPut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadFile("var/somekey")
+	got, err := ioutil.ReadFile(db.Path(key))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +101,7 @@ func TestOpenKey(t *testing.T) {
 	}
 }
 
-func iterate(t *testing.T, db *Db, iterations int, done chan bool, key, myVal, otherVal []byte) {
+func XXXiterateLock(t *testing.T, db *Db, iterations int, done chan bool, key, myVal, otherVal []byte) {
 	for i := 0; i < iterations; i++ {
 		err := db.Put(key, myVal)
 		if err != nil {
@@ -122,24 +124,41 @@ func iterate(t *testing.T, db *Db, iterations int, done chan bool, key, myVal, o
 	done <- true
 }
 
-func XXXTestConcurrent(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
+func nonMissingErr(err error) error {
+	switch err.(type) {
+	case *os.PathError:
+		return nil
+	case nil:
+		return nil
 	}
-	key := []byte("somekey")
-	valA := []byte("valueA")
-	valB := []byte("valueB")
-	doneA := make(chan bool)
-	doneB := make(chan bool)
+	return err
+}
 
-	// attempt to cause collisions by having both A and B do concurrent reads and writes
-	iterations := 2000
-	go iterate(t, db, iterations, doneA, key, valA, valB)
-	go iterate(t, db, iterations, doneB, key, valB, valA)
-
-	<-doneA
-	<-doneB
+func iterate(t *testing.T, db *Db, iterations int, done chan bool, key, myVal, otherVal []byte) {
+	i := 0
+	for ; i < iterations; i++ {
+		err := db.PutNoLock(key, myVal)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := db.GetNoLock(key)
+		if nonMissingErr(err) != nil {
+			t.Errorf("GetNoLock failed %T", err)
+		}
+		err = db.RmNoLock(key)
+		if nonMissingErr(err) != nil {
+			t.Fatal(err)
+		}
+		// the result must be either A or B, otherwise it's
+		// corrupt due to a lack of locking in Put() or Get()
+		if bytes.Compare(myVal, got) != 0 && bytes.Compare(otherVal, got) != 0 {
+			t.Fatalf("expected %s or %s, got %s", string(myVal), string(otherVal), string(got))
+		}
+	}
+	if i != iterations {
+		t.Fatal("omg no it didnt work there's not enough iterations :(", iterations)
+	}
+	done <- true
 }
 
 func TestDbLock(t *testing.T) {
@@ -165,4 +184,181 @@ func TestDbLock(t *testing.T) {
 		t.Fatal(err)
 	}
 
+}
+
+// XXX once all of the following tests are working, delete all of the
+// locking code and rename the *NoLock functions
+
+func XXXTestConcurrent(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := []byte("somekey")
+	valA := []byte("valueA")
+	valB := []byte("valueB")
+	doneA := make(chan bool)
+	doneB := make(chan bool)
+
+	// attempt to cause collisions by having both A and B do concurrent reads and writes
+	iterations := 2000
+	go iterate(t, db, iterations, doneA, key, valA, valB)
+	go iterate(t, db, iterations, doneB, key, valB, valA)
+
+	<-doneA
+	<-doneB
+}
+
+func TestPutNoLock(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := []byte("somekey")
+	val := []byte("somevalue")
+	err = db.PutNoLock(key, val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ioutil.ReadFile(db.Path(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
+	}
+}
+
+func TestGetNoLock(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := []byte("somekey")
+	val := []byte("somevalue")
+	err = db.PutNoLock(key, val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := db.GetNoLock(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
+	}
+}
+
+func TestPutBlob(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	val := []byte("somevalue")
+	k := sha256.Sum256(val)
+	key := make([]byte, len(k))
+	copy(key[:], k[0:len(k)])
+	gotkey, err := db.PutBlob("sha256", val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(gotkey, key) != 0 {
+		t.Fatalf("expected key %q, got %q", key, gotkey)
+	}
+	got, err := ioutil.ReadFile(db.Path(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
+	}
+}
+
+func TestHash(t *testing.T) {
+	algo := "sha256"
+	val := []byte("somevalue")
+	k := sha256.Sum256(val)
+	key := make([]byte, len(k))
+	copy(key[:], k[0:len(k)])
+	gotkey := Hash(algo, val)
+	if bytes.Compare(gotkey, key) != 0 {
+		t.Fatalf("expected key %q, got %q", key, gotkey)
+	}
+}
+
+func TestGetBlob(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	val := []byte("somevalue")
+	key := Hash("sha256", val)
+	gotkey, err := db.PutBlob("sha256", val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(gotkey, key) != 0 {
+		t.Fatalf("expected key %q, got %q", key, gotkey)
+	}
+	got, err := db.GetBlob("sha256", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
+	}
+}
+
+func TestPutRef(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ref does not contain the algo name
+	ref := "someref"
+	key := Hash("sha256", []byte("someval"))
+	// fullref contains the algo name
+	fullref := fmt.Sprintf("sha256:%x", key)
+	err = db.PutRef("sha256", key, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf, err := ioutil.ReadFile("var/refs/someref")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotfullref := string(buf)
+	if fullref != gotfullref {
+		t.Fatalf("expected %s, got %s", fullref, gotfullref)
+	}
+}
+
+func TestPath(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	val := []byte("somevalue")
+	key := Hash("sha256", val)
+	path := "var/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
+	gotpath := db.Path(key)
+	if path != gotpath {
+		t.Fatalf("expected %s, got %s", path, gotpath)
+	}
+}
+
+func TestRefPath(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ref := "someref"
+	path := "var/refs/someref"
+	gotpath := db.RefPath(ref)
+	if path != gotpath {
+		t.Fatalf("expected %s, got %s", path, gotpath)
+	}
 }
