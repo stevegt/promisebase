@@ -365,7 +365,7 @@ func TestPath(t *testing.T) {
 
 	val := []byte("somevalue")
 	key := Hash("sha256", val)
-	path := "var/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
+	path := "var/objects/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
 	gotpath := db.Path(key)
 	if path != gotpath {
 		t.Fatalf("expected %s, got %s", path, gotpath)
