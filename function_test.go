@@ -390,6 +390,37 @@ func TestGetRef(t *testing.T) {
 		t.Fatalf("expected '%x', got '%q'", key, string(gotkey))
 	}
 }
+func TestSubRef(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := "somedir/someref"
+	key := Hash("sha256", []byte("somevalue"))
+	err = db.PutRef("sha256", key, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf, err := ioutil.ReadFile("var/refs/somedir/someref")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fullref := fmt.Sprintf("sha256:%x", key)
+	gotfullref := string(buf)
+	if fullref != gotfullref {
+		t.Fatalf("expected %s, got %s", fullref, gotfullref)
+	}
+	gotalgo, gotkey, err := db.GetRef(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotalgo != "sha256" {
+		t.Fatalf("expected 'sha256', got '%s'", string(gotalgo))
+	}
+	if bytes.Compare(key, gotkey) != 0 {
+		t.Fatalf("expected '%x', got '%q'", key, string(gotkey))
+	}
+}
 
 func TestPath(t *testing.T) {
 	db, err := Open(dir)
@@ -426,8 +457,43 @@ func TestTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx := db.StartTransaction()
+	// create blob and ref not in our transaction
+	outval := []byte(fmt.Sprintf("value.outside"))
+	outkey, err := db.PutBlob("sha256", outval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outref := fmt.Sprintf("ref.outside")
+	err = db.PutRef("sha256", outkey, outref)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	tx.Commit()
+	tx, err := db.StartTransaction()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create ref in our transaction
+	inref := fmt.Sprintf("ref.inside")
+	err = db.PutRef("sha256", outkey, inref)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// XXX verify old ref is in tx.Dir
+	// XXX verify new ref is in tx.Dir
+	// XXX verify new ref is not in db.Dir
+
+	err = tx.Commit()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// XXX verify old ref is in db.Dir
+	// XXX verify new ref is in db.Dir
+	// XXX verify blob content
 
 }
+
+// XXX change all functions to use a Key struct that contains algo, key, and hexkey

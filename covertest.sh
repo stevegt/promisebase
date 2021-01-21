@@ -10,6 +10,13 @@ echo run this to see coverage detail:
 echo xdg-open /tmp/covertest.html
 
 pct=$(cat $tmp | grep coverage: | tail -1 | perl -ne 'print if s/.*coverage:\s+(\d+)\..*/$1/')
+if test -z "$pct" 
+then
+	echo FAIL unable to determine coverage 
+	rm -f /tmp/covertest.html
+	exit 1
+fi
+
 if test "$pct" -le "$minpct"  
 then
 	echo FAIL coverage less than $minpct

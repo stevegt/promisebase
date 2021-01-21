@@ -393,13 +393,48 @@ func (db *Db) RefPath(ref string) (path string) {
 	return
 }
 
-// StartTransaction creates a copy-on-write copy of the ref directory.
-// We clone the ref/ directory by creating a new
-// temporary directory as a subdirectory of tx/, and then hard-link
-// all of the contents.
-func (db *Db) StartTransaction() (tx *Transaction) {
+type Transaction struct {
+	Db  *Db
+	Dir Inode
+}
 
+// StartTransaction atomically creates a copy-on-write copy of the ref directory.
+func (db *Db) StartTransaction() (tx *Transaction, err error) {
+
+	// make atomic by getting a shared lock
+	defer db.Unlock()
+	err = db.ShLock()
+	if err != nil {
+		return
+	}
+
+	// clone the ref/ directory by creating a new temporary directory as a subdirectory of tx/
 	// https://golang.org/pkg/io/ioutil/#TempDir
 
+	// tx = &Transaction{Db: db, Dir: dir}
+
+	// hard-link all of the contents, including any subdirs
+	// https://golang.org/pkg/path/filepath/#Walk
+	// os.Link
+
 	return
+}
+
+// Commit atomically renames the content of tx.Dir into db.Dir.
+// XXX last commit wins
+func (tx *Transaction) Commit() (err error) {
+
+	// make atomic by getting an exclusive lock
+	defer tx.Db.Unlock()
+	err = tx.Db.ExLock()
+	if err != nil {
+		return
+	}
+
+	// rename all of the contents, including any subdirs
+	// https://golang.org/pkg/path/filepath/#Walk
+	// err = os.Rename(inode.path, path)
+
+	return
+
 }
