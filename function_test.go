@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
 )
@@ -134,40 +135,38 @@ func nonMissingErr(err error) error {
 	return err
 }
 
-func iterate(t *testing.T, db *Db, iterations int, done chan bool, key, myVal, otherVal []byte) {
+func iterate(t *testing.T, db *Db, iterations int, done chan bool, myVal []byte) {
 	i := 0
 	for ; i < iterations; i++ {
 		// create tmpVal by appending some random characters to myVal
-
+		tmpVal := []byte(fmt.Sprintf("%s.%d", string(myVal), rand.Uint64()))
 		// put tmpVal into a blob
-
-		// store the blob's key in a unique ref
-
-		// get the ref
-
-		// get the blob
-
-		// compare the blob we got with tmpVal
-
-		// delete the ref and the blob
-
-		err := db.PutNoLock(key, myVal)
+		key, err := db.PutBlob("sha256", tmpVal)
 		if err != nil {
 			t.Fatal(err)
 		}
-		got, err := db.GetNoLock(key)
-		if nonMissingErr(err) != nil {
-			t.Errorf("GetNoLock failed %T", err)
-		}
-		err = db.RmNoLock(key)
-		if nonMissingErr(err) != nil {
+		// store the blob's key in a unique ref
+		ref := fmt.Sprintf("ref.%s.%d", string(myVal), rand.Uint64())
+		err = db.PutRef("sha256", key, ref)
+		if err != nil {
 			t.Fatal(err)
 		}
-		// the result must be either A or B, otherwise it's
-		// corrupt due to a lack of locking in Put() or Get()
-		if bytes.Compare(myVal, got) != 0 && bytes.Compare(otherVal, got) != 0 {
-			t.Fatalf("expected %s or %s, got %s", string(myVal), string(otherVal), string(got))
+		// get the ref
+		gotalgo, gotkey, err := db.GetRef(ref)
+		if err != nil {
+			t.Fatal(err)
 		}
+		if gotalgo != "sha256" {
+			t.Fatalf("expected 'sha256', got '%s'", string(gotalgo))
+		}
+		// get the blob
+		gotblob, err := db.GetBlob("sha256", gotkey)
+		// compare the blob we got with tmpVal
+		if bytes.Compare(tmpVal, gotblob) != 0 {
+			t.Fatalf("expected %s, got %s", string(tmpVal), string(gotblob))
+		}
+		// XXX delete the ref and the blob
+
 	}
 	if i != iterations {
 		t.Fatal("omg no it didnt work there's not enough iterations :(", iterations)
@@ -208,7 +207,7 @@ func TestConcurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := []byte("somekey")
+	// key := []byte("somekey")
 	valA := []byte("valueA")
 	valB := []byte("valueB")
 	doneA := make(chan bool)
@@ -216,8 +215,8 @@ func TestConcurrent(t *testing.T) {
 
 	// attempt to cause collisions by having both A and B do concurrent reads and writes
 	iterations := 2000
-	go iterate(t, db, iterations, doneA, key, valA, valB)
-	go iterate(t, db, iterations, doneB, key, valB, valA)
+	go iterate(t, db, iterations, doneA, valA)
+	go iterate(t, db, iterations, doneB, valB)
 
 	<-doneA
 	<-doneB
