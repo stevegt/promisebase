@@ -249,6 +249,27 @@ func TestGetNoLock(t *testing.T) {
 	}
 }
 
+func TestRmNoLock(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := []byte("somekey")
+	val := []byte("somevalue")
+	err = db.PutNoLock(key, val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.RmNoLock(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.GetNoLock(key)
+	if err == nil {
+		t.Fatalf("key not deleted: %s", key)
+	}
+}
+
 func TestPutBlob(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -317,7 +338,7 @@ func TestPutRef(t *testing.T) {
 
 	// ref does not contain the algo name
 	ref := "someref"
-	key := Hash("sha256", []byte("someval"))
+	key := Hash("sha256", []byte("somevalue"))
 	// fullref contains the algo name
 	fullref := fmt.Sprintf("sha256:%x", key)
 	err = db.PutRef("sha256", key, ref)
@@ -340,7 +361,7 @@ func TestGetRef(t *testing.T) {
 		t.Fatal(err)
 	}
 	ref := "someref"
-	key := Hash("sha256", []byte("someval"))
+	key := Hash("sha256", []byte("somevalue"))
 	err = db.PutRef("sha256", key, ref)
 	if err != nil {
 		t.Fatal(err)
@@ -353,7 +374,7 @@ func TestGetRef(t *testing.T) {
 		t.Fatalf("expected 'sha256', got '%s'", string(gotalgo))
 	}
 	if bytes.Compare(key, gotkey) != 0 {
-		t.Fatalf("expected %s, got %s", string(key), string(gotkey))
+		t.Fatalf("expected '%x', got '%q'", key, string(gotkey))
 	}
 }
 

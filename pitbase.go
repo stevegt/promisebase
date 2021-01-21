@@ -3,10 +3,12 @@ package pitbase
 import (
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime/debug"
+	"strings"
 	"syscall"
 
 	log "github.com/sirupsen/logrus"
@@ -305,6 +307,7 @@ func (db *Db) GetBlob(algo string, key []byte) (val []byte, err error) {
 	return
 }
 
+// Hash takes a blob and returns a hash of it using a given algorithm
 func Hash(algo string, blob []byte) (key []byte) {
 
 	// hash blob using algo
@@ -350,7 +353,29 @@ func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
 
 // GetRef takes a reference, parses the ref file, and returns the algorithm and key.
 func (db *Db) GetRef(ref string) (algo string, key []byte, err error) {
-	// XXX see last half of TestPutRef for ideas
+	// use RefPath to get path to file
+	path := db.RefPath(ref)
+	// read file XXX see last half of TestPutRef for ideas
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return
+	}
+	gotfullref := string(buf)
+	// parse out algo and key
+	refparts := strings.Split(gotfullref, ":")
+	algo = refparts[0]
+	hexkey := refparts[1]
+	// convert ascii hex string to binary bytes
+	decodedlen := hex.DecodedLen(len(hexkey))
+	key = make([]byte, decodedlen)
+	n, err := hex.Decode(key, []byte(hexkey))
+	if err != nil {
+		return
+	}
+	if n != decodedlen {
+		err = fmt.Errorf(
+			"expected %d, got %d when decoding", decodedlen, n)
+	}
 	return
 }
 
