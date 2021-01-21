@@ -137,6 +137,20 @@ func nonMissingErr(err error) error {
 func iterate(t *testing.T, db *Db, iterations int, done chan bool, key, myVal, otherVal []byte) {
 	i := 0
 	for ; i < iterations; i++ {
+		// create tmpVal by appending some random characters to myVal
+
+		// put tmpVal into a blob
+
+		// store the blob's key in a unique ref
+
+		// get the ref
+
+		// get the blob
+
+		// compare the blob we got with tmpVal
+
+		// delete the ref and the blob
+
 		err := db.PutNoLock(key, myVal)
 		if err != nil {
 			t.Fatal(err)
@@ -189,7 +203,7 @@ func TestDbLock(t *testing.T) {
 // XXX once all of the following tests are working, delete all of the
 // locking code and rename the *NoLock functions
 
-func XXXTestConcurrent(t *testing.T) {
+func TestConcurrent(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
