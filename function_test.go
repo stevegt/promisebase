@@ -419,3 +419,15 @@ func TestRefPath(t *testing.T) {
 		t.Fatalf("expected %s, got %s", path, gotpath)
 	}
 }
+
+func TestTransaction(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx := db.StartTransaction()
+
+	tx.Commit()
+
+}

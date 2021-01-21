@@ -392,3 +392,14 @@ func (db *Db) RefPath(ref string) (path string) {
 	path = fmt.Sprintf("%s/refs/%s", db.Dir, ref)
 	return
 }
+
+// StartTransaction creates a copy-on-write copy of the ref directory.
+// We clone the ref/ directory by creating a new
+// temporary directory as a subdirectory of tx/, and then hard-link
+// all of the contents.
+func (db *Db) StartTransaction() (tx *Transaction) {
+
+	// https://golang.org/pkg/io/ioutil/#TempDir
+
+	return
+}
