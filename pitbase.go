@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"syscall"
@@ -55,12 +56,21 @@ func Open(dir string) (db *Db, err error) {
 		return
 	}
 
+	// XXX use filepath.Join() for any Sprintf that's doing something like this
+	// The objects dir is where we store hashed objects
 	err = mkdir(fmt.Sprintf("%s/objects", dir))
 	if err != nil {
 		return
 	}
 
+	// we store references to hashed objects in refs
 	err = mkdir(fmt.Sprintf("%s/refs", dir))
+	if err != nil {
+		return
+	}
+
+	// we store transactions (temporary copy on write copies of the refs dir) in tx
+	err = mkdir(fmt.Sprintf("%s/tx", dir))
 	if err != nil {
 		return
 	}
@@ -342,6 +352,13 @@ func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
 	// get permanent pathname for ref
 	path := db.RefPath(ref)
 
+	// make a directory from pathname
+	dirpath, _ := filepath.Split(path)
+	err = os.MkdirAll(dirpath, 0755)
+	if err != nil {
+		return
+	}
+
 	// rename temp file to key file
 	err = os.Rename(inode.path, path)
 	if err != nil {
@@ -395,7 +412,7 @@ func (db *Db) RefPath(ref string) (path string) {
 
 type Transaction struct {
 	Db  *Db
-	Dir Inode
+	dir string
 }
 
 // StartTransaction atomically creates a copy-on-write copy of the ref directory.
@@ -408,15 +425,29 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 		return
 	}
 
-	// clone the ref/ directory by creating a new temporary directory as a subdirectory of tx/
+	// clone the refs/ directory by creating a new temporary directory as a subdirectory of tx/
 	// https://golang.org/pkg/io/ioutil/#TempDir
-
-	// tx = &Transaction{Db: db, Dir: dir}
-
-	// hard-link all of the contents, including any subdirs
+	tmpdir, err := ioutil.TempDir(filepath.Join(db.Dir, "tx"), "")
+	if err != nil {
+		return
+	}
+	tx = &Transaction{Db: db, dir: dir}
+	// hard-link all of the contents of refs into tmpdir, including any subdirs
 	// https://golang.org/pkg/path/filepath/#Walk
-	// os.Link
+	refdir := filepath.Join(db.Dir, "refs")
+	if err != nil {
+		return
+	}
+	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) {
+		hardlink(refdir, tmpdir, path, info, err)
+	})
 
+	return
+}
+
+func hardlink(refdir, tmpdir, path string, info os.FileInfo, err error) error {
+	newpath := XXX
+	err := os.Link(path, newpath)
 	return
 }
 
