@@ -440,12 +440,34 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 		return
 	}
 
-	hardlink := func(path string, info os.FileInfo, err error) {
-		// newpath := XXX use tmpdir here
-		// err := os.Link(path, newpath)
+	hardlink := func(path string, info os.FileInfo, inerr error) (err error) {
+		// we need to replace the first part of path with tmpdir
+		// for example, if path is var/refs/foo and tmpdir is var/tx/123
+		// then newpath needs to be var/tx/123/foo
+		log.Debug(path)
+		index := strings.Index(path, refdir)
+		if index != 0 {
+			err = fmt.Errorf("index: expected 0, got %d", index)
+			return
+		}
+
+		newpath := strings.Replace(path, refdir, tmpdir, 1)
+
+		if info.IsDir() {
+			err = os.MkdirAll(newpath, 0755)
+			if err != nil {
+				return
+			}
+		} else {
+			err = os.Link(path, newpath)
+			if err != nil {
+				return
+			}
+		}
+		return
 	}
 
-	err = filepath.Walk(".", hardlink)
+	err = filepath.Walk(refdir, hardlink)
 
 	return
 }
