@@ -338,6 +338,7 @@ func Hash(algo string, blob []byte) (key []byte) {
 }
 
 // PutRef creates a file, named ref, that contains the given key.
+// XXX deprecate in favor of tx.PutRef
 func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
 	// get temporary file
 	inode, err := db.tmpFile()
@@ -431,7 +432,7 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 	if err != nil {
 		return
 	}
-	tx = &Transaction{Db: db, dir: dir}
+	tx = &Transaction{Db: db, dir: tmpdir}
 	// hard-link all of the contents of refs into tmpdir, including any subdirs
 	// https://golang.org/pkg/path/filepath/#Walk
 	refdir := filepath.Join(db.Dir, "refs")
@@ -449,6 +450,13 @@ func hardlink(refdir, tmpdir, path string, info os.FileInfo, err error) error {
 	// newpath := XXX
 	// err := os.Link(path, newpath)
 	return err
+}
+
+// PutRef creates a file in tx.Dir that contains the given key.
+func (tx *Transaction) PutRef(algo string, key []byte, ref string) (err error) {
+	// XXX move most of db.PutRef into func putref(dir, algo, key, ref) and
+	// call it from db.PutRef and tx.PutRef
+	return
 }
 
 // Commit atomically renames the content of tx.Dir into db.Dir.

@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -463,7 +465,7 @@ func TestTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outref := fmt.Sprintf("ref.outside")
+	outref := "ref.outside"
 	err = db.PutRef("sha256", outkey, outref)
 	if err != nil {
 		t.Fatal(err)
@@ -473,27 +475,57 @@ func TestTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if strings.Index(tx.dir, "var/tx/") != 0 {
+		t.Fatalf("tx.dir should not be %s", tx.dir)
+	}
 
 	// create ref in our transaction
-	inref := fmt.Sprintf("ref.inside")
-	err = db.PutRef("sha256", outkey, inref)
+	inref := "ref.inside"
+	err = tx.PutRef("sha256", outkey, inref)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// XXX verify old ref is in tx.Dir
-	// XXX verify new ref is in tx.Dir
-	// XXX verify new ref is not in db.Dir
+	// verify old ref is hardlinked into tx.Dir
+	if !exists(tx.dir, outref) {
+		t.Fatalf("missing %s/%s", tx.dir, outref)
+	}
+	// verify new ref is in tx.Dir
+	if !exists(tx.dir, inref) {
+		t.Fatalf("missing %s/%s", tx.dir, outref)
+	}
+	// verify new ref is not in db.Dir
+	if exists(db.Dir, inref) {
+		t.Fatalf("found %s/refs/%s", db.Dir, inref)
+	}
+	// XXX test db.GetRef
+	// XXX test tx.GetRef
 
 	err = tx.Commit()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// XXX ensure tx.Dir is gone
 
-	// XXX verify old ref is in db.Dir
-	// XXX verify new ref is in db.Dir
+	// verify old ref is in db.Dir
+	if !exists(db.Dir, outref) {
+		t.Fatalf("missing %s/refs/%s", db.Dir, outref)
+	}
+	// verify new ref is in db.Dir
+	if !exists(db.Dir, inref) {
+		t.Fatalf("missing %s/refs/%s", db.Dir, inref)
+	}
 	// XXX verify blob content
 
+}
+
+func exists(parts ...string) (found bool) {
+	path := filepath.Join(parts...)
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
 
 func X01TestKey(t *testing.T) {
