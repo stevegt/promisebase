@@ -438,17 +438,17 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 	if err != nil {
 		return
 	}
-	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) {
-		hardlink(refdir, tmpdir, path, info, err)
+	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		return hardlink(refdir, tmpdir, path, info, err)
 	})
 
 	return
 }
 
 func hardlink(refdir, tmpdir, path string, info os.FileInfo, err error) error {
-	newpath := XXX
-	err := os.Link(path, newpath)
-	return
+	// newpath := XXX
+	// err := os.Link(path, newpath)
+	return err
 }
 
 // Commit atomically renames the content of tx.Dir into db.Dir.
@@ -468,4 +468,15 @@ func (tx *Transaction) Commit() (err error) {
 
 	return
 
+}
+
+type Key struct {
+	Algo string
+	Bin  []byte
+	Hex  string
+}
+
+// KeyFromBlob takes an algo and blob and returns a populated Key object
+func KeyFromBlob(algo string, val []byte) (key *Key) {
+	return
 }

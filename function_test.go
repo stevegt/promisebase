@@ -496,4 +496,26 @@ func TestTransaction(t *testing.T) {
 
 }
 
-// XXX change all functions to use a Key struct that contains algo, key, and hexkey
+func X01TestKey(t *testing.T) {
+	var key *Key
+
+	val := []byte("somevalue")
+	algo := "sha256"
+	bin := Hash(algo, val)
+	hex := fmt.Sprintf("%x", bin)
+	key = KeyFromBlob(algo, val)
+	if algo != key.Algo {
+		t.Fatalf("expected %s, got %s", algo, key.Algo)
+	}
+	if bytes.Compare(bin, key.Bin) != 0 {
+		t.Fatalf("expected %s, got %s", string(bin), string(key.Bin))
+	}
+	if hex != key.Hex {
+		t.Fatalf("expected %s, got %s", hex, key.Hex)
+	}
+}
+
+// XXX change all functions to use Key struct
+
+// XXX find all the places where we're passing blobs by value and
+// change them so we pass by reference
