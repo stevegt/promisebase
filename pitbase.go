@@ -439,17 +439,15 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 	if err != nil {
 		return
 	}
-	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		return hardlink(refdir, tmpdir, path, info, err)
-	})
+
+	hardlink := func(path string, info os.FileInfo, err error) {
+		// newpath := XXX use tmpdir here
+		// err := os.Link(path, newpath)
+	}
+
+	err = filepath.Walk(".", hardlink)
 
 	return
-}
-
-func hardlink(refdir, tmpdir, path string, info os.FileInfo, err error) error {
-	// newpath := XXX
-	// err := os.Link(path, newpath)
-	return err
 }
 
 // PutRef creates a file in tx.Dir that contains the given key.
