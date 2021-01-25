@@ -550,7 +550,7 @@ func X01TestKey(t *testing.T) {
 	}
 }
 
-// XXX change all functions to use Key struct
+// XXX after TestKey works, then change all functions to use Key struct
 
 // XXX find all the places where we're passing blobs by value and
-// change them so we pass by reference
+// change them so we pass by reference, for performance
