@@ -529,6 +529,8 @@ func exists(parts ...string) (found bool) {
 	return true
 }
 
+// TestKey makes sure we have a Key struct and that the KeyFromBlob
+// function works.
 func X01TestKey(t *testing.T) {
 	var key *Key
 
