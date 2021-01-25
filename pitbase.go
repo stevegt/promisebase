@@ -506,5 +506,10 @@ type Key struct {
 
 // KeyFromBlob takes an algo and blob and returns a populated Key object
 func KeyFromBlob(algo string, val []byte) (key *Key) {
+
+	// hash it and store as bin
+
+	// decode the hash and store as hex
+
 	return
 }
