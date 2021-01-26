@@ -233,7 +233,11 @@ func (db *Db) Unlock() (err error) {
 }
 
 func (db *Db) tmpFile() (inode Inode, err error) {
-	inode.fh, err = ioutil.TempFile(db.Dir, "*")
+	return tmpFile(db.Dir)
+}
+
+func tmpFile(dir string) (inode Inode, err error) {
+	inode.fh, err = ioutil.TempFile(dir, "*")
 	if err != nil {
 		return
 	}
@@ -340,7 +344,7 @@ func Hash(algo string, blob []byte) (key []byte) {
 // PutRef creates a file, named ref, that contains the given key.
 // XXX deprecate in favor of tx.PutRef
 func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
-	// get temporary file
+	/* // get temporary file
 	inode, err := db.tmpFile()
 	defer inode.Close()
 
@@ -367,6 +371,9 @@ func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
 	}
 
 	return
+	*/
+	dir := filepath.Join(db.Dir, "refs")
+	return putref(dir, algo, key, ref)
 }
 
 // GetRef takes a reference, parses the ref file, and returns the algorithm and key.
@@ -393,6 +400,9 @@ func (db *Db) GetRef(ref string) (algo string, key []byte, err error) {
 	if n != decodedlen {
 		err = fmt.Errorf(
 			"expected %d, got %d when decoding", decodedlen, n)
+		if err != nil {
+			return
+		}
 	}
 	return
 }
@@ -407,7 +417,12 @@ func (db *Db) Path(key []byte) (path string) {
 // RefPath takes a reference name and returns the pathname of the file
 // containing the reference.
 func (db *Db) RefPath(ref string) (path string) {
-	path = fmt.Sprintf("%s/refs/%s", db.Dir, ref)
+	dir := fmt.Sprintf("%s/refs", db.Dir)
+	return refPath(dir, ref)
+}
+
+func refPath(dir, ref string) (path string) {
+	path = fmt.Sprintf("%s/%s", dir, ref)
 	return
 }
 
@@ -433,24 +448,22 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 		return
 	}
 	tx = &Transaction{Db: db, dir: tmpdir}
+
+	refdir := filepath.Join(db.Dir, "refs")
+
 	// hard-link all of the contents of refs into tmpdir, including any subdirs
 	// https://golang.org/pkg/path/filepath/#Walk
-	refdir := filepath.Join(db.Dir, "refs")
-	if err != nil {
-		return
-	}
-
 	hardlink := func(path string, info os.FileInfo, inerr error) (err error) {
-		// we need to replace the first part of path with tmpdir
-		// for example, if path is var/refs/foo and tmpdir is var/tx/123
-		// then newpath needs to be var/tx/123/foo
 		log.Debug(path)
+		// make sure that path is in refdir
 		index := strings.Index(path, refdir)
 		if index != 0 {
 			err = fmt.Errorf("index: expected 0, got %d", index)
 			return
 		}
-
+		// we need to replace the first part of path with tmpdir
+		// for example, if path is var/refs/foo and tmpdir is var/tx/123
+		// then newpath needs to be var/tx/123/foo
 		newpath := strings.Replace(path, refdir, tmpdir, 1)
 
 		if info.IsDir() {
@@ -476,6 +489,37 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 func (tx *Transaction) PutRef(algo string, key []byte, ref string) (err error) {
 	// XXX move most of db.PutRef into func putref(dir, algo, key, ref) and
 	// call it from db.PutRef and tx.PutRef
+	return putref(tx.dir, algo, key, ref)
+}
+
+func putref(dir string, algo string, key []byte, ref string) (err error) {
+	// get temporary file
+	log.Debugf("calling putref: dir %s, algo %s, key %s, ref %s", dir, algo, string(key), ref)
+	inode, err := tmpFile(dir)
+	defer inode.Close()
+
+	// write to temp file
+	_, err = inode.fh.Write([]byte(fmt.Sprintf("%s:%x", algo, key)))
+	if err != nil {
+		return err
+	}
+
+	// get permanent pathname for ref
+	path := refPath(dir, ref)
+
+	// make a directory from pathname
+	dirpath, _ := filepath.Split(path)
+	err = os.MkdirAll(dirpath, 0755)
+	if err != nil {
+		return
+	}
+
+	// rename temp file to key file
+	err = os.Rename(inode.path, path)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -490,9 +534,40 @@ func (tx *Transaction) Commit() (err error) {
 		return
 	}
 
+	refdir := filepath.Join(tx.Db.Dir, "refs")
+
 	// rename all of the contents, including any subdirs
 	// https://golang.org/pkg/path/filepath/#Walk
-	// err = os.Rename(inode.path, path)
+	rename := func(path string, info os.FileInfo, inerr error) (err error) {
+
+		log.Debug(path)
+		// ensure path is in tx.dir
+		index := strings.Index(path, tx.dir)
+		if index != 0 {
+			err = fmt.Errorf("index: expected 0, got %d", index)
+			return
+		}
+		// to generate newpath, we need to rename the first part of path with refdir.
+		// for example, if path is var/tx/123/foo, tx.dir is var/tx/123 and refdir is var/refs/
+		// then newpath needs to be var/refs/foo
+		newpath := strings.Replace(path, tx.dir, refdir, 1)
+
+		if info.IsDir() {
+			err = os.MkdirAll(newpath, 0755)
+			if err != nil {
+				return
+			}
+		} else {
+			err = os.Rename(path, newpath)
+			if err != nil {
+				return
+			}
+		}
+		return
+	}
+
+	err = filepath.Walk(tx.dir, rename)
+	//XXX remove files in tx after rename
 
 	return
 

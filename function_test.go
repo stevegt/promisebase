@@ -459,6 +459,8 @@ func TestTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	refdir := filepath.Join(db.Dir, "refs")
+
 	// create blob and ref not in our transaction
 	outval := []byte(fmt.Sprintf("value.outside"))
 	outkey, err := db.PutBlob("sha256", outval)
@@ -493,11 +495,11 @@ func TestTransaction(t *testing.T) {
 
 	// verify new ref is in tx.Dir
 	if !exists(tx.dir, inref) {
-		t.Fatalf("missing %s/%s", tx.dir, outref)
+		t.Fatalf("missing %s/%s", tx.dir, inref)
 	}
 	// verify new ref is not in db.Dir
-	if exists(db.Dir, inref) {
-		t.Fatalf("found %s/refs/%s", db.Dir, inref)
+	if exists(refdir, inref) {
+		t.Fatalf("found %s/%s", refdir, inref)
 	}
 	// XXX test db.GetRef
 	// XXX test tx.GetRef
@@ -509,12 +511,12 @@ func TestTransaction(t *testing.T) {
 	// XXX ensure tx.Dir is gone
 
 	// verify old ref is in db.Dir
-	if !exists(db.Dir, outref) {
-		t.Fatalf("missing %s/refs/%s", db.Dir, outref)
+	if !exists(refdir, outref) {
+		t.Fatalf("missing %s/%s", refdir, outref)
 	}
 	// verify new ref is in db.Dir
-	if !exists(db.Dir, inref) {
-		t.Fatalf("missing %s/refs/%s", db.Dir, inref)
+	if !exists(refdir, inref) {
+		t.Fatalf("missing %s/%s", refdir, inref)
 	}
 	// XXX verify blob content
 
