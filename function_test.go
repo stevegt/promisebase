@@ -22,6 +22,7 @@ func TestNotExist(t *testing.T) {
 	}
 }
 
+/*
 func TestPut(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -82,7 +83,7 @@ func TestRm(t *testing.T) {
 		t.Fatalf("key not deleted: %s", key)
 	}
 }
-
+*/
 func TestOpenKey(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -104,25 +105,79 @@ func TestOpenKey(t *testing.T) {
 	}
 }
 
-func XXXiterateLock(t *testing.T, db *Db, iterations int, done chan bool, key, myVal, otherVal []byte) {
+func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, otherblob []byte) {
 	for i := 0; i < iterations; i++ {
-		err := db.Put(key, myVal)
+		// store a blob
+		key, err := db.PutBlob("sha256", myblob)
 		if err != nil {
 			t.Fatal(err)
 		}
-		got, err := db.Get(key)
+		// start a transaction so we're isolated
+		tx, err := db.StartTransaction()
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = db.Rm(key)
+		// inside transaction 1
+		// try to create a conflict by putting the blob's key in the
+		// same ref that the other goroutine is using
+		err = tx.PutRef("sha256", key, "iterate")
 		if err != nil {
 			t.Fatal(err)
 		}
+		// get the ref
+		gotalgo, gotkey, err := tx.GetRef("iterate")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gotalgo != "sha256" {
+			t.Fatalf("expected 'sha256', got '%s'", string(gotalgo))
+		}
+		// get the blob
+		gotblob, err := db.GetBlob("sha256", gotkey)
+		// compare the blob we put with the one we got
+		if bytes.Compare(myblob, gotblob) != 0 {
+			t.Fatalf("expected %s, got %s", string(myblob), string(gotblob))
+		}
+		// XXX deal with the case of removing a blob inside a
+		// transaction -- do we use gc, or do we replay a log?
+		// XXX if we support delete, then how do we ensure WORM?
+		err = tx.Commit()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// end transaction 1
+
+		// start transaction 2
+		// new transaction should pick up whatever is in db now
+		tx, err = db.StartTransaction()
+		if err != nil {
+			// XXX  A  call  to  flock()  may block if an incompatible lock is held by another process.
+			// To make a nonblocking request, include LOCK_NB (by ORing) with any of the above operations.
+			// syscall.Flock(int(db.locknode.fd), syscall.LOCK_EX | syscall.LOCK_NB)
+			t.Fatal(err)
+		}
+		// get the ref
+		gotalgo, gotkey, err = tx.GetRef("iterate")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gotalgo != "sha256" {
+			t.Fatalf("expected 'sha256', got '%s'", string(gotalgo))
+		}
+		// get the blob
+		gotblob, err = db.GetBlob("sha256", gotkey)
+		// compare the blob we put with the one we got
 		// the result must be either A or B, otherwise it's
-		// corrupt due to a lack of locking in Put() or Get()
-		if bytes.Compare(myVal, got) != 0 && bytes.Compare(otherVal, got) != 0 {
-			t.Fatalf("expected %s or %s, got %s", string(myVal), string(otherVal), string(got))
+		// corrupt due to something wrong in Commit()
+		if bytes.Compare(myblob, gotblob) != 0 && bytes.Compare(otherblob, gotblob) != 0 {
+			t.Fatalf("expected %s or %s, got %s", string(myblob), string(otherblob), string(gotblob))
 		}
+		err = tx.Commit()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// end transaction 2
+
 	}
 	done <- true
 }
@@ -137,7 +192,7 @@ func nonMissingErr(err error) error {
 	return err
 }
 
-func iterate(t *testing.T, db *Db, iterations int, done chan bool, myVal []byte) {
+func XXXiterate(t *testing.T, db *Db, iterations int, done chan bool, myVal []byte) {
 	i := 0
 	for ; i < iterations; i++ {
 		// create tmpVal by appending some random characters to myVal
@@ -204,7 +259,7 @@ func TestDbLock(t *testing.T) {
 // XXX once all of the following tests are working, delete all of the
 // locking code and rename the *NoLock functions
 
-func XXXTestConcurrent(t *testing.T) {
+func TestConcurrent(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -217,8 +272,8 @@ func XXXTestConcurrent(t *testing.T) {
 
 	// attempt to cause collisions by having both A and B do concurrent reads and writes
 	iterations := 2000
-	go iterate(t, db, iterations, doneA, valA)
-	go iterate(t, db, iterations, doneB, valB)
+	go iterate(t, db, iterations, doneA, valA, valB)
+	go iterate(t, db, iterations, doneB, valB, valA)
 
 	<-doneA
 	<-doneB
@@ -501,14 +556,24 @@ func TestTransaction(t *testing.T) {
 	if exists(refdir, inref) {
 		t.Fatalf("found %s/%s", refdir, inref)
 	}
+
+	gotalgo, gotkey, err := tx.GetRef(inref)
+	if gotalgo != "sha256" {
+		t.Fatalf("expected 'sha256', got '%s'", string(gotalgo))
+	}
+	if bytes.Compare(outkey, gotkey) != 0 {
+		t.Fatalf("expected key %q, got %q", outkey, gotkey)
+	}
+
 	// XXX test db.GetRef
-	// XXX test tx.GetRef
 
 	err = tx.Commit()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	// XXX ensure tx.Dir is gone
+	// XXX ensure call to tx.* fails gracefully
 
 	// verify old ref is in db.Dir
 	if !exists(refdir, outref) {
@@ -522,14 +587,9 @@ func TestTransaction(t *testing.T) {
 
 }
 
-func exists(parts ...string) (found bool) {
-	path := filepath.Join(parts...)
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
+// XXX redefine "key" to mean the path to a blob, tree, or ref
+// XXX change ref format accordingly
+// XXX change key struct accordingly
 
 // TestKey makes sure we have a Key struct and that the KeyFromBlob
 // function works.
@@ -556,3 +616,40 @@ func X01TestKey(t *testing.T) {
 
 // XXX find all the places where we're passing blobs by value and
 // change them so we pass by reference, for performance
+
+/*
+// Experiment with a merkle tree implementation.
+//
+// XXX ensure we're not vulnerable to https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
+func TestTree(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ref does not contain the algo name
+	ref := "someref"
+	key := Hash("sha256", []byte("somevalue"))
+	// fullref contains the algo name
+	fullref := fmt.Sprintf("sha256:%x", key)
+	err = db.PutRef("sha256", key, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf, err := ioutil.ReadFile("var/refs/someref")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotfullref := string(buf)
+	if fullref != gotfullref {
+		t.Fatalf("expected %s, got %s", fullref, gotfullref)
+	}
+}
+*/
+
+// XXX if merkle tree works, then refactor refs to just be hard links
+// to merkle tree nodes?
+
+// XXX rollback()
+
+// XXX deprecate db methods that are in tx

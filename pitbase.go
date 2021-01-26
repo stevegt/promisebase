@@ -1,6 +1,7 @@
 package pitbase
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
@@ -8,17 +9,20 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime/debug"
+	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
 // Db is a key-value database
 type Db struct {
-	Dir   string
-	inode Inode
+	Dir string
+	// inode Inode
+	locknode Inode
 }
 
 // Inode contains various file-related items such as file descriptor,
@@ -35,6 +39,25 @@ func init() {
 	debug = os.Getenv("DEBUG")
 	if debug == "1" {
 		log.SetLevel(log.DebugLevel)
+	}
+	logrus.SetReportCaller(true)
+	formatter := &logrus.TextFormatter{
+		CallerPrettyfier: caller(),
+		FieldMap: logrus.FieldMap{
+			logrus.FieldKeyFile: "caller",
+		},
+	}
+	formatter.TimestampFormat = "15:04:05.999999999"
+	logrus.SetFormatter(formatter)
+}
+
+// caller returns string presentation of log caller which is formatted as
+// `/path/to/file.go:line_number`. e.g. `/internal/app/api.go:25`
+// https://stackoverflow.com/questions/63658002/is-it-possible-to-wrap-logrus-logger-functions-without-losing-the-line-number-pr
+func caller() func(*runtime.Frame) (function string, file string) {
+	return func(f *runtime.Frame) (function string, file string) {
+		p, _ := os.Getwd()
+		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, getGID())
 	}
 }
 
@@ -76,16 +99,32 @@ func Open(dir string) (db *Db, err error) {
 	}
 
 	db.Dir = dir
-	db.inode, err = db.openKey([]byte(""), os.O_RDONLY)
+
+	// create a lock file
+	// XXX move openKey() guts into an inode constructor and
+	// call that here
+	db.locknode = Inode{
+		path: filepath.Join(dir, ".lock"),
+	}
+	err = touch(db.locknode.path)
 	if err != nil {
 		return
 	}
-	db.inode.fd = db.inode.fh.Fd()
+	db.locknode.fh, err = os.OpenFile(db.locknode.path, os.O_RDONLY, 0644)
+	if err != nil {
+		return
+	}
+	db.locknode.fd = db.locknode.fh.Fd()
+
 	return
 }
 
+func touch(path string) error {
+	return ioutil.WriteFile(path, []byte(""), 0644)
+}
+
 // Put creates a file for each key and assigns a value in each file.
-func (db *Db) Put(key []byte, val []byte) (err error) {
+func (db *Db) XXXPut(key []byte, val []byte) (err error) {
 	// enter critical section: lock entire db
 	err = db.ExLock()
 	if err != nil {
@@ -117,7 +156,7 @@ func (db *Db) Put(key []byte, val []byte) (err error) {
 }
 
 // Get retrieves the value of a specific key by reading its file contents.
-func (db *Db) Get(key []byte) (val []byte, err error) {
+func (db *Db) XXXGet(key []byte) (val []byte, err error) {
 	// lock db
 	err = db.ShLock()
 	if err != nil {
@@ -184,10 +223,10 @@ func (inode *Inode) ilock(locktype int) (err error) {
 }
 
 func (db *Db) lock(locktype int) (err error) {
-	log.Debugf("db.lock starting %+v:%d", db, locktype)
-	err = syscall.Flock(int(db.inode.fd), locktype)
-	log.Debug("db.lock finishing")
-	log.Debug(string(debug.Stack()))
+	log.Debugf("db.lock starting db %+v fd %v locktype %v", db, db.locknode.fd, locktype)
+	err = syscall.Flock(int(db.locknode.fd), locktype)
+	log.Debugf("db.lock finishing, err=%#v", err)
+	// log.Debug(string(debug.Stack()))
 	return
 }
 
@@ -227,7 +266,7 @@ func (db *Db) ShLock() (err error) {
 // Unlock uses syscall.Flock to unlock (LOCK_UN) the database
 func (db *Db) Unlock() (err error) {
 	log.Debug("db.Unlock starting")
-	err = syscall.Flock(int(db.inode.fd), syscall.LOCK_UN)
+	err = syscall.Flock(int(db.locknode.fd), syscall.LOCK_UN)
 	log.Debug("db.Unlock finishing")
 	return
 }
@@ -378,33 +417,8 @@ func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
 
 // GetRef takes a reference, parses the ref file, and returns the algorithm and key.
 func (db *Db) GetRef(ref string) (algo string, key []byte, err error) {
-	// use RefPath to get path to file
-	path := db.RefPath(ref)
-	// read file XXX see last half of TestPutRef for ideas
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return
-	}
-	gotfullref := string(buf)
-	// parse out algo and key
-	refparts := strings.Split(gotfullref, ":")
-	algo = refparts[0]
-	hexkey := refparts[1]
-	// convert ascii hex string to binary bytes
-	decodedlen := hex.DecodedLen(len(hexkey))
-	key = make([]byte, decodedlen)
-	n, err := hex.Decode(key, []byte(hexkey))
-	if err != nil {
-		return
-	}
-	if n != decodedlen {
-		err = fmt.Errorf(
-			"expected %d, got %d when decoding", decodedlen, n)
-		if err != nil {
-			return
-		}
-	}
-	return
+	dir := filepath.Join(db.Dir, "refs")
+	return getref(dir, ref)
 }
 
 // Path takes a key containing arbitrary 8-bit bytes and returns a safe
@@ -436,7 +450,7 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 
 	// make atomic by getting a shared lock
 	defer db.Unlock()
-	err = db.ShLock()
+	err = db.ExLock()
 	if err != nil {
 		return
 	}
@@ -448,13 +462,17 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 		return
 	}
 	tx = &Transaction{Db: db, dir: tmpdir}
+	log.Debug("transaction started in ", tmpdir)
 
 	refdir := filepath.Join(db.Dir, "refs")
 
 	// hard-link all of the contents of refs into tmpdir, including any subdirs
 	// https://golang.org/pkg/path/filepath/#Walk
 	hardlink := func(path string, info os.FileInfo, inerr error) (err error) {
-		log.Debug(path)
+		if inerr != nil {
+			log.Debug("inerr ", inerr)
+			return inerr
+		}
 		// make sure that path is in refdir
 		index := strings.Index(path, refdir)
 		if index != 0 {
@@ -467,13 +485,21 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 		newpath := strings.Replace(path, refdir, tmpdir, 1)
 
 		if info.IsDir() {
+			log.Debug("mkdir ", newpath)
 			err = os.MkdirAll(newpath, 0755)
 			if err != nil {
 				return
 			}
 		} else {
+			log.Debug("linking path ", path, " newpath ", newpath)
 			err = os.Link(path, newpath)
 			if err != nil {
+				if !exists(path) {
+					panic("path missing")
+				}
+				if !exists(tmpdir) {
+					panic("tmpdir missing")
+				}
 				return
 			}
 		}
@@ -485,11 +511,23 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 	return
 }
 
+func exists(parts ...string) (found bool) {
+	path := filepath.Join(parts...)
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 // PutRef creates a file in tx.Dir that contains the given key.
 func (tx *Transaction) PutRef(algo string, key []byte, ref string) (err error) {
-	// XXX move most of db.PutRef into func putref(dir, algo, key, ref) and
-	// call it from db.PutRef and tx.PutRef
 	return putref(tx.dir, algo, key, ref)
+}
+
+// GetRef takes a reference, parses the ref file, and returns the algorithm and key.
+func (tx *Transaction) GetRef(ref string) (algo string, key []byte, err error) {
+	return getref(tx.dir, ref)
 }
 
 func putref(dir string, algo string, key []byte, ref string) (err error) {
@@ -520,6 +558,34 @@ func putref(dir string, algo string, key []byte, ref string) (err error) {
 		return
 	}
 
+	return
+}
+
+func getref(dir string, ref string) (algo string, key []byte, err error) {
+	path := refPath(dir, ref)
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return
+	}
+	fullref := string(buf)
+	// parse out algo and key
+	refparts := strings.Split(fullref, ":")
+	algo = refparts[0]
+	hexkey := refparts[1]
+	// convert ascii hex string to binary bytes
+	decodedlen := hex.DecodedLen(len(hexkey))
+	key = make([]byte, decodedlen)
+	n, err := hex.Decode(key, []byte(hexkey))
+	if err != nil {
+		return
+	}
+	if n != decodedlen {
+		err = fmt.Errorf(
+			"expected %d, got %d when decoding", decodedlen, n)
+		if err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -558,7 +624,9 @@ func (tx *Transaction) Commit() (err error) {
 				return
 			}
 		} else {
+			log.Debug("start renaming path ", path, " newpath ", newpath)
 			err = os.Rename(path, newpath)
+			log.Debug("finish renaming path ", path, " newpath ", newpath)
 			if err != nil {
 				return
 			}
@@ -573,10 +641,13 @@ func (tx *Transaction) Commit() (err error) {
 
 }
 
+// Key is a relative path to an object.  An object is a blob, tree, or
+// ref.
 type Key struct {
-	Algo string
-	Bin  []byte
-	Hex  string
+	Class string
+	Algo  string
+	Bin   []byte
+	Hex   string
 }
 
 // KeyFromBlob takes an algo and blob and returns a populated Key object
@@ -587,4 +658,13 @@ func KeyFromBlob(algo string, val []byte) (key *Key) {
 	// decode the hash and store as hex
 
 	return
+}
+
+func getGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
 }
