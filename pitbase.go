@@ -282,14 +282,14 @@ func tmpFile(dir string) (inode Inode, err error) {
 }
 
 // PutNoLock creates a temporary file for a key and then atomically renames to the permanent path.
-func (db *Db) PutNoLock(key []byte, val []byte) (err error) {
+func (db *Db) PutNoLock(key []byte, val *[]byte) (err error) {
 
 	// get temporary file
 	inode, err := db.tmpFile()
 	defer inode.Close()
 
 	// write to temp file
-	_, err = inode.fh.Write(val)
+	_, err = inode.fh.Write(*val)
 	if err != nil {
 		return err
 	}
@@ -336,7 +336,7 @@ func (db *Db) RmNoLock(key []byte) (err error) {
 
 // PutBlob hashes the blob if needed, stores the blob in a file named after the hash,
 // and returns the hash.
-func (db *Db) PutBlob(algo string, blob []byte) (key []byte, err error) {
+func (db *Db) PutBlob(algo string, blob *[]byte) (key []byte, err error) {
 	key = Hash(algo, blob)
 
 	// check if it's already stored
@@ -357,18 +357,18 @@ func (db *Db) GetBlob(algo string, key []byte) (val []byte, err error) {
 }
 
 // Hash takes a blob and returns a hash of it using a given algorithm
-func Hash(algo string, blob []byte) (key []byte) {
+func Hash(algo string, blob *[]byte) (key []byte) {
 
 	// hash blob using algo
 	switch algo {
 	case "sha256":
-		k := sha256.Sum256(blob)
+		k := sha256.Sum256(*blob)
 		key = make([]byte, len(k))
 		log.Debugf("k type: %T, k length: %d, k value: %x", k, k, k)
 		copy(key[:], k[0:len(k)])
 		log.Debugf("finished sha256 case, key %v, k %v", key, k)
 	case "sha512":
-		k := sha512.Sum512(blob)
+		k := sha512.Sum512(*blob)
 		copy(key, k[:])
 	default:
 		fmt.Errorf("not implemented: %s", algo)

@@ -105,7 +105,7 @@ func TestOpenKey(t *testing.T) {
 	}
 }
 
-func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, otherblob []byte) {
+func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, otherblob *[]byte) {
 	for i := 0; i < iterations; i++ {
 		// store a blob
 		key, err := db.PutBlob("sha256", myblob)
@@ -135,8 +135,8 @@ func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, other
 		// get the blob
 		gotblob, err := db.GetBlob("sha256", gotkey)
 		// compare the blob we put with the one we got
-		if bytes.Compare(myblob, gotblob) != 0 {
-			t.Fatalf("expected %s, got %s", string(myblob), string(gotblob))
+		if bytes.Compare(*myblob, gotblob) != 0 {
+			t.Fatalf("expected %s, got %s", string(*myblob), string(gotblob))
 		}
 		// XXX deal with the case of removing a blob inside a
 		// transaction -- do we use gc, or do we replay a log?
@@ -169,8 +169,8 @@ func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, other
 		// compare the blob we put with the one we got
 		// the result must be either A or B, otherwise it's
 		// corrupt due to something wrong in Commit()
-		if bytes.Compare(myblob, gotblob) != 0 && bytes.Compare(otherblob, gotblob) != 0 {
-			t.Fatalf("expected %s or %s, got %s", string(myblob), string(otherblob), string(gotblob))
+		if bytes.Compare(*myblob, gotblob) != 0 && bytes.Compare(*otherblob, gotblob) != 0 {
+			t.Fatalf("expected %s or %s, got %s", string(*myblob), string(*otherblob), string(gotblob))
 		}
 		err = tx.Commit()
 		if err != nil {
@@ -198,7 +198,7 @@ func XXXiterate(t *testing.T, db *Db, iterations int, done chan bool, myVal []by
 		// create tmpVal by appending some random characters to myVal
 		tmpVal := []byte(fmt.Sprintf("%s.%d", string(myVal), rand.Uint64()))
 		// put tmpVal into a blob
-		key, err := db.PutBlob("sha256", tmpVal)
+		key, err := db.PutBlob("sha256", &tmpVal)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -259,14 +259,19 @@ func TestDbLock(t *testing.T) {
 // XXX once all of the following tests are working, delete all of the
 // locking code and rename the *NoLock functions
 
+func mkblob(s string) *[]byte {
+	tmp := []byte(s)
+	return &tmp
+}
+
 func TestConcurrent(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// key := []byte("somekey")
-	valA := []byte("valueA")
-	valB := []byte("valueB")
+	valA := mkblob("valueA")
+	valB := mkblob("valueB")
 	doneA := make(chan bool)
 	doneB := make(chan bool)
 
@@ -285,7 +290,7 @@ func TestPutNoLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := []byte("somekey")
-	val := []byte("somevalue")
+	val := mkblob("somevalue")
 	err = db.PutNoLock(key, val)
 	if err != nil {
 		t.Fatal(err)
@@ -294,8 +299,8 @@ func TestPutNoLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
+	if bytes.Compare(*val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(*val), string(got))
 	}
 }
 
@@ -305,7 +310,7 @@ func TestGetNoLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := []byte("somekey")
-	val := []byte("somevalue")
+	val := mkblob("somevalue")
 	err = db.PutNoLock(key, val)
 	if err != nil {
 		t.Fatal(err)
@@ -314,8 +319,8 @@ func TestGetNoLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
+	if bytes.Compare(*val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(*val), string(got))
 	}
 }
 
@@ -325,7 +330,7 @@ func TestRmNoLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := []byte("somekey")
-	val := []byte("somevalue")
+	val := mkblob("somevalue")
 	err = db.PutNoLock(key, val)
 	if err != nil {
 		t.Fatal(err)
@@ -345,8 +350,8 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	val := []byte("somevalue")
-	k := sha256.Sum256(val)
+	val := mkblob("somevalue")
+	k := sha256.Sum256(*val)
 	key := make([]byte, len(k))
 	copy(key[:], k[0:len(k)])
 	gotkey, err := db.PutBlob("sha256", val)
@@ -360,15 +365,15 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
+	if bytes.Compare(*val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(*val), string(got))
 	}
 }
 
 func TestHash(t *testing.T) {
 	algo := "sha256"
-	val := []byte("somevalue")
-	k := sha256.Sum256(val)
+	val := mkblob("somevalue")
+	k := sha256.Sum256(*val)
 	key := make([]byte, len(k))
 	copy(key[:], k[0:len(k)])
 	gotkey := Hash(algo, val)
@@ -382,7 +387,7 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	val := []byte("somevalue")
+	val := mkblob("somevalue")
 	key := Hash("sha256", val)
 	gotkey, err := db.PutBlob("sha256", val)
 	if err != nil {
@@ -395,8 +400,8 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
+	if bytes.Compare(*val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(*val), string(got))
 	}
 }
 
@@ -408,7 +413,7 @@ func TestPutRef(t *testing.T) {
 
 	// ref does not contain the algo name
 	ref := "someref"
-	key := Hash("sha256", []byte("somevalue"))
+	key := Hash("sha256", mkblob("somevalue"))
 	// fullref contains the algo name
 	fullref := fmt.Sprintf("sha256:%x", key)
 	err = db.PutRef("sha256", key, ref)
@@ -431,7 +436,7 @@ func TestGetRef(t *testing.T) {
 		t.Fatal(err)
 	}
 	ref := "someref"
-	key := Hash("sha256", []byte("somevalue"))
+	key := Hash("sha256", mkblob("somevalue"))
 	err = db.PutRef("sha256", key, ref)
 	if err != nil {
 		t.Fatal(err)
@@ -453,7 +458,7 @@ func TestSubRef(t *testing.T) {
 		t.Fatal(err)
 	}
 	ref := "somedir/someref"
-	key := Hash("sha256", []byte("somevalue"))
+	key := Hash("sha256", mkblob("somevalue"))
 	err = db.PutRef("sha256", key, ref)
 	if err != nil {
 		t.Fatal(err)
@@ -485,7 +490,7 @@ func TestPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	val := []byte("somevalue")
+	val := mkblob("somevalue")
 	key := Hash("sha256", val)
 	path := "var/objects/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
 	gotpath := db.Path(key)
@@ -517,7 +522,7 @@ func TestTransaction(t *testing.T) {
 	refdir := filepath.Join(db.Dir, "refs")
 
 	// create blob and ref not in our transaction
-	outval := []byte(fmt.Sprintf("value.outside"))
+	outval := mkblob(fmt.Sprintf("value.outside"))
 	outkey, err := db.PutBlob("sha256", outval)
 	if err != nil {
 		t.Fatal(err)
@@ -596,11 +601,11 @@ func TestTransaction(t *testing.T) {
 func X01TestKey(t *testing.T) {
 	var key *Key
 
-	val := []byte("somevalue")
+	val := mkblob("somevalue")
 	algo := "sha256"
 	bin := Hash(algo, val)
 	hex := fmt.Sprintf("%x", bin)
-	key = KeyFromBlob(algo, val)
+	key = KeyFromBlob(algo, *val)
 	if algo != key.Algo {
 		t.Fatalf("expected %s, got %s", algo, key.Algo)
 	}
