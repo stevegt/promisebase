@@ -237,19 +237,19 @@ func TestDbLock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = db.ExLock()
+	locknode, err := db.ExLock()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.Unlock()
+	err = locknode.Unlock()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.ShLock()
+	locknode, err = db.ShLock()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.Unlock()
+	err = locknode.Unlock()
 	if err != nil {
 		t.Fatal(err)
 	}

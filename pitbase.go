@@ -123,14 +123,15 @@ func touch(path string) error {
 	return ioutil.WriteFile(path, []byte(""), 0644)
 }
 
+/*
 // Put creates a file for each key and assigns a value in each file.
 func (db *Db) XXXPut(key []byte, val []byte) (err error) {
 	// enter critical section: lock entire db
-	err = db.ExLock()
+	locknode, err = db.ExLock()
 	if err != nil {
 		return err
 	}
-	defer db.Unlock()
+	defer locknode.Unlock()
 	// get inode
 	inode, err := db.openKey(key, os.O_WRONLY|os.O_CREATE)
 	if err != nil {
@@ -198,6 +199,7 @@ func (db *Db) Rm(key []byte) (err error) {
 	}
 	return
 }
+*/
 
 func (db *Db) openKey(key []byte, flag int) (inode Inode, err error) {
 	inode.key = key
@@ -222,9 +224,11 @@ func (inode *Inode) ilock(locktype int) (err error) {
 	return
 }
 
-func (db *Db) lock(locktype int) (err error) {
+func (db *Db) lock(locktype int) (inode *Inode, err error) {
 	log.Debugf("db.lock starting db %+v fd %v locktype %v", db, db.locknode.fd, locktype)
-	err = syscall.Flock(int(db.locknode.fd), locktype)
+	fh, err := os.OpenFile(db.locknode.path, os.O_RDONLY, 0644)
+	inode = &Inode{fd: fh.Fd()}
+	err = syscall.Flock(int(inode.fd), locktype)
 	log.Debugf("db.lock finishing, err=%#v", err)
 	// log.Debug(string(debug.Stack()))
 	return
@@ -253,22 +257,14 @@ func (inode *Inode) Unlock() (err error) {
 
 // ExLock uses syscall.Flock to get an exclusive lock (LOCK_EX)
 // on the database
-func (db *Db) ExLock() (err error) {
+func (db *Db) ExLock() (inode *Inode, err error) {
 	return db.lock(syscall.LOCK_EX)
 }
 
 // ShLock uses syscall.Flock to get a shared lock (LOCK_SH) on
 // the database
-func (db *Db) ShLock() (err error) {
+func (db *Db) ShLock() (inode *Inode, err error) {
 	return db.lock(syscall.LOCK_SH)
-}
-
-// Unlock uses syscall.Flock to unlock (LOCK_UN) the database
-func (db *Db) Unlock() (err error) {
-	log.Debug("db.Unlock starting")
-	err = syscall.Flock(int(db.locknode.fd), syscall.LOCK_UN)
-	log.Debug("db.Unlock finishing")
-	return
 }
 
 func (db *Db) tmpFile() (inode Inode, err error) {
@@ -449,11 +445,11 @@ type Transaction struct {
 func (db *Db) StartTransaction() (tx *Transaction, err error) {
 
 	// make atomic by getting a shared lock
-	defer db.Unlock()
-	err = db.ExLock()
+	locknode, err := db.ExLock()
 	if err != nil {
 		return
 	}
+	defer locknode.Unlock()
 
 	// clone the refs/ directory by creating a new temporary directory as a subdirectory of tx/
 	// https://golang.org/pkg/io/ioutil/#TempDir
@@ -594,11 +590,11 @@ func getref(dir string, ref string) (algo string, key []byte, err error) {
 func (tx *Transaction) Commit() (err error) {
 
 	// make atomic by getting an exclusive lock
-	defer tx.Db.Unlock()
-	err = tx.Db.ExLock()
+	locknode, err := tx.Db.ExLock()
 	if err != nil {
 		return
 	}
+	defer locknode.Unlock()
 
 	refdir := filepath.Join(tx.Db.Dir, "refs")
 
