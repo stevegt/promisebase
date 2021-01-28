@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 minpct=80
-cmd="go test -v -timeout 10s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
+cmd="go test -v -timeout 20s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
 tmp=/tmp/$$
 
 $cmd 2>&1 | tee $tmp  
@@ -17,7 +17,7 @@ then
 	exit 1
 fi
 
-if test "$pct" -le "$minpct"  
+if test "$pct" -lt "$minpct"  
 then
 	echo FAIL coverage less than $minpct
 	exit 1

@@ -635,6 +635,13 @@ func TestKey(t *testing.T) {
 	}
 }
 
+func TestGetGID(t *testing.T) {
+	n := getGID()
+	if n == 0 {
+		t.Fatalf("oh no n is 0")
+	}
+}
+
 // XXX after TestKey works, then change all functions to use Key struct
 
 // XXX find all the places where we're passing blobs by value and
