@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -31,7 +30,7 @@ type Inode struct {
 	fd   uintptr
 	fh   *os.File
 	path string
-	key  []byte
+	key  *Key
 }
 
 func init() {
@@ -80,13 +79,13 @@ func Open(dir string) (db *Db, err error) {
 	}
 
 	// XXX use filepath.Join() for any Sprintf that's doing something like this
-	// The objects dir is where we store hashed objects
-	err = mkdir(fmt.Sprintf("%s/objects", dir))
+	// The blob dir is where we store hashed blobs
+	err = mkdir(fmt.Sprintf("%s/blob", dir))
 	if err != nil {
 		return
 	}
 
-	// we store references to hashed objects in refs
+	// we store references to hashed blobs in refs
 	err = mkdir(fmt.Sprintf("%s/refs", dir))
 	if err != nil {
 		return
@@ -201,7 +200,7 @@ func (db *Db) Rm(key []byte) (err error) {
 }
 */
 
-func (db *Db) openKey(key []byte, flag int) (inode Inode, err error) {
+func (db *Db) XXXopenKey(key *Key, flag int) (inode Inode, err error) {
 	inode.key = key
 	inode.path = db.Path(key)
 	inode.fh, err = os.OpenFile(inode.path, flag, 0644)
@@ -282,7 +281,7 @@ func tmpFile(dir string) (inode Inode, err error) {
 }
 
 // PutNoLock creates a temporary file for a key and then atomically renames to the permanent path.
-func (db *Db) PutNoLock(key []byte, val *[]byte) (err error) {
+func (db *Db) PutNoLock(key *Key, val *[]byte) (err error) {
 
 	// get temporary file
 	inode, err := db.tmpFile()
@@ -297,6 +296,11 @@ func (db *Db) PutNoLock(key []byte, val *[]byte) (err error) {
 	// get permanent pathname for key
 	path := db.Path(key)
 
+	dir, _ := filepath.Split(path)
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return
+	}
 	// rename temp file to key file
 	err = os.Rename(inode.path, path)
 	if err != nil {
@@ -307,13 +311,8 @@ func (db *Db) PutNoLock(key []byte, val *[]byte) (err error) {
 }
 
 // GetNoLock retrieves the value of a key by reading its file contents.
-func (db *Db) GetNoLock(key []byte) (val []byte, err error) {
-	inode, err := db.openKey(key, os.O_RDONLY)
-	if err != nil {
-		return
-	}
-	defer inode.Close()
-	val, err = ioutil.ReadAll(inode.fh)
+func (db *Db) GetNoLock(key *Key) (val []byte, err error) {
+	val, err = ioutil.ReadFile(db.Path(key))
 	if err != nil {
 		return
 	}
@@ -321,13 +320,8 @@ func (db *Db) GetNoLock(key []byte) (val []byte, err error) {
 }
 
 //RmNoLock removes... without a lock..
-func (db *Db) RmNoLock(key []byte) (err error) {
-	inode, err := db.openKey(key, os.O_RDONLY)
-	if err != nil {
-		return err
-	}
-	defer inode.Close()
-	err = os.Remove(inode.path)
+func (db *Db) RmNoLock(key *Key) (err error) {
+	err = os.Remove(db.Path(key))
 	if err != nil {
 		return err
 	}
@@ -336,8 +330,11 @@ func (db *Db) RmNoLock(key []byte) (err error) {
 
 // PutBlob hashes the blob if needed, stores the blob in a file named after the hash,
 // and returns the hash.
-func (db *Db) PutBlob(algo string, blob *[]byte) (key []byte, err error) {
-	key = Hash(algo, blob)
+func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
+	key, err = KeyFromBlob(algo, blob)
+	if err != nil {
+		return
+	}
 
 	// check if it's already stored
 	// XXX
@@ -351,76 +348,28 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key []byte, err error) {
 }
 
 // GetBlob returns the content of the file referenced by key
-func (db *Db) GetBlob(algo string, key []byte) (val []byte, err error) {
+func (db *Db) GetBlob(algo string, key *Key) (val []byte, err error) {
 	val, err = db.GetNoLock(key)
-	return
-}
-
-// Hash takes a blob and returns a hash of it using a given algorithm
-func Hash(algo string, blob *[]byte) (key []byte) {
-
-	// hash blob using algo
-	switch algo {
-	case "sha256":
-		k := sha256.Sum256(*blob)
-		key = make([]byte, len(k))
-		log.Debugf("k type: %T, k length: %d, k value: %x", k, k, k)
-		copy(key[:], k[0:len(k)])
-		log.Debugf("finished sha256 case, key %v, k %v", key, k)
-	case "sha512":
-		k := sha512.Sum512(*blob)
-		copy(key, k[:])
-	default:
-		fmt.Errorf("not implemented: %s", algo)
-	}
 	return
 }
 
 // PutRef creates a file, named ref, that contains the given key.
 // XXX deprecate in favor of tx.PutRef
-func (db *Db) PutRef(algo string, key []byte, ref string) (err error) {
-	/* // get temporary file
-	inode, err := db.tmpFile()
-	defer inode.Close()
-
-	// write to temp file
-	_, err = inode.fh.Write([]byte(fmt.Sprintf("%s:%x", algo, key)))
-	if err != nil {
-		return err
-	}
-
-	// get permanent pathname for ref
-	path := db.RefPath(ref)
-
-	// make a directory from pathname
-	dirpath, _ := filepath.Split(path)
-	err = os.MkdirAll(dirpath, 0755)
-	if err != nil {
-		return
-	}
-
-	// rename temp file to key file
-	err = os.Rename(inode.path, path)
-	if err != nil {
-		return
-	}
-
-	return
-	*/
+func (db *Db) PutRef(key *Key, ref string) (err error) {
 	dir := filepath.Join(db.Dir, "refs")
-	return putref(dir, algo, key, ref)
+	return putref(dir, key, ref)
 }
 
 // GetRef takes a reference, parses the ref file, and returns the algorithm and key.
-func (db *Db) GetRef(ref string) (algo string, key []byte, err error) {
+func (db *Db) GetRef(ref string) (key *Key, err error) {
 	dir := filepath.Join(db.Dir, "refs")
 	return getref(dir, ref)
 }
 
 // Path takes a key containing arbitrary 8-bit bytes and returns a safe
 // hex-encoded pathname.
-func (db *Db) Path(key []byte) (path string) {
-	path = fmt.Sprintf("%s/objects/%x", db.Dir, key)
+func (db *Db) Path(key *Key) (path string) {
+	path = filepath.Join(db.Dir, key.String())
 	return
 }
 
@@ -517,23 +466,22 @@ func exists(parts ...string) (found bool) {
 }
 
 // PutRef creates a file in tx.Dir that contains the given key.
-func (tx *Transaction) PutRef(algo string, key []byte, ref string) (err error) {
-	return putref(tx.dir, algo, key, ref)
+func (tx *Transaction) PutRef(key *Key, ref string) (err error) {
+	return putref(tx.dir, key, ref)
 }
 
-// GetRef takes a reference, parses the ref file, and returns the algorithm and key.
-func (tx *Transaction) GetRef(ref string) (algo string, key []byte, err error) {
+// GetRef takes a reference, parses the ref file, and returns the key.
+func (tx *Transaction) GetRef(ref string) (key *Key, err error) {
 	return getref(tx.dir, ref)
 }
 
-func putref(dir string, algo string, key []byte, ref string) (err error) {
+func putref(dir string, key *Key, ref string) (err error) {
 	// get temporary file
-	log.Debugf("calling putref: dir %s, algo %s, key %s, ref %s", dir, algo, string(key), ref)
 	inode, err := tmpFile(dir)
 	defer inode.Close()
 
 	// write to temp file
-	_, err = inode.fh.Write([]byte(fmt.Sprintf("%s:%x", algo, key)))
+	_, err = inode.fh.Write([]byte(fmt.Sprintf("%s", key)))
 	if err != nil {
 		return err
 	}
@@ -557,30 +505,15 @@ func putref(dir string, algo string, key []byte, ref string) (err error) {
 	return
 }
 
-func getref(dir string, ref string) (algo string, key []byte, err error) {
+func getref(dir string, ref string) (key *Key, err error) {
 	path := refPath(dir, ref)
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
 		return
 	}
-	fullref := string(buf)
-	// parse out algo and key
-	refparts := strings.Split(fullref, ":")
-	algo = refparts[0]
-	hexkey := refparts[1]
-	// convert ascii hex string to binary bytes
-	decodedlen := hex.DecodedLen(len(hexkey))
-	key = make([]byte, decodedlen)
-	n, err := hex.Decode(key, []byte(hexkey))
+	key, err = KeyFromPath(string(buf))
 	if err != nil {
 		return
-	}
-	if n != decodedlen {
-		err = fmt.Errorf(
-			"expected %d, got %d when decoding", decodedlen, n)
-		if err != nil {
-			return
-		}
 	}
 	return
 }
@@ -642,17 +575,65 @@ func (tx *Transaction) Commit() (err error) {
 type Key struct {
 	Class string
 	Algo  string
-	Bin   []byte
-	Hex   string
+	Hash  string
 }
 
-// KeyFromBlob takes an algo and blob and returns a populated Key object
-func KeyFromBlob(algo string, val []byte) (key *Key) {
+func (k Key) String() string {
+	return filepath.Join(k.Class, k.Algo, k.Hash)
+}
 
-	// hash it and store as bin
+func KeyFromPath(path string) (key *Key, err error) {
+	parts := strings.Split(path, "/")
+	key = &Key{
+		Class: parts[0],
+		Algo:  parts[1],
+		Hash:  parts[2],
+	}
+	/*
+		// convert ascii hex string to binary bytes
+		decodedlen := hex.DecodedLen(len(hexkey))
+		binhash = make([]byte, decodedlen)
+		n, err := hex.Decode(binhash, []byte(hexkey))
+		if err != nil {
+			return
+		}
+		if n != decodedlen {
+			err = fmt.Errorf(
+				"expected %d, got %d when decoding", decodedlen, n)
+			if err != nil {
+				return
+			}
+		}
+	*/
+	return
+}
 
-	// decode the hash and store as hex
+func KeyFromString(algo string, s string) (key *Key, err error) {
+	blob := []byte(s)
+	return KeyFromBlob(algo, &blob)
+}
 
+// KeyFromBlob takes a class, algo, and blob and returns a populated Key object
+func KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
+	var binhash []byte
+	switch algo {
+	case "sha256":
+		d := sha256.Sum256(*blob)
+		binhash = make([]byte, len(d))
+		copy(binhash[:], d[0:len(d)])
+	case "sha512":
+		d := sha512.Sum512(*blob)
+		binhash = make([]byte, len(d))
+		copy(binhash[:], d[0:len(d)])
+	default:
+		err = fmt.Errorf("not implemented: %s", algo)
+		return
+	}
+	key = &Key{
+		Class: "blob",
+		Algo:  algo,
+		Hash:  fmt.Sprintf("%x", binhash),
+	}
 	return
 }
 
