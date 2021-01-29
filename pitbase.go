@@ -280,8 +280,8 @@ func tmpFile(dir string) (inode Inode, err error) {
 	return
 }
 
-// PutNoLock creates a temporary file for a key and then atomically renames to the permanent path.
-func (db *Db) PutNoLock(key *Key, val *[]byte) (err error) {
+// Put creates a temporary file for a key and then atomically renames to the permanent path.
+func (db *Db) Put(key *Key, val *[]byte) (err error) {
 
 	// get temporary file
 	inode, err := db.tmpFile()
@@ -310,8 +310,8 @@ func (db *Db) PutNoLock(key *Key, val *[]byte) (err error) {
 	return
 }
 
-// GetNoLock retrieves the value of a key by reading its file contents.
-func (db *Db) GetNoLock(key *Key) (val []byte, err error) {
+// Get retrieves the value of a key by reading its file contents.
+func (db *Db) Get(key *Key) (val []byte, err error) {
 	val, err = ioutil.ReadFile(db.Path(key))
 	if err != nil {
 		return
@@ -319,8 +319,8 @@ func (db *Db) GetNoLock(key *Key) (val []byte, err error) {
 	return
 }
 
-//RmNoLock removes... without a lock..
-func (db *Db) RmNoLock(key *Key) (err error) {
+//Rm deletes the entry associated with the key and returns an error if the key doesn't exist.
+func (db *Db) Rm(key *Key) (err error) {
 	err = os.Remove(db.Path(key))
 	if err != nil {
 		return err
@@ -340,7 +340,7 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	// XXX
 
 	// store it
-	err = db.PutNoLock(key, blob)
+	err = db.Put(key, blob)
 	if err != nil {
 		return
 	}
@@ -349,7 +349,7 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 
 // GetBlob returns the content of the file referenced by key
 func (db *Db) GetBlob(algo string, key *Key) (val []byte, err error) {
-	val, err = db.GetNoLock(key)
+	val, err = db.Get(key)
 	return
 }
 

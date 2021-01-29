@@ -294,14 +294,14 @@ func mkkey(t *testing.T, s string) (key *Key) {
 	return
 }
 
-func TestPutNoLock(t *testing.T) {
+func TestPut(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.PutNoLock(key, val)
+	err = db.Put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,18 +314,18 @@ func TestPutNoLock(t *testing.T) {
 	}
 }
 
-func TestGetNoLock(t *testing.T) {
+func TestGet(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.PutNoLock(key, val)
+	err = db.Put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := db.GetNoLock(key)
+	got, err := db.Get(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,22 +334,22 @@ func TestGetNoLock(t *testing.T) {
 	}
 }
 
-func TestRmNoLock(t *testing.T) {
+func TestRm(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.PutNoLock(key, val)
+	err = db.Put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.RmNoLock(key)
+	err = db.Rm(key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.GetNoLock(key)
+	_, err = db.Get(key)
 	if err == nil {
 		t.Fatalf("key not deleted: %s", key)
 	}
