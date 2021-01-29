@@ -645,3 +645,31 @@ func getGID() uint64 {
 	n, _ := strconv.ParseUint(string(b), 10, 64)
 	return n
 }
+
+type Node struct {
+	Keys []Key
+}
+
+func (k *Node) MerkleHash() (hash string) {
+	// https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
+	// https://stackexchange.com/search?q=preimage++merkle
+
+	// if keys are all leafs, then prepend 0x00
+
+	// if keys are all nodes, then prepend 0x01
+
+	// XXX what if it's mixed?
+
+	// hash using k.Algo
+
+	return
+}
+
+// ReadNode parses a merkle node file and returns a Node struct
+func ReadNode(dir, path string) (node *Node) {
+	// open file
+
+	// for each line in file, call KeyFromString and append result to Keys
+
+	return
+}

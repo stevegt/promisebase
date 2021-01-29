@@ -8,11 +8,20 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
 
 const dir = "var"
+
+// test boolean condition
+func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
+	if !cond {
+		debug.PrintStack()
+		t.Errorf(txt, args...)
+	}
+}
 
 func TestNotExist(t *testing.T) {
 	os.RemoveAll(dir)
@@ -642,10 +651,22 @@ func TestGetGID(t *testing.T) {
 	}
 }
 
-// XXX after TestKey works, then change all functions to use Key struct
-
-// XXX find all the places where we're passing blobs by value and
-// change them so we pass by reference, for performance
+func TestMerkle(t *testing.T) {
+	node := ReadNode("testdata", "node/sha256/node1")
+	for i, key := range node.Keys {
+		switch i {
+		case 0:
+			expect := "blob/sha256/6151ce34e24d99e568cceaceeeaeb4cdf02fda73b0c01e42142e0ba075ccb20e"
+			tassert(t, expect == key.String(), "expected %v got %v", expect, key.String())
+		case 1:
+			expect := "node/sha256/0abb8b956bb1d4bc23251d5e24f90425b0d51457a34e0f1358a97bb9dbc4761a"
+			tassert(t, expect == key.String(), "expected %v got %v", expect, key.String())
+		}
+	}
+	expect := "XXX" // calculate by hand and fill in here
+	hash := node.MerkleHash()
+	tassert(t, expect == hash, "expected %v got %v", expect, hash)
+}
 
 /*
 // Experiment with a merkle tree implementation.
