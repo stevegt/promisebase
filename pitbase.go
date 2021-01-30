@@ -1,6 +1,7 @@
 package pitbase
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -511,7 +512,7 @@ func getref(dir string, ref string) (key *Key, err error) {
 	if err != nil {
 		return
 	}
-	key, err = KeyFromPath(string(buf))
+	key = KeyFromPath(string(buf))
 	if err != nil {
 		return
 	}
@@ -582,7 +583,8 @@ func (k Key) String() string {
 	return filepath.Join(k.Class, k.Algo, k.Hash)
 }
 
-func KeyFromPath(path string) (key *Key, err error) {
+// KeyFromPath takes a path relative to db root dir and returns a populated Key object
+func KeyFromPath(path string) (key *Key) {
 	parts := strings.Split(path, "/")
 	key = &Key{
 		Class: parts[0],
@@ -647,7 +649,7 @@ func getGID() uint64 {
 }
 
 type Node struct {
-	Keys []Key
+	Keys []*Key
 }
 
 func (k *Node) MerkleHash() (hash string) {
@@ -665,11 +667,28 @@ func (k *Node) MerkleHash() (hash string) {
 	return
 }
 
-// ReadNode parses a merkle node file and returns a Node struct
-func ReadNode(dir, path string) (node *Node) {
+// ReadNode takes a directory and relative path within that directory for a merkle node file and returns a Node struct
+func ReadNode(dir, path string) (node *Node, err error) {
 	// open file
+	fn := filepath.Join(dir, path)
+	file, err := os.Open(fn)
+	if err != nil {
+		return
+	}
+	defer file.Close()
 
-	// for each line in file, call KeyFromString and append result to Keys
+	node = &Node{}
+	scanner := bufio.NewScanner(file)
+	// for each line in file, call KeyFromPath and append result to Keys
+	for scanner.Scan() {
+		txt := strings.TrimSpace(scanner.Text())
+		key := KeyFromPath(txt)
+		node.Keys = append(node.Keys, key)
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
 
 	return
 }

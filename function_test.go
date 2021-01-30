@@ -652,7 +652,10 @@ func TestGetGID(t *testing.T) {
 }
 
 func TestMerkle(t *testing.T) {
-	node := ReadNode("testdata", "node/sha256/node1")
+	node, err := ReadNode("testdata", "node/sha256/node1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i, key := range node.Keys {
 		switch i {
 		case 0:
@@ -660,7 +663,7 @@ func TestMerkle(t *testing.T) {
 			tassert(t, expect == key.String(), "expected %v got %v", expect, key.String())
 		case 1:
 			expect := "node/sha256/0abb8b956bb1d4bc23251d5e24f90425b0d51457a34e0f1358a97bb9dbc4761a"
-			tassert(t, expect == key.String(), "expected %v got %v", expect, key.String())
+			tassert(t, expect == key.String(), "expected %q got %q", expect, key.String())
 		}
 	}
 	expect := "XXX" // calculate by hand and fill in here
