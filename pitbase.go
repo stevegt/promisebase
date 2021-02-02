@@ -348,8 +348,9 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	return
 }
 
+// XXX replace with Get()?
 // GetBlob returns the content of the file referenced by key
-func (db *Db) GetBlob(algo string, key *Key) (val []byte, err error) {
+func (db *Db) GetBlob(key *Key) (val []byte, err error) {
 	val, err = db.Get(key)
 	return
 }
@@ -617,6 +618,19 @@ func KeyFromString(algo string, s string) (key *Key, err error) {
 
 // KeyFromBlob takes a class, algo, and blob and returns a populated Key object
 func KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
+	binhash, err := Hash(algo, blob)
+	if err != nil {
+		return
+	}
+	key = &Key{
+		Class: "blob",
+		Algo:  algo,
+		Hash:  fmt.Sprintf("%x", binhash),
+	}
+	return
+}
+
+func Hash(algo string, blob *[]byte) (hash *[]byte, err error) {
 	var binhash []byte
 	switch algo {
 	case "sha256":
@@ -631,12 +645,7 @@ func KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
 		err = fmt.Errorf("not implemented: %s", algo)
 		return
 	}
-	key = &Key{
-		Class: "blob",
-		Algo:  algo,
-		Hash:  fmt.Sprintf("%x", binhash),
-	}
-	return
+	return &binhash, nil
 }
 
 func getGID() uint64 {
@@ -649,21 +658,58 @@ func getGID() uint64 {
 }
 
 type Node struct {
-	Keys []*Key
+	Key       *Key
+	ChildKeys []*Key
+	Db        *Db
+	txt       string
 }
 
-func (k *Node) MerkleHash() (hash string) {
-	// https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
-	// https://stackexchange.com/search?q=preimage++merkle
-
-	// if keys are all leafs, then prepend 0x00
-
-	// if keys are all nodes, then prepend 0x01
-
-	// XXX what if it's mixed?
+func (node *Node) MkHash() (hash string) {
+	// concatenate all keys together (include the full key string with
+	// the 'blob/' or 'node/' prefix to help protect against preimage
+	// attacks)
 
 	// hash using k.Algo
 
+	return
+}
+
+func (node *Node) Verify() (ok bool, err error) {
+	// verify our child hashes
+	for _, key := range node.ChildKeys {
+		var content string
+		switch key.Class {
+		case "blob":
+			// read content
+			content, err := node.Db.GetBlob(key)
+			if err != nil {
+				return
+			}
+		case "node":
+			child, err := ReadNode(node.Db.Dir, key.String())
+			if !child.Verify() {
+				return false
+			}
+			content = child.txt
+		default:
+			err = fmt.Errorf("invalid key.Class %v", key.Class)
+			return false, err
+		}
+		// hash content
+		binhash, err := Hash(key.Algo, content)
+		if err != nil {
+			return
+		}
+		// compare hash with key.Hash
+		if bin2hex(binhash) != key.Hash {
+			return false, nil
+		}
+	}
+	return true
+}
+
+func bin2hex(bin *[]byte) (hex string) {
+	hex = fmt.Sprintf("%x", bin)
 	return
 }
 
@@ -677,14 +723,25 @@ func ReadNode(dir, path string) (node *Node, err error) {
 	}
 	defer file.Close()
 
+	// XXX we should probably be verifying hash on read
+	// key := KeyFromPath(path)
+	// digest := sha256.New()
+
 	node = &Node{}
 	scanner := bufio.NewScanner(file)
 	// for each line in file, call KeyFromPath and append result to Keys
+	var buf strings.Builder
 	for scanner.Scan() {
-		txt := strings.TrimSpace(scanner.Text())
+		// txt := strings.TrimSpace(scanner.Text())
+		txt := scanner.Text()
+		// node.txt += txt + "\n"
+		buf.WriteString(txt + "\n")
+		// digest.Write(txt)
 		key := KeyFromPath(txt)
 		node.Keys = append(node.Keys, key)
 	}
+	// node.Sum = digest.Sum()
+	node.txt = buf
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
