@@ -81,19 +81,25 @@ func Open(dir string) (db *Db, err error) {
 
 	// XXX use filepath.Join() for any Sprintf that's doing something like this
 	// The blob dir is where we store hashed blobs
-	err = mkdir(fmt.Sprintf("%s/blob", dir))
+	err = mkdir(filepath.Join(dir, "blob"))
 	if err != nil {
 		return
 	}
 
 	// we store references to hashed blobs in refs
-	err = mkdir(fmt.Sprintf("%s/refs", dir))
+	err = mkdir(filepath.Join(dir, "refs"))
 	if err != nil {
 		return
 	}
 
 	// we store transactions (temporary copy on write copies of the refs dir) in tx
-	err = mkdir(fmt.Sprintf("%s/tx", dir))
+	err = mkdir(filepath.Join(dir, "tx"))
+	if err != nil {
+		return
+	}
+
+	// we store merkle tree nodes in node
+	err = mkdir(filepath.Join(dir, "node"))
 	if err != nil {
 		return
 	}
@@ -714,7 +720,7 @@ func (db *Db) PutNode(algo string, keys ...*Key) (node *Node, err error) {
 	// concatenate all keys together (include the full key string with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
-	node = &Node{}
+	node = &Node{Db: db}
 	var content []byte
 	for _, key := range keys {
 		content = append(content, key.String()...)
@@ -734,7 +740,7 @@ func (db *Db) PutNode(algo string, keys ...*Key) (node *Node, err error) {
 		Hash:  hash,
 	}
 
-	err = ioutil.WriteFile(nodekey.String(), *node.content, 0644)
+	err = db.put(nodekey, node.content)
 	if err != nil {
 		return
 	}
@@ -756,7 +762,7 @@ func (db *Db) ReadNode(path string) (node *Node, err error) {
 	// key := KeyFromPath(path)
 	// digest := sha256.New()
 
-	node = &Node{}
+	node = &Node{Db: db}
 	scanner := bufio.NewScanner(file)
 	// for each line in file, call KeyFromPath and append result to Keys
 	var content []byte
@@ -772,7 +778,6 @@ func (db *Db) ReadNode(path string) (node *Node, err error) {
 	}
 	// node.Sum = digest.Sum()
 	node.content = &content
-	node.Db = db
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)

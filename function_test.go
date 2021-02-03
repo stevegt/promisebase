@@ -688,7 +688,6 @@ func pretty(x interface{}) string {
 	return string(b)
 }
 
-/*
 func TestPutNode(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -708,6 +707,9 @@ func TestPutNode(t *testing.T) {
 	}
 
 	node, err := db.PutNode("sha256", key1, key2)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ok, err := node.Verify()
 	if err != nil {
@@ -715,7 +717,6 @@ func TestPutNode(t *testing.T) {
 	}
 	tassert(t, ok, "node verify failed: %v", node)
 }
-*/
 
 // XXX test chunking order
 
