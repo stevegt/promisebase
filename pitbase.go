@@ -282,7 +282,7 @@ func tmpFile(dir string) (inode Inode, err error) {
 }
 
 // Put creates a temporary file for a key and then atomically renames to the permanent path.
-func (db *Db) Put(key *Key, val *[]byte) (err error) {
+func (db *Db) put(key *Key, val *[]byte) (err error) {
 
 	// get temporary file
 	inode, err := db.tmpFile()
@@ -312,11 +312,12 @@ func (db *Db) Put(key *Key, val *[]byte) (err error) {
 }
 
 // Get retrieves the value of a key by reading its file contents.
-func (db *Db) Get(key *Key) (val []byte, err error) {
-	val, err = ioutil.ReadFile(db.Path(key))
+func (db *Db) GetBlob(key *Key) (blob *[]byte, err error) {
+	buf, err := ioutil.ReadFile(db.Path(key))
 	if err != nil {
 		return
 	}
+	blob = &buf
 	return
 }
 
@@ -341,17 +342,10 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	// XXX
 
 	// store it
-	err = db.Put(key, blob)
+	err = db.put(key, blob)
 	if err != nil {
 		return
 	}
-	return
-}
-
-// XXX replace with Get()?
-// GetBlob returns the content of the file referenced by key
-func (db *Db) GetBlob(key *Key) (val []byte, err error) {
-	val, err = db.Get(key)
 	return
 }
 
@@ -371,6 +365,7 @@ func (db *Db) GetRef(ref string) (key *Key, err error) {
 // Path takes a key containing arbitrary 8-bit bytes and returns a safe
 // hex-encoded pathname.
 func (db *Db) Path(key *Key) (path string) {
+	log.Debugf("db: %v, key: %v", db, key)
 	path = filepath.Join(db.Dir, key.String())
 	return
 }
@@ -478,6 +473,9 @@ func (tx *Transaction) GetRef(ref string) (key *Key, err error) {
 }
 
 func putref(dir string, key *Key, ref string) (err error) {
+
+	// XXX merge this with put()
+
 	// get temporary file
 	inode, err := tmpFile(dir)
 	defer inode.Close()
@@ -625,7 +623,7 @@ func KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
 	key = &Key{
 		Class: "blob",
 		Algo:  algo,
-		Hash:  fmt.Sprintf("%x", binhash),
+		Hash:  bin2hex(binhash),
 	}
 	return
 }
@@ -661,36 +659,30 @@ type Node struct {
 	Key       *Key
 	ChildKeys []*Key
 	Db        *Db
-	txt       string
-}
-
-func (node *Node) MkHash() (hash string) {
-	// concatenate all keys together (include the full key string with
-	// the 'blob/' or 'node/' prefix to help protect against preimage
-	// attacks)
-
-	// hash using k.Algo
-
-	return
+	content   *[]byte
 }
 
 func (node *Node) Verify() (ok bool, err error) {
 	// verify our child hashes
 	for _, key := range node.ChildKeys {
-		var content string
+		var content *[]byte
 		switch key.Class {
 		case "blob":
 			// read content
-			content, err := node.Db.GetBlob(key)
+			content, err = node.Db.GetBlob(key)
 			if err != nil {
 				return
 			}
 		case "node":
-			child, err := ReadNode(node.Db.Dir, key.String())
-			if !child.Verify() {
-				return false
+			child, err := node.Db.ReadNode(key.String())
+			if err != nil {
+				return false, err
 			}
-			content = child.txt
+			ok, err = child.Verify()
+			if !ok || err != nil {
+				return false, err
+			}
+			content = child.content
 		default:
 			err = fmt.Errorf("invalid key.Class %v", key.Class)
 			return false, err
@@ -698,25 +690,62 @@ func (node *Node) Verify() (ok bool, err error) {
 		// hash content
 		binhash, err := Hash(key.Algo, content)
 		if err != nil {
-			return
+			return false, err
 		}
 		// compare hash with key.Hash
-		if bin2hex(binhash) != key.Hash {
-			return false, nil
+		hex := bin2hex(binhash)
+		if key.Hash != hex {
+			log.Debugf("node %v key %v content '%s'", node, key, *content)
+			return false, fmt.Errorf("expected %v, calculated %v", key.Hash, hex)
 		}
 	}
-	return true
+	return true, nil
 }
 
 func bin2hex(bin *[]byte) (hex string) {
-	hex = fmt.Sprintf("%x", bin)
+	hex = fmt.Sprintf("%x", *bin)
+	return
+}
+
+// PutNode takes one or more keys, stores them in a file under node/,
+// and returns a pointer to a Node object.
+func (db *Db) PutNode(algo string, keys ...*Key) (node *Node, err error) {
+
+	// concatenate all keys together (include the full key string with
+	// the 'blob/' or 'node/' prefix to help protect against preimage
+	// attacks)
+	node = &Node{}
+	var content []byte
+	for _, key := range keys {
+		content = append(content, key.String()...)
+		content = append(content, '\n')
+		node.ChildKeys = append(node.ChildKeys, key)
+	}
+	node.content = &content
+
+	binhash, err := Hash(algo, node.content)
+	if err != nil {
+		return
+	}
+	hash := bin2hex(binhash)
+	nodekey := &Key{
+		Class: "node",
+		Algo:  algo,
+		Hash:  hash,
+	}
+
+	err = ioutil.WriteFile(nodekey.String(), *node.content, 0644)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
 // ReadNode takes a directory and relative path within that directory for a merkle node file and returns a Node struct
-func ReadNode(dir, path string) (node *Node, err error) {
+func (db *Db) ReadNode(path string) (node *Node, err error) {
 	// open file
-	fn := filepath.Join(dir, path)
+	fn := filepath.Join(db.Dir, path)
 	file, err := os.Open(fn)
 	if err != nil {
 		return
@@ -730,18 +759,20 @@ func ReadNode(dir, path string) (node *Node, err error) {
 	node = &Node{}
 	scanner := bufio.NewScanner(file)
 	// for each line in file, call KeyFromPath and append result to Keys
-	var buf strings.Builder
+	var content []byte
 	for scanner.Scan() {
 		// txt := strings.TrimSpace(scanner.Text())
-		txt := scanner.Text()
-		// node.txt += txt + "\n"
-		buf.WriteString(txt + "\n")
+		buf := scanner.Bytes()
+		// canonical representation of child data is key followed by newline
+		content = append(content, buf...)
+		content = append(content, '\n')
 		// digest.Write(txt)
-		key := KeyFromPath(txt)
-		node.Keys = append(node.Keys, key)
+		key := KeyFromPath(string(buf))
+		node.ChildKeys = append(node.ChildKeys, key)
 	}
 	// node.Sum = digest.Sum()
-	node.txt = buf
+	node.content = &content
+	node.Db = db
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)

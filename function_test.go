@@ -3,6 +3,7 @@ package pitbase
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -144,10 +145,10 @@ func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, other
 			t.Fatalf("expected 'sha256', got '%s'", key.Algo)
 		}
 		// get the blob
-		gotblob, err := db.GetBlob("sha256", gotkey)
+		gotblob, err := db.GetBlob(gotkey)
 		// compare the blob we put with the one we got
-		if bytes.Compare(*myblob, gotblob) != 0 {
-			t.Fatalf("expected %s, got %s", string(*myblob), string(gotblob))
+		if bytes.Compare(*myblob, *gotblob) != 0 {
+			t.Fatalf("expected %s, got %s", string(*myblob), string(*gotblob))
 		}
 		// XXX deal with the case of removing a blob inside a
 		// transaction -- do we use gc, or do we replay a log?
@@ -176,12 +177,12 @@ func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, other
 			t.Fatalf("expected 'sha256', got '%s'", key.Algo)
 		}
 		// get the blob
-		gotblob, err = db.GetBlob("sha256", gotkey)
+		gotblob, err = db.GetBlob(gotkey)
 		// compare the blob we put with the one we got
 		// the result must be either A or B, otherwise it's
 		// corrupt due to something wrong in Commit()
-		if bytes.Compare(*myblob, gotblob) != 0 && bytes.Compare(*otherblob, gotblob) != 0 {
-			t.Fatalf("expected %s or %s, got %s", string(*myblob), string(*otherblob), string(gotblob))
+		if bytes.Compare(*myblob, *gotblob) != 0 && bytes.Compare(*otherblob, *gotblob) != 0 {
+			t.Fatalf("expected %s or %s, got %s", string(*myblob), string(*otherblob), string(*gotblob))
 		}
 		err = tx.Commit()
 		if err != nil {
@@ -228,10 +229,10 @@ func XXXiterate(t *testing.T, db *Db, iterations int, done chan bool, myVal []by
 			t.Fatalf("expected 'sha256', got '%s'", key.Algo)
 		}
 		// get the blob
-		gotblob, err := db.GetBlob("sha256", gotkey)
+		gotblob, err := db.GetBlob(gotkey)
 		// compare the blob we got with tmpVal
-		if bytes.Compare(tmpVal, gotblob) != 0 {
-			t.Fatalf("expected %s, got %s", string(tmpVal), string(gotblob))
+		if bytes.Compare(tmpVal, *gotblob) != 0 {
+			t.Fatalf("expected %s, got %s", string(tmpVal), string(*gotblob))
 		}
 		// XXX delete the ref and the blob
 
@@ -310,7 +311,7 @@ func TestPut(t *testing.T) {
 	}
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.Put(key, val)
+	err = db.put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,16 +331,16 @@ func TestGet(t *testing.T) {
 	}
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.Put(key, val)
+	err = db.put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := db.Get(key)
+	got, err := db.GetBlob(key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(*val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(*val), string(got))
+	if bytes.Compare(*val, *got) != 0 {
+		t.Fatalf("expected %s, got %s", string(*val), string(*got))
 	}
 }
 
@@ -350,7 +351,7 @@ func TestRm(t *testing.T) {
 	}
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.Put(key, val)
+	err = db.put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +359,7 @@ func TestRm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Get(key)
+	_, err = db.GetBlob(key)
 	if err == nil {
 		t.Fatalf("key not deleted: %s", key)
 	}
@@ -407,12 +408,12 @@ func TestGetBlob(t *testing.T) {
 	if key.String() != gotkey.String() {
 		t.Fatalf("expected key %s, got %s", key, gotkey)
 	}
-	got, err := db.GetBlob("sha256", key)
+	got, err := db.GetBlob(key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(*val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(*val), string(got))
+	if bytes.Compare(*val, *got) != 0 {
+		t.Fatalf("expected %s, got %s", string(*val), string(*got))
 	}
 }
 
@@ -651,25 +652,72 @@ func TestGetGID(t *testing.T) {
 	}
 }
 
-func TestMerkle(t *testing.T) {
-	node, err := ReadNode("testdata", "node/sha256/node1")
+func TestVerify(t *testing.T) {
+	db, err := Open("testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, key := range node.Keys {
+	node, err := db.ReadNode("node/sha256/00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, key := range node.ChildKeys {
 		switch i {
 		case 0:
-			expect := "blob/sha256/6151ce34e24d99e568cceaceeeaeb4cdf02fda73b0c01e42142e0ba075ccb20e"
+			expect := "node/sha256/563dcb27d5d8ae1c579ea8b2af89db2d125ade16d95efde13952821230d28e46"
 			tassert(t, expect == key.String(), "expected %v got %v", expect, key.String())
 		case 1:
-			expect := "node/sha256/0abb8b956bb1d4bc23251d5e24f90425b0d51457a34e0f1358a97bb9dbc4761a"
+			expect := "blob/sha256/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
 			tassert(t, expect == key.String(), "expected %q got %q", expect, key.String())
 		}
 	}
-	expect := "XXX" // calculate by hand and fill in here
-	hash := node.MerkleHash()
-	tassert(t, expect == hash, "expected %v got %v", expect, hash)
+	// sha256sum testdata/node/sha256/00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2
+	//expect := "00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2"
+	ok, err := node.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tassert(t, ok, "node verify failed: %v", pretty(node))
 }
+
+func pretty(x interface{}) string {
+	b, err := json.MarshalIndent(x, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
+
+/*
+func TestPutNode(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	blob1 := mkblob("blob1value")
+	key1, err := db.PutBlob("sha256", blob1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	blob2 := mkblob("blob2value")
+	key2, err := db.PutBlob("sha256", blob2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	node, err := db.PutNode("sha256", key1, key2)
+
+	ok, err := node.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tassert(t, ok, "node verify failed: %v", node)
+}
+*/
+
+// XXX test chunking order
 
 /*
 // Experiment with a merkle tree implementation.
