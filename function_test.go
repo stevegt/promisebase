@@ -6,11 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
-	"path/filepath"
 	"runtime/debug"
-	"strings"
 	"testing"
 )
 
@@ -116,7 +113,7 @@ func TestOpenKey(t *testing.T) {
 	}
 }
 */
-
+/*
 func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, otherblob *[]byte) {
 	for i := 0; i < iterations; i++ {
 		// store a blob
@@ -193,7 +190,7 @@ func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, other
 	}
 	done <- true
 }
-
+*/
 func nonMissingErr(err error) error {
 	switch err.(type) {
 	case *os.PathError:
@@ -202,45 +199,6 @@ func nonMissingErr(err error) error {
 		return nil
 	}
 	return err
-}
-
-func XXXiterate(t *testing.T, db *Db, iterations int, done chan bool, myVal []byte) {
-	i := 0
-	for ; i < iterations; i++ {
-		// create tmpVal by appending some random characters to myVal
-		tmpVal := []byte(fmt.Sprintf("%s.%d", string(myVal), rand.Uint64()))
-		// put tmpVal into a blob
-		key, err := db.PutBlob("sha256", &tmpVal)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// store the blob's key in a unique ref
-		ref := fmt.Sprintf("ref.%s.%d", string(myVal), rand.Uint64())
-		err = db.PutRef(key, ref)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// get the ref
-		gotkey, err := db.GetRef(ref)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if key.Algo != "sha256" {
-			t.Fatalf("expected 'sha256', got '%s'", key.Algo)
-		}
-		// get the blob
-		gotblob, err := db.GetBlob(gotkey)
-		// compare the blob we got with tmpVal
-		if bytes.Compare(tmpVal, *gotblob) != 0 {
-			t.Fatalf("expected %s, got %s", string(tmpVal), string(*gotblob))
-		}
-		// XXX delete the ref and the blob
-
-	}
-	if i != iterations {
-		t.Fatal("omg no it didnt work there's not enough iterations :(", iterations)
-	}
-	done <- true
 }
 
 func TestDbLock(t *testing.T) {
@@ -276,6 +234,7 @@ func mkblob(s string) *[]byte {
 	return &tmp
 }
 
+/*
 func TestConcurrent(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -295,7 +254,7 @@ func TestConcurrent(t *testing.T) {
 	<-doneA
 	<-doneB
 }
-
+*/
 func mkkey(t *testing.T, s string) (key *Key) {
 	key, err := KeyFromString("sha256", s)
 	if err != nil {
@@ -423,16 +382,18 @@ func TestPutRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	world := &World{Db: db, Name: "world1"}
+
 	ref := "someref"
 	key, err := KeyFromBlob("sha256", mkblob("somevalue"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.PutRef(key, ref)
+	err = world.PutRef(key, ref)
 	if err != nil {
 		t.Fatal(err)
 	}
-	buf, err := ioutil.ReadFile("var/refs/someref")
+	buf, err := ioutil.ReadFile("var/world/world1/someref")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,27 +402,7 @@ func TestPutRef(t *testing.T) {
 	if expect != got {
 		t.Fatalf("expected %s, got %s", expect, got)
 	}
-}
-
-func keyEqual(a, b *Key) bool {
-	return a.String() == b.String()
-}
-
-func TestGetRef(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ref := "someref"
-	key, err := KeyFromBlob("sha256", mkblob("somevalue"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = db.PutRef(key, ref)
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotkey, err := db.GetRef(ref)
+	gotkey, err := world.GetRef(ref)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -472,21 +413,27 @@ func TestGetRef(t *testing.T) {
 		t.Fatalf("expected '%s', got '%s'", key, gotkey)
 	}
 }
+
+func keyEqual(a, b *Key) bool {
+	return a.String() == b.String()
+}
+
 func TestSubRef(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
+	world := &World{Db: db, Name: "world1"}
 	ref := "somedir/someref"
 	key, err := KeyFromBlob("sha256", mkblob("somevalue"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.PutRef(key, ref)
+	err = world.PutRef(key, ref)
 	if err != nil {
 		t.Fatal(err)
 	}
-	buf, err := ioutil.ReadFile("var/refs/somedir/someref")
+	buf, err := ioutil.ReadFile("var/world/world1/somedir/someref")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -495,7 +442,7 @@ func TestSubRef(t *testing.T) {
 	if expect != got {
 		t.Fatalf("expected %s, got %s", expect, got)
 	}
-	gotkey, err := db.GetRef(ref)
+	gotkey, err := world.GetRef(ref)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -525,7 +472,8 @@ func TestPath(t *testing.T) {
 	}
 }
 
-func TestRefPath(t *testing.T) {
+/*
+func XXXTestRefPath(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -538,84 +486,88 @@ func TestRefPath(t *testing.T) {
 		t.Fatalf("expected %s, got %s", path, gotpath)
 	}
 }
+*/
 
-func TestTransaction(t *testing.T) {
+func TestCloneWorld(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	refdir := filepath.Join(db.Dir, "refs")
+	oldworld := &World{Db: db, Name: "world0"}
 
-	// create blob and ref not in our transaction
-	outval := mkblob(fmt.Sprintf("value.outside"))
-	outkey, err := db.PutBlob("sha256", outval)
+	// create blob and ref in oldworld
+	blob := mkblob(fmt.Sprintf("value.outside"))
+	blobkey, err := db.PutBlob("sha256", blob)
 	if err != nil {
 		t.Fatal(err)
 	}
 	outref := "ref.outside"
-	err = db.PutRef(outkey, outref)
+	err = oldworld.PutRef(blobkey, outref)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tx, err := db.StartTransaction()
+	newworld, err := db.CloneWorld(oldworld, "world1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	/* XXX unnecessary?
 	if strings.Index(tx.dir, "var/tx/") != 0 {
 		t.Fatalf("tx.dir should not be %s", tx.dir)
 	}
+	*/
 
-	// verify old ref is hardlinked into tx.Dir
-	if !exists(tx.dir, outref) {
-		t.Fatalf("missing %s/%s", tx.dir, outref)
+	// verify old ref is hardlinked into newworld
+	if !exists(newworld.Dir(), outref) {
+		t.Fatalf("missing %s/%s", newworld.Dir(), outref)
 	}
 
-	// create ref in our transaction
+	// create ref in our world
 	inref := "ref.inside"
-	err = tx.PutRef(outkey, inref)
+	err = newworld.PutRef(blobkey, inref)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// verify new ref is in tx.Dir
-	if !exists(tx.dir, inref) {
-		t.Fatalf("missing %s/%s", tx.dir, inref)
+	// verify new ref is in our world
+	if !exists(newworld.Dir(), inref) {
+		t.Fatalf("missing %s/%s", newworld.Dir(), inref)
 	}
-	// verify new ref is not in db.Dir
-	if exists(refdir, inref) {
-		t.Fatalf("found %s/%s", refdir, inref)
+	// verify new ref is not in oldworld
+	if exists(oldworld.Dir(), inref) {
+		t.Fatalf("found %s/%s", oldworld.Dir(), inref)
 	}
 
-	gotkey, err := tx.GetRef(inref)
+	// check blob content
+	gotkey, err := newworld.GetRef(inref)
 	if gotkey.Algo != "sha256" {
 		t.Fatalf("expected 'sha256', got '%s'", gotkey.Algo)
 	}
-	if !keyEqual(outkey, gotkey) {
-		t.Fatalf("expected key %s, got %s", outkey, gotkey)
+	if !keyEqual(blobkey, gotkey) {
+		t.Fatalf("expected key %s, got %s", blobkey, gotkey)
 	}
 
 	// XXX test db.GetRef
+	/*
+		err = tx.Commit()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err = tx.Commit()
-	if err != nil {
-		t.Fatal(err)
-	}
+		// XXX ensure tx.Dir is gone
+		// XXX ensure call to tx.* fails gracefully
 
-	// XXX ensure tx.Dir is gone
-	// XXX ensure call to tx.* fails gracefully
-
-	// verify old ref is in db.Dir
-	if !exists(refdir, outref) {
-		t.Fatalf("missing %s/%s", refdir, outref)
-	}
-	// verify new ref is in db.Dir
-	if !exists(refdir, inref) {
-		t.Fatalf("missing %s/%s", refdir, inref)
-	}
-	// XXX verify blob content
-
+		// verify old ref is in db.Dir
+		if !exists(refdir, outref) {
+			t.Fatalf("missing %s/%s", refdir, outref)
+		}
+		// verify new ref is in db.Dir
+		if !exists(refdir, inref) {
+			t.Fatalf("missing %s/%s", refdir, inref)
+		}
+		// XXX verify blob content
+	*/
 }
 
 // XXX redefine "key" to mean the path to a blob, tree, or ref

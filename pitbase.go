@@ -63,7 +63,7 @@ func caller() func(*runtime.Frame) (function string, file string) {
 
 func mkdir(dir string) (err error) {
 	if _, err = os.Stat(dir); os.IsNotExist(err) {
-		err = os.Mkdir(dir, 0755) // XXX perms too open?
+		err = os.MkdirAll(dir, 0755) // XXX perms too open?
 		if err != nil {
 			return
 		}
@@ -87,13 +87,13 @@ func Open(dir string) (db *Db, err error) {
 	}
 
 	// we store references to hashed blobs in refs
-	err = mkdir(filepath.Join(dir, "refs"))
+	err = mkdir(filepath.Join(dir, "world"))
 	if err != nil {
 		return
 	}
 
 	// we store transactions (temporary copy on write copies of the refs dir) in tx
-	err = mkdir(filepath.Join(dir, "tx"))
+	// err = mkdir(filepath.Join(dir, "tx"))
 	if err != nil {
 		return
 	}
@@ -207,6 +207,8 @@ func (db *Db) Rm(key []byte) (err error) {
 }
 */
 
+// XXX get rid of this eventually
+/*
 func (db *Db) XXXopenKey(key *Key, flag int) (inode Inode, err error) {
 	inode.key = key
 	inode.path = db.Path(key)
@@ -217,18 +219,22 @@ func (db *Db) XXXopenKey(key *Key, flag int) (inode Inode, err error) {
 	inode.fd = inode.fh.Fd()
 	return
 }
+*/
 
 // Close closes an inode
 func (inode *Inode) Close() (err error) {
 	return inode.fh.Close()
 }
 
+// XXX get rid of this
+/*
 func (inode *Inode) ilock(locktype int) (err error) {
 	log.Debugf("inode.ilock starting %+v:%d", inode, locktype)
 	err = syscall.Flock(int(inode.fd), locktype)
 	log.Debug("inode.ilock finished")
 	return
 }
+*/
 
 func (db *Db) lock(locktype int) (inode *Inode, err error) {
 	log.Debugf("db.lock starting db %+v fd %v locktype %v", db, db.locknode.fd, locktype)
@@ -240,17 +246,18 @@ func (db *Db) lock(locktype int) (inode *Inode, err error) {
 	return
 }
 
+/* XXX get rid of this
 // ExLock uses syscall.Flock to get an exclusive lock (LOCK_EX) on the
 // file referenced by `key`.
 func (inode *Inode) ExLock() (err error) {
 	return inode.ilock(syscall.LOCK_EX)
 }
-
 // ShLock uses syscall.Flock to get a shared lock (LOCK_SH) on the
 // file referenced by `key`.
 func (inode *Inode) ShLock() (err error) {
 	return inode.ilock(syscall.LOCK_SH)
 }
+*/
 
 // Unlock uses syscall.Flock to unlock (LOCK_UN) the file referenced
 // by `key`.
@@ -355,18 +362,22 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	return
 }
 
+/*
 // PutRef creates a file, named ref, that contains the given key.
 // XXX deprecate in favor of tx.PutRef
-func (db *Db) PutRef(key *Key, ref string) (err error) {
-	dir := filepath.Join(db.Dir, "refs")
-	return putref(dir, key, ref)
+func (db *Db) PutRef(key *Key, world, ref string) (err error) {
+	dir := filepath.Join(db.Dir, "ref", world)
+	return putref(dir, key, world, ref)
 }
+*/
 
+/*
 // GetRef takes a reference, parses the ref file, and returns the algorithm and key.
 func (db *Db) GetRef(ref string) (key *Key, err error) {
 	dir := filepath.Join(db.Dir, "refs")
 	return getref(dir, ref)
 }
+*/
 
 // Path takes a key containing arbitrary 8-bit bytes and returns a safe
 // hex-encoded pathname.
@@ -376,43 +387,32 @@ func (db *Db) Path(key *Key) (path string) {
 	return
 }
 
+/*
 // RefPath takes a reference name and returns the pathname of the file
 // containing the reference.
 func (db *Db) RefPath(ref string) (path string) {
 	dir := fmt.Sprintf("%s/refs", db.Dir)
 	return refPath(dir, ref)
 }
+*/
 
-func refPath(dir, ref string) (path string) {
-	path = fmt.Sprintf("%s/%s", dir, ref)
-	return
+type World struct {
+	Db   *Db
+	Name string
 }
 
-type Transaction struct {
-	Db  *Db
-	dir string
+func (w *World) Dir() (path string) {
+	return filepath.Join(w.Db.Dir, "world", w.Name)
 }
 
 // StartTransaction atomically creates a copy-on-write copy of the ref directory.
-func (db *Db) StartTransaction() (tx *Transaction, err error) {
+func (db *Db) CloneWorld(oldworld *World, name string) (w *World, err error) {
 
-	// make atomic by getting a shared lock
-	locknode, err := db.ExLock()
-	if err != nil {
-		return
-	}
-	defer locknode.Unlock()
+	w = &World{Db: db, Name: name}
+	log.Debug("world opened: ", name)
 
-	// clone the refs/ directory by creating a new temporary directory as a subdirectory of tx/
-	// https://golang.org/pkg/io/ioutil/#TempDir
-	tmpdir, err := ioutil.TempDir(filepath.Join(db.Dir, "tx"), "")
-	if err != nil {
-		return
-	}
-	tx = &Transaction{Db: db, dir: tmpdir}
-	log.Debug("transaction started in ", tmpdir)
-
-	refdir := filepath.Join(db.Dir, "refs")
+	olddir := oldworld.Dir()
+	newdir := w.Dir()
 
 	// hard-link all of the contents of refs into tmpdir, including any subdirs
 	// https://golang.org/pkg/path/filepath/#Walk
@@ -421,16 +421,16 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 			log.Debug("inerr ", inerr)
 			return inerr
 		}
-		// make sure that path is in refdir
-		index := strings.Index(path, refdir)
+		// make sure that path is in olddir
+		index := strings.Index(path, olddir)
 		if index != 0 {
 			err = fmt.Errorf("index: expected 0, got %d", index)
 			return
 		}
-		// we need to replace the first part of path with tmpdir
-		// for example, if path is var/refs/foo and tmpdir is var/tx/123
-		// then newpath needs to be var/tx/123/foo
-		newpath := strings.Replace(path, refdir, tmpdir, 1)
+		// we need to replace the first part of path with newdir
+		// for example, if path is var/world/world1/foo and newdir is var/world/world2/
+		// then newpath needs to be var/world/world2/foo
+		newpath := strings.Replace(path, olddir, newdir, 1)
 
 		if info.IsDir() {
 			log.Debug("mkdir ", newpath)
@@ -445,8 +445,8 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 				if !exists(path) {
 					panic("path missing")
 				}
-				if !exists(tmpdir) {
-					panic("tmpdir missing")
+				if !exists(newdir) {
+					panic("newdir missing")
 				}
 				return
 			}
@@ -454,7 +454,7 @@ func (db *Db) StartTransaction() (tx *Transaction, err error) {
 		return
 	}
 
-	err = filepath.Walk(refdir, hardlink)
+	err = filepath.Walk(olddir, hardlink)
 
 	return
 }
@@ -469,21 +469,20 @@ func exists(parts ...string) (found bool) {
 }
 
 // PutRef creates a file in tx.Dir that contains the given key.
-func (tx *Transaction) PutRef(key *Key, ref string) (err error) {
-	return putref(tx.dir, key, ref)
-}
-
-// GetRef takes a reference, parses the ref file, and returns the key.
-func (tx *Transaction) GetRef(ref string) (key *Key, err error) {
-	return getref(tx.dir, ref)
-}
-
-func putref(dir string, key *Key, ref string) (err error) {
-
+func (w *World) PutRef(key *Key, ref string) (err error) {
 	// XXX merge this with put()
+
+	dir := w.Dir()
+	err = mkdir(dir)
+	if err != nil {
+		return err
+	}
 
 	// get temporary file
 	inode, err := tmpFile(dir)
+	if err != nil {
+		return err
+	}
 	defer inode.Close()
 
 	// write to temp file
@@ -493,7 +492,7 @@ func putref(dir string, key *Key, ref string) (err error) {
 	}
 
 	// get permanent pathname for ref
-	path := refPath(dir, ref)
+	path := filepath.Join(dir, ref)
 
 	// make a directory from pathname
 	dirpath, _ := filepath.Split(path)
@@ -502,7 +501,7 @@ func putref(dir string, key *Key, ref string) (err error) {
 		return
 	}
 
-	// rename temp file to key file
+	// rename temp file to permanent file
 	err = os.Rename(inode.path, path)
 	if err != nil {
 		return
@@ -511,8 +510,9 @@ func putref(dir string, key *Key, ref string) (err error) {
 	return
 }
 
-func getref(dir string, ref string) (key *Key, err error) {
-	path := refPath(dir, ref)
+// GetRef takes a reference, parses the ref file, and returns the key.
+func (w *World) GetRef(ref string) (key *Key, err error) {
+	path := filepath.Join(w.Dir(), ref)
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
 		return
@@ -524,9 +524,10 @@ func getref(dir string, ref string) (key *Key, err error) {
 	return
 }
 
+/*
 // Commit atomically renames the content of tx.Dir into db.Dir.
 // XXX last commit wins
-func (tx *Transaction) Commit() (err error) {
+func (w *World) Commit() (err error) {
 
 	// make atomic by getting an exclusive lock
 	locknode, err := tx.Db.ExLock()
@@ -575,16 +576,21 @@ func (tx *Transaction) Commit() (err error) {
 	return
 
 }
+*/
 
 // Key is a relative path to an object.  An object is a blob, tree, or
 // ref.
 type Key struct {
 	Class string
+	World string
 	Algo  string
 	Hash  string
 }
 
 func (k Key) String() string {
+	if k.Class == "ref" {
+		return filepath.Join(k.Class, k.World, k.Algo, k.Hash)
+	}
 	return filepath.Join(k.Class, k.Algo, k.Hash)
 }
 
