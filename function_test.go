@@ -113,16 +113,40 @@ func TestOpenKey(t *testing.T) {
 	}
 }
 */
+
 /*
-func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, otherblob *[]byte) {
+func TestConcurrent(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// key := []byte("somekey")
+	valA := mkblob("valueA")
+	valB := mkblob("valueB")
+	worldA := &World{Db: db, Name: "worldA"}
+	worldB := &World{Db: db, Name: "worldB"}
+	doneA := make(chan bool)
+	doneB := make(chan bool)
+
+	// have both A and B do concurrent reads and writes -- this is in
+	// different worlds, so there should be no collisions
+	iterations := 2000
+	go iterate(t, worldA, iterations, doneA, valA, valB)
+	go iterate(t, worldB, iterations, doneB, valB, valA)
+
+	<-doneA
+	<-doneB
+}
+
+func iterate(t *testing.T, world *World, iterations int, done chan bool, myblob, otherblob *[]byte) {
 	for i := 0; i < iterations; i++ {
 		// store a blob
-		key, err := db.PutBlob("sha256", myblob)
+		key, err := db.putBlob("sha256", myblob)
 		if err != nil {
 			t.Fatal(err)
 		}
 		// start a transaction so we're isolated
-		tx, err := db.StartTransaction()
+		tx, err := db.()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -191,6 +215,7 @@ func iterate(t *testing.T, db *Db, iterations int, done chan bool, myblob, other
 	done <- true
 }
 */
+
 func nonMissingErr(err error) error {
 	switch err.(type) {
 	case *os.PathError:
@@ -234,27 +259,6 @@ func mkblob(s string) *[]byte {
 	return &tmp
 }
 
-/*
-func TestConcurrent(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// key := []byte("somekey")
-	valA := mkblob("valueA")
-	valB := mkblob("valueB")
-	doneA := make(chan bool)
-	doneB := make(chan bool)
-
-	// attempt to cause collisions by having both A and B do concurrent reads and writes
-	iterations := 2000
-	go iterate(t, db, iterations, doneA, valA, valB)
-	go iterate(t, db, iterations, doneB, valB, valA)
-
-	<-doneA
-	<-doneB
-}
-*/
 func mkkey(t *testing.T, s string) (key *Key) {
 	key, err := KeyFromString("sha256", s)
 	if err != nil {
@@ -334,7 +338,7 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotkey, err := db.PutBlob("sha256", val)
+	gotkey, err := db.putBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +364,7 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotkey, err := db.PutBlob("sha256", val)
+	gotkey, err := db.putBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,7 +502,7 @@ func TestCloneWorld(t *testing.T) {
 
 	// create blob and ref in oldworld
 	blob := mkblob(fmt.Sprintf("value.outside"))
-	blobkey, err := db.PutBlob("sha256", blob)
+	blobkey, err := db.putBlob("sha256", blob)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -647,13 +651,13 @@ func TestPutNode(t *testing.T) {
 	}
 
 	blob1 := mkblob("blob1value")
-	key1, err := db.PutBlob("sha256", blob1)
+	key1, err := db.putBlob("sha256", blob1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	blob2 := mkblob("blob2value")
-	key2, err := db.PutBlob("sha256", blob2)
+	key2, err := db.putBlob("sha256", blob2)
 	if err != nil {
 		t.Fatal(err)
 	}
