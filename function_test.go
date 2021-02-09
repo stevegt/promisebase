@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"runtime/debug"
 	"testing"
 )
@@ -422,6 +423,12 @@ func keyEqual(a, b *Key) bool {
 	return a.String() == b.String()
 }
 
+// XXX should use reflect.DeepEqual()
+func deepEqual(a, b interface{}) bool {
+	// fmt.Printf("a:\n%s\nb:\n%s\n", pretty(a), pretty(b))
+	return pretty(a) == pretty(b)
+}
+
 func TestSubRef(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -613,18 +620,18 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.ReadNode("node/sha256/00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2")
+	node, err := db.GetNode(KeyFromPath("node/sha256/14fe3864a6848b8b4b61e6b2c39fae59491c6e017e268f21ce23f1f8b07f736d"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, key := range node.ChildKeys {
+	for i, child := range node.Children {
 		switch i {
 		case 0:
 			expect := "node/sha256/563dcb27d5d8ae1c579ea8b2af89db2d125ade16d95efde13952821230d28e46"
-			tassert(t, expect == key.String(), "expected %v got %v", expect, key.String())
+			tassert(t, expect == child.Key.String(), "expected %v got %v", expect, child.Key.String())
 		case 1:
 			expect := "blob/sha256/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
-			tassert(t, expect == key.String(), "expected %q got %q", expect, key.String())
+			tassert(t, expect == child.Key.String(), "expected %q got %q", expect, child.Key.String())
 		}
 	}
 	// sha256sum testdata/node/sha256/00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2
@@ -644,34 +651,54 @@ func pretty(x interface{}) string {
 	return string(b)
 }
 
-func TestPutNode(t *testing.T) {
+func TestNode(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// setup
 	blob1 := mkblob("blob1value")
 	key1, err := db.putBlob("sha256", blob1)
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	child1 := &Node{Db: db, Key: key1, Label: ""}
 	blob2 := mkblob("blob2value")
 	key2, err := db.putBlob("sha256", blob2)
 	if err != nil {
 		t.Fatal(err)
 	}
+	child2 := &Node{Db: db, Key: key2, Label: ""}
+	fmt.Println(child1.Key.String(), child2.Key.String())
+	nodekey := KeyFromPath("node/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
+	if nodekey == nil {
+		t.Fatal("nodekey is nil")
+	}
 
-	node, err := db.PutNode("sha256", key1, key2)
+	// put
+	node, err := db.PutNode("sha256", child1, child2)
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	if node == nil {
+		t.Fatal("node is nil")
+	}
+	// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
+	tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
 	ok, err := node.Verify()
 	if err != nil {
 		t.Fatal(err)
 	}
 	tassert(t, ok, "node verify failed: %v", node)
+
+	// get
+	gotnode, err := db.GetNode(node.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
+	tassert(t, reflect.DeepEqual(node, gotnode), "node mismatch: expect %v got %v", node, gotnode)
 }
 
 // XXX test chunking order
@@ -708,7 +735,3 @@ func TestTree(t *testing.T) {
 
 // XXX if merkle tree works, then refactor refs to just be hard links
 // to merkle tree nodes?
-
-// XXX rollback()
-
-// XXX deprecate db methods that are in tx

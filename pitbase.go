@@ -672,15 +672,26 @@ func getGID() uint64 {
 }
 
 type Node struct {
-	Key       *Key
-	ChildKeys []*Key
-	Db        *Db
-	content   *[]byte
+	Key      *Key
+	Children []*Node
+	Db       *Db
+	Label    string
+	content  *[]byte
+}
+
+func (node *Node) String() (out string) {
+	for _, child := range node.Children {
+		line := strings.Join([]string{child.Key.String(), child.Label}, " ")
+		line = strings.TrimSpace(line) + "\n"
+		out += line
+	}
+	return
 }
 
 func (node *Node) Verify() (ok bool, err error) {
 	// verify our child hashes
-	for _, key := range node.ChildKeys {
+	for _, child := range node.Children {
+		key := child.Key
 		var content *[]byte
 		switch key.Class {
 		case "blob":
@@ -690,15 +701,15 @@ func (node *Node) Verify() (ok bool, err error) {
 				return
 			}
 		case "node":
-			child, err := node.Db.ReadNode(key.String())
+			c, err := node.Db.GetNode(key)
 			if err != nil {
 				return false, err
 			}
-			ok, err = child.Verify()
+			ok, err = c.Verify()
 			if !ok || err != nil {
 				return false, err
 			}
-			content = child.content
+			content = c.content
 		default:
 			err = fmt.Errorf("invalid key.Class %v", key.Class)
 			return false, err
@@ -723,20 +734,15 @@ func bin2hex(bin *[]byte) (hex string) {
 	return
 }
 
-// PutNode takes one or more keys, stores them in a file under node/,
+// PutNode takes one or more child nodes, stores their keys and labels in a file under node/,
 // and returns a pointer to a Node object.
-func (db *Db) PutNode(algo string, keys ...*Key) (node *Node, err error) {
+func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 
 	// concatenate all keys together (include the full key string with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
-	node = &Node{Db: db}
-	var content []byte
-	for _, key := range keys {
-		content = append(content, key.String()...)
-		content = append(content, '\n')
-		node.ChildKeys = append(node.ChildKeys, key)
-	}
+	node = &Node{Db: db, Children: children}
+	content := []byte(node.String())
 	node.content = &content
 
 	binhash, err := Hash(algo, node.content)
@@ -744,13 +750,13 @@ func (db *Db) PutNode(algo string, keys ...*Key) (node *Node, err error) {
 		return
 	}
 	hash := bin2hex(binhash)
-	nodekey := &Key{
+	node.Key = &Key{
 		Class: "node",
 		Algo:  algo,
 		Hash:  hash,
 	}
 
-	err = db.put(nodekey, node.content)
+	err = db.put(node.Key, node.content)
 	if err != nil {
 		return
 	}
@@ -758,10 +764,10 @@ func (db *Db) PutNode(algo string, keys ...*Key) (node *Node, err error) {
 	return
 }
 
-// ReadNode takes a directory and relative path within that directory for a merkle node file and returns a Node struct
-func (db *Db) ReadNode(path string) (node *Node, err error) {
+// GetNode takes a node key and returns a Node struct
+func (db *Db) GetNode(key *Key) (node *Node, err error) {
 	// open file
-	fn := filepath.Join(db.Dir, path)
+	fn := filepath.Join(db.Dir, key.String())
 	file, err := os.Open(fn)
 	if err != nil {
 		return
@@ -769,22 +775,31 @@ func (db *Db) ReadNode(path string) (node *Node, err error) {
 	defer file.Close()
 
 	// XXX we should probably be verifying hash on read
+	// XXX probably want to use a boolean parameter to decide whether or not to verify
 	// key := KeyFromPath(path)
 	// digest := sha256.New()
 
-	node = &Node{Db: db}
+	node = &Node{Db: db, Key: key}
 	scanner := bufio.NewScanner(file)
 	// for each line in file, call KeyFromPath and append result to Keys
 	var content []byte
 	for scanner.Scan() {
 		// txt := strings.TrimSpace(scanner.Text())
 		buf := scanner.Bytes()
+		line := string(buf)
+		parts := strings.Split(line, " ")
+		hash := parts[0]
+		var label string
+		if len(parts) >= 2 {
+			label = parts[1]
+		}
 		// canonical representation of child data is key followed by newline
 		content = append(content, buf...)
 		content = append(content, '\n')
 		// digest.Write(txt)
-		key := KeyFromPath(string(buf))
-		node.ChildKeys = append(node.ChildKeys, key)
+		k := KeyFromPath(hash)
+		child := &Node{Db: db, Key: k, Label: label}
+		node.Children = append(node.Children, child)
 	}
 	// node.Sum = digest.Sum()
 	node.content = &content
