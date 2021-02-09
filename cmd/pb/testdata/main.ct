@@ -1,0 +1,19 @@
+# pb CLI test suite
+# https://github.com/google/go-cmdtest
+
+$ mkdir var
+$ cd var
+
+# put a blob
+$ fecho blob1 this is blob1
+$ pb putblob sha256 < blob1
+blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
+
+# check it
+$ cat blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
+this is blob1
+
+# get it
+$ pb getblob blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
+this is blob1
+

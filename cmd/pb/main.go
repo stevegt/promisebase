@@ -2,11 +2,18 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/docopt/docopt-go"
 )
 
 func main() {
+	// see https://github.com/google/go-cmdtest
+	os.Exit(run())
+}
+
+func run() (rc int) {
+
 	usage := `pitbase
 
 Usage:
@@ -23,5 +30,7 @@ Options:
 `
 	arguments, _ := docopt.ParseDoc(usage)
 	fmt.Println(arguments)
-	fmt.Printf("speed is a %T", arguments["--speed"])
+	// fmt.Printf("speed is a %T", arguments["--speed"])
+
+	return
 }
