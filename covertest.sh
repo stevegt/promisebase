@@ -4,21 +4,38 @@ minpct=80
 cmd="go test -v -timeout 20s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
 tmp=/tmp/$$
 
-$cmd 2>&1 | tee $tmp  
-go tool cover -html=/tmp/covertest.out -o /tmp/covertest.html
-echo run this to see coverage detail: 
-echo xdg-open /tmp/covertest.html
+dirs=$(find -name go.mod |xargs dirname)
 
-pct=$(cat $tmp | grep coverage: | tail -1 | perl -ne 'print if s/.*coverage:\s+(\d+)\..*/$1/')
-if test -z "$pct" 
-then
-	echo FAIL unable to determine coverage 
-	rm -f /tmp/covertest.html
-	exit 1
-fi
+pass=true
+for dir in $dirs
+do
+	cd $dir
+	$cmd 2>&1 | tee $tmp  
+	html=/tmp/$(echo $PWD | perl -pne 's|^/||; s|/|-|g').html
+	go tool cover -html=/tmp/covertest.out -o $html
+	echo run this to see coverage detail: 
+	echo xdg-open $html
 
-if test "$pct" -lt "$minpct"  
+	pct=$(cat $tmp | grep coverage: | tail -1 | perl -ne 'print if s/.*coverage:\s+(\d+)\..*/$1/')
+	if test -z "$pct" 
+	then
+		echo FAIL unable to determine coverage 
+		rm -f $html
+		pass=false
+	fi
+
+	if test "0$pct" -lt "0$minpct"  
+	then
+		echo FAIL coverage less than $minpct
+		pass=false
+	fi
+	cd -
+done
+
+if $pass
 then
-	echo FAIL coverage less than $minpct
+	echo PASS
+else
+	echo FAIL
 	exit 1
 fi
