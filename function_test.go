@@ -339,7 +339,7 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotkey, err := db.putBlob("sha256", val)
+	gotkey, err := db.PutBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -365,7 +365,7 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotkey, err := db.putBlob("sha256", val)
+	gotkey, err := db.PutBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +509,7 @@ func TestCloneWorld(t *testing.T) {
 
 	// create blob and ref in oldworld
 	blob := mkblob(fmt.Sprintf("value.outside"))
-	blobkey, err := db.putBlob("sha256", blob)
+	blobkey, err := db.PutBlob("sha256", blob)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -659,13 +659,13 @@ func TestNode(t *testing.T) {
 
 	// setup
 	blob1 := mkblob("blob1value")
-	key1, err := db.putBlob("sha256", blob1)
+	key1, err := db.PutBlob("sha256", blob1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	child1 := &Node{Db: db, Key: key1, Label: ""}
 	blob2 := mkblob("blob2value")
-	key2, err := db.putBlob("sha256", blob2)
+	key2, err := db.PutBlob("sha256", blob2)
 	if err != nil {
 		t.Fatal(err)
 	}

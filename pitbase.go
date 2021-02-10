@@ -346,10 +346,10 @@ func (db *Db) Rm(key *Key) (err error) {
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
 func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
-	return world.Db.putBlob(algo, blob)
+	return world.Db.PutBlob(algo, blob)
 }
 
-func (db *Db) putBlob(algo string, blob *[]byte) (key *Key, err error) {
+func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	key, err = KeyFromBlob(algo, blob)
 	if err != nil {
 		return

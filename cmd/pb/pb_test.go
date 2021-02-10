@@ -14,6 +14,7 @@ func TestCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ts.KeepRootDirs = true
 	ts.Commands["pb"] = cmdtest.InProcessProgram("pb", run)
 	ts.Run(t, *update)
 }
