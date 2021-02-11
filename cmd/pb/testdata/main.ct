@@ -17,9 +17,16 @@ $ fecho blob2 multiline blob\nthis is line 2
 $ pb putblob sha256 < blob2
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 
-# want to do this, but...
+# put a slightly bigger blob
 $ pb putblob sha256 < ../bigblob
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 
+# put a node
 $ pb putnode sha256 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262,multiline blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590,bigblob
 node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431
+
+# get it
+$ pb getnode node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431
+blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
+blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
+
