@@ -9,23 +9,17 @@ $ fecho blob1 this is blob1
 $ pb putblob sha256 < blob1
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
-# check it
-# $ mkdir blob
-# $ cd blob
-# $ mkdir sha256
-# $ cd sha256
-# $ fecho foo should be in sha256
-# $ cat foo
-# $ cd ..
-# $ cd ..
-# $ fecho foo should be in var
-# $ cat foo
+# get it
+$ pb getblob blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
+this is blob1
 
+$ fecho blob2 multiline blob\nthis is line 2
+$ pb putblob sha256 < blob2
+blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 
-# $ cat b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
-# this is blob1
-# 
-# # get it
-# $ pb getblob blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
-# this is blob1
+# want to do this, but...
+$ pb putblob sha256 < ../bigblob
+blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 
+$ pb putnode sha256 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262,multiline blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590,bigblob
+node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431

@@ -670,7 +670,7 @@ func TestNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	child2 := &Node{Db: db, Key: key2, Label: ""}
-	fmt.Println(child1.Key.String(), child2.Key.String())
+	// fmt.Println(child1.Key.String(), child2.Key.String())
 	nodekey := KeyFromPath("node/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
 	if nodekey == nil {
 		t.Fatal("nodekey is nil")
