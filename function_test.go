@@ -381,6 +381,7 @@ func TestGetBlob(t *testing.T) {
 	}
 }
 
+/*
 func TestPutRef(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -418,6 +419,7 @@ func TestPutRef(t *testing.T) {
 		t.Fatalf("expected '%s', got '%s'", key, gotkey)
 	}
 }
+*/
 
 func keyEqual(a, b *Key) bool {
 	return a.String() == b.String()
@@ -429,6 +431,7 @@ func deepEqual(a, b interface{}) bool {
 	return pretty(a) == pretty(b)
 }
 
+/*
 func TestSubRef(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -464,6 +467,7 @@ func TestSubRef(t *testing.T) {
 		t.Fatalf("expected '%s', got '%s'", key.String(), gotkey)
 	}
 }
+*/
 
 func TestPath(t *testing.T) {
 	db, err := Open(dir)
@@ -498,7 +502,7 @@ func XXXTestRefPath(t *testing.T) {
 	}
 }
 */
-
+/*
 func TestCloneWorld(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
@@ -523,15 +527,10 @@ func TestCloneWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	/* XXX unnecessary?
-	if strings.Index(tx.dir, "var/tx/") != 0 {
-		t.Fatalf("tx.dir should not be %s", tx.dir)
-	}
-	*/
 
 	// verify old ref is hardlinked into newworld
-	if !exists(newworld.Dir(), outref) {
-		t.Fatalf("missing %s/%s", newworld.Dir(), outref)
+	if !exists(newworld.Db.Dir, outref) {
+		t.Fatalf("missing %s/%s", newworld.Db.Dir, outref)
 	}
 
 	// create ref in our world
@@ -542,7 +541,7 @@ func TestCloneWorld(t *testing.T) {
 	}
 
 	// verify new ref is in our world
-	if !exists(newworld.Dir(), inref) {
+	if !exists(newworld.Db.Dir, inref) {
 		t.Fatalf("missing %s/%s", newworld.Dir(), inref)
 	}
 	// verify new ref is not in oldworld
@@ -560,26 +559,8 @@ func TestCloneWorld(t *testing.T) {
 	}
 
 	// XXX test db.GetRef
-	/*
-		err = tx.Commit()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// XXX ensure tx.Dir is gone
-		// XXX ensure call to tx.* fails gracefully
-
-		// verify old ref is in db.Dir
-		if !exists(refdir, outref) {
-			t.Fatalf("missing %s/%s", refdir, outref)
-		}
-		// verify new ref is in db.Dir
-		if !exists(refdir, inref) {
-			t.Fatalf("missing %s/%s", refdir, inref)
-		}
-		// XXX verify blob content
-	*/
 }
+*/
 
 // XXX redefine "key" to mean the path to a blob, tree, or ref
 // XXX change ref format accordingly
@@ -699,6 +680,56 @@ func TestNode(t *testing.T) {
 	}
 	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
 	tassert(t, reflect.DeepEqual(node, gotnode), "node mismatch: expect %v got %v", node, gotnode)
+}
+
+func TestWorld(t *testing.T) {
+	db, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// setup
+	blob1 := mkblob("blob1value")
+	key1, err := db.PutBlob("sha256", blob1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child1 := &Node{Db: db, Key: key1, Label: ""}
+	blob2 := mkblob("blob2value")
+	key2, err := db.PutBlob("sha256", blob2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child2 := &Node{Db: db, Key: key2, Label: ""}
+	blob3 := mkblob("blob3value")
+	key3, err := db.PutBlob("sha256", blob3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child3 := &Node{Db: db, Key: key3, Label: ""}
+
+	// put
+	node1, err := db.PutNode("sha256", child1, child2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node1 == nil {
+		t.Fatal("node1 is nil")
+	}
+	node2, err := db.PutNode("sha256", node1, child3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node2 == nil {
+		t.Fatal("node2 is nil")
+	}
+
+	world1, err := db.PutWorld(node2.Key, "world1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = world1
+	// XXX check it
 }
 
 // XXX test chunking order

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/google/renameio"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
@@ -405,8 +406,27 @@ type World struct {
 	Name string
 }
 
-func (w *World) Dir() (path string) {
+func (w *World) String() (path string) {
 	return filepath.Join(w.Db.Dir, "world", w.Name)
+}
+
+func (db *Db) PutWorld(key *Key, name string) (w *World, err error) {
+	w = &World{Db: db, Name: name}
+	src := filepath.Join("..", key.String())
+	err = renameio.Symlink(src, w.String())
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (db *Db) GetWorld(name string) (path string, err error) {
+	w := &World{Db: db, Name: name}
+	return w.Get()
+}
+
+func (w *World) Get() (path string, err error) {
+	return os.Readlink(w.String())
 }
 
 // StartTransaction atomically creates a copy-on-write copy of the ref directory.
@@ -415,8 +435,8 @@ func (db *Db) CloneWorld(oldworld *World, name string) (w *World, err error) {
 	w = &World{Db: db, Name: name}
 	log.Debug("world opened: ", name)
 
-	olddir := oldworld.Dir()
-	newdir := w.Dir()
+	olddir := oldworld.Db.Dir
+	newdir := w.Db.Dir
 
 	// hard-link all of the contents of refs into tmpdir, including any subdirs
 	// https://golang.org/pkg/path/filepath/#Walk
@@ -476,7 +496,7 @@ func exists(parts ...string) (found bool) {
 func (w *World) PutRef(key *Key, ref string) (err error) {
 	// XXX merge this with put()
 
-	dir := w.Dir()
+	dir := w.Db.Dir
 	err = mkdir(dir)
 	if err != nil {
 		return err
@@ -516,7 +536,7 @@ func (w *World) PutRef(key *Key, ref string) (err error) {
 
 // GetRef takes a reference, parses the ref file, and returns the key.
 func (w *World) GetRef(ref string) (key *Key, err error) {
-	path := filepath.Join(w.Dir(), ref)
+	path := filepath.Join(w.Db.Dir, ref)
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
 		return

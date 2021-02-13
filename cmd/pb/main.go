@@ -59,10 +59,13 @@ type Opts struct {
 	Getnode  bool
 	Putworld bool
 	Getworld bool
+	Lsworld  bool
+	Catworld bool
 	Algo     string
 	Key      string
 	KeyLabel []string `docopt:"<key_label>"`
 	Name     string
+	All      bool `docopt:"-a"`
 }
 
 func main() {
@@ -81,6 +84,8 @@ Usage:
   pb getnode <key>
   pb putworld <key> <name>
   pb getworld <name>
+  pb lsworld [-a] <name>
+  pb catworld <name>
 
 Options:
   -h --help     Show this screen.
@@ -130,17 +135,51 @@ Options:
 			return 42
 		}
 		fmt.Println(key)
+	case opts.Getnode:
+		node, err := getNode(opts.Key)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(node)
+	case opts.Putworld:
+		world, err := putWorld(opts.Key, opts.Name)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		path, err := getWorld(world.Name)
+		if err != nil {
+			log.Error(err)
+			return 43
+		}
+		fmt.Printf("world/%s -> %s", world.Name, path)
+	case opts.Getworld:
+		path, err := getWorld(opts.Name)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(path)
 	}
 
 	return 0
 }
 
-func putBlob(algo string, buf *[]byte) (key *pb.Key, err error) {
+func opendb() (db *pb.Db, err error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return
 	}
-	db, err := pb.Open(dir)
+	db, err = pb.Open(dir)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func putBlob(algo string, buf *[]byte) (key *pb.Key, err error) {
+	db, err := opendb()
 	if err != nil {
 		return
 	}
@@ -152,11 +191,7 @@ func putBlob(algo string, buf *[]byte) (key *pb.Key, err error) {
 }
 
 func getBlob(keypath string) (buf *[]byte, err error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return
-	}
-	db, err := pb.Open(dir)
+	db, err := opendb()
 	if err != nil {
 		return
 	}
@@ -169,11 +204,7 @@ func getBlob(keypath string) (buf *[]byte, err error) {
 }
 
 func putNode(algo string, keylabel []string) (keypath string, err error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return
-	}
-	db, err := pb.Open(dir)
+	db, err := opendb()
 	if err != nil {
 		return
 	}
@@ -190,6 +221,43 @@ func putNode(algo string, keylabel []string) (keypath string, err error) {
 		return
 	}
 	keypath = node.Key.String()
+	return
+}
+
+func getNode(keypath string) (node *pb.Node, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	key := pb.KeyFromPath(keypath)
+	node, err = db.GetNode(key)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// $ pb putworld node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 world1
+// world/world1 -> node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
+func putWorld(keypath, name string) (world *pb.World, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	key := pb.KeyFromPath(keypath)
+	world, err = db.PutWorld(key, name)
+	return
+}
+
+func getWorld(name string) (path string, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	path, err = db.GetWorld(name)
+	if err != nil {
+		return
+	}
 	return
 }
 
