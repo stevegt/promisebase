@@ -1,8 +1,7 @@
-#!/bin/bash 
+#!/bin/bash -e
 
 minpct=80
 cmd="go test -v -timeout 20s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
-tmp=/tmp/$$
 
 dirs=$(find -name go.mod |xargs dirname)
 
@@ -10,13 +9,13 @@ pass=true
 for dir in $dirs
 do
 	cd $dir
-	$cmd 2>&1 | tee $tmp  
+	$cmd 
 	html=/tmp/$(echo $PWD | perl -pne 's|^/||; s|/|-|g').html
 	go tool cover -html=/tmp/covertest.out -o $html
 	echo run this to see coverage detail: 
 	echo xdg-open $html
 
-	pct=$(cat $tmp | grep coverage: | tail -1 | perl -ne 'print if s/.*coverage:\s+(\d+)\..*/$1/')
+	pct=$(go tool cover -func=/tmp/covertest.out | grep total: | perl -ne 'print if s/.*\s+(\d+)\..*/$1/')
 	if test -z "$pct" 
 	then
 		echo FAIL unable to determine coverage 
