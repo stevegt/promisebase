@@ -3,12 +3,12 @@ package pitbase
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"testing"
 )
 
@@ -529,8 +529,8 @@ func TestCloneWorld(t *testing.T) {
 	}
 
 	// verify old ref is hardlinked into newworld
-	if !exists(newworld.Db.Dir, outref) {
-		t.Fatalf("missing %s/%s", newworld.Db.Dir, outref)
+	if !exists(newworld.Dir(), outref) {
+		t.Fatalf("missing %s/%s", newworld.Dir(), outref)
 	}
 
 	// create ref in our world
@@ -541,7 +541,7 @@ func TestCloneWorld(t *testing.T) {
 	}
 
 	// verify new ref is in our world
-	if !exists(newworld.Db.Dir, inref) {
+	if !exists(newworld.Dir(), inref) {
 		t.Fatalf("missing %s/%s", newworld.Dir(), inref)
 	}
 	// verify new ref is not in oldworld
@@ -622,14 +622,6 @@ func TestVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 	tassert(t, ok, "node verify failed: %v", pretty(node))
-}
-
-func pretty(x interface{}) string {
-	b, err := json.MarshalIndent(x, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
 }
 
 func TestNode(t *testing.T) {
@@ -728,8 +720,30 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = world1
-	// XXX check it
+
+	gotworld, err := db.GetWorld("world1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tassert(t, reflect.DeepEqual(world1, gotworld), "world mismatch: expect %v got %v", pretty(world1), pretty(gotworld))
+
+	nodes, err := world1.Ls()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
+	gotnodes := nodes2str(nodes)
+	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
+	//XXX more work
+}
+
+func nodes2str(nodes []*Node) (out string) {
+	for _, node := range nodes {
+		line := strings.Join([]string{node.Key.String(), node.Label}, " ")
+		line = strings.TrimSpace(line) + "\n"
+		out += line
+	}
+	return
 }
 
 // XXX test chunking order

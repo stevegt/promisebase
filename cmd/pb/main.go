@@ -148,19 +148,26 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		path, err := getWorld(world.Name)
+		gotworld, err := getWorld(world.Name)
 		if err != nil {
 			log.Error(err)
 			return 43
 		}
-		fmt.Printf("world/%s -> %s", world.Name, path)
+		fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Src)
 	case opts.Getworld:
-		path, err := getWorld(opts.Name)
+		w, err := getWorld(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(path)
+		fmt.Println(w.Src)
+	case opts.Lsworld:
+		leafs, err := lsWorld(opts.Name)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(strings.Join(leafs, "\n"))
 	}
 
 	return 0
@@ -249,15 +256,28 @@ func putWorld(keypath, name string) (world *pb.World, err error) {
 	return
 }
 
-func getWorld(name string) (path string, err error) {
+func getWorld(name string) (world *pb.World, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	path, err = db.GetWorld(name)
+	world, err = db.GetWorld(name)
 	if err != nil {
 		return
 	}
+	return
+}
+
+func lsWorld(name string) (leafs []string, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	path, err := db.GetWorld(name)
+	if err != nil {
+		return
+	}
+	_ = path
 	return
 }
 

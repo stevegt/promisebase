@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -404,6 +405,7 @@ func (db *Db) RefPath(ref string) (path string) {
 type World struct {
 	Db   *Db
 	Name string
+	Src  string
 }
 
 func (w *World) String() (path string) {
@@ -417,16 +419,60 @@ func (db *Db) PutWorld(key *Key, name string) (w *World, err error) {
 	if err != nil {
 		return
 	}
+	w.Src = key.String()
 	return
 }
 
-func (db *Db) GetWorld(name string) (path string, err error) {
-	w := &World{Db: db, Name: name}
-	return w.Get()
+func (db *Db) GetWorld(name string) (w *World, err error) {
+	w = &World{Db: db, Name: name}
+	src, err := os.Readlink(w.String())
+	if err != nil {
+		return
+	}
+	parts := strings.Split(src, string(filepath.Separator))
+	w.Src = filepath.Join(parts[1:]...)
+	return
 }
 
+/*
 func (w *World) Get() (path string, err error) {
 	return os.Readlink(w.String())
+}
+*/
+
+func (w *World) Ls() (nodes []*Node, err error) {
+	key := KeyFromPath(w.Src)
+	rootnode, err := w.Db.GetNode(key)
+	if err != nil {
+		return
+	}
+	// fmt.Println("root node: ", pretty(rootnode))
+	nodes, err = rootnode.traverse()
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (n *Node) traverse() (nodes []*Node, err error) {
+	for _, child := range n.Children {
+		// fmt.Println(pretty(child))
+		if child.Key.Class == "blob" {
+			nodes = append(nodes, child)
+		} else {
+			child, err = n.Db.GetNode(child.Key)
+			if err != nil {
+				return
+			}
+			var childnodes []*Node
+			childnodes, err = child.traverse()
+			if err != nil {
+				return
+			}
+			nodes = append(nodes, childnodes...)
+		}
+	}
+	return
 }
 
 // StartTransaction atomically creates a copy-on-write copy of the ref directory.
@@ -820,6 +866,7 @@ func (db *Db) GetNode(key *Key) (node *Node, err error) {
 		k := KeyFromPath(hash)
 		child := &Node{Db: db, Key: k, Label: label}
 		node.Children = append(node.Children, child)
+		// fmt.Println("Children: ", pretty(node.Children))
 	}
 	// node.Sum = digest.Sum()
 	node.content = &content
@@ -829,4 +876,12 @@ func (db *Db) GetNode(key *Key) (node *Node, err error) {
 	}
 
 	return
+}
+
+func pretty(x interface{}) string {
+	b, err := json.MarshalIndent(x, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
