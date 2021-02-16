@@ -686,19 +686,19 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	child1 := &Node{Db: db, Key: key1, Label: ""}
+	child1 := &Node{Db: db, Key: key1, Label: "blob1label"}
 	blob2 := mkblob("blob2value")
 	key2, err := db.PutBlob("sha256", blob2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child2 := &Node{Db: db, Key: key2, Label: ""}
+	child2 := &Node{Db: db, Key: key2, Label: "blob2label"}
 	blob3 := mkblob("blob3value")
 	key3, err := db.PutBlob("sha256", blob3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child3 := &Node{Db: db, Key: key3, Label: ""}
+	child3 := &Node{Db: db, Key: key3, Label: "blob3label"}
 
 	// put
 	node1, err := db.PutNode("sha256", child1, child2)
@@ -727,14 +727,27 @@ func TestWorld(t *testing.T) {
 	}
 	tassert(t, reflect.DeepEqual(world1, gotworld), "world mismatch: expect %v got %v", pretty(world1), pretty(gotworld))
 
+	// list leaf nodes
 	nodes, err := world1.Ls()
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
+	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
 	gotnodes := nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
-	//XXX more work
+
+	// list all nodes
+	/*
+		nodes, err := world1.LsAll(true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
+		gotnodes := nodes2str(nodes)
+		tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
+	*/
+
+	// XXX catworld
 }
 
 func nodes2str(nodes []*Node) (out string) {
@@ -745,38 +758,3 @@ func nodes2str(nodes []*Node) (out string) {
 	}
 	return
 }
-
-// XXX test chunking order
-
-/*
-// Experiment with a merkle tree implementation.
-//
-// XXX ensure we're not vulnerable to https://en.wikipedia.org/wiki/Merkle_tree#Second_preimage_attack
-func TestTree(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// ref does not contain the algo name
-	ref := "someref"
-	key := Hash("sha256", []byte("somevalue"))
-	// fullref contains the algo name
-	fullref := fmt.Sprintf("sha256:%x", key)
-	err = db.PutRef("sha256", key, ref)
-	if err != nil {
-		t.Fatal(err)
-	}
-	buf, err := ioutil.ReadFile("var/refs/someref")
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotfullref := string(buf)
-	if fullref != gotfullref {
-		t.Fatalf("expected %s, got %s", fullref, gotfullref)
-	}
-}
-*/
-
-// XXX if merkle tree works, then refactor refs to just be hard links
-// to merkle tree nodes?
