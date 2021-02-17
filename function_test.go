@@ -750,7 +750,14 @@ func TestWorld(t *testing.T) {
 	gotnodes = nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
-	// XXX catworld
+	// catworld
+	gotbuf, err := world1.Cat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectbuf := mkblob("blob1valueblob2valueblob3value")
+	tassert(t, bytes.Compare(*expectbuf, *gotbuf) == 0, "expected %v got %v", string(*expectbuf), string(*gotbuf))
+
 }
 
 func nodes2str(nodes []*Node) (out string) {

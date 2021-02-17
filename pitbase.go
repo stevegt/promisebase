@@ -452,6 +452,30 @@ func (w *World) Ls(all bool) (nodes []*Node, err error) {
 	return rootnode.traverse(all)
 }
 
+// Cat concatenates all of the leaf node content in World and returns
+// it as a pointer to a byte slice.
+func (w *World) Cat() (buf *[]byte, err error) {
+	// XXX this should be a generator, to prevent memory consumption
+	// with large trees
+	key := KeyFromPath(w.Src)
+	rootnode, err := w.Db.GetNode(key)
+	if err != nil {
+		return
+	}
+	rootnode.Label = w.Name
+	nodes, err := rootnode.traverse(false)
+	if err != nil {
+		return
+	}
+
+	// XXX
+	_ = nodes
+	b := []byte("XXX")
+	buf = &b
+
+	return
+}
+
 func (node *Node) Verify() (ok bool, err error) {
 	nodes, err := node.traverse(true)
 	if err != nil {
