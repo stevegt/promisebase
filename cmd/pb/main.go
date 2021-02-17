@@ -162,12 +162,12 @@ Options:
 		}
 		fmt.Println(w.Src)
 	case opts.Lsworld:
-		leafs, err := lsWorld(opts.Name)
+		leafs, err := lsWorld(opts.Name, opts.All)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(strings.Join(leafs, "\n"))
+		fmt.Println(strings.Join(leafs, ""))
 	}
 
 	return 0
@@ -268,16 +268,20 @@ func getWorld(name string) (world *pb.World, err error) {
 	return
 }
 
-func lsWorld(name string) (leafs []string, err error) {
+func lsWorld(name string, all bool) (leafs []string, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	path, err := db.GetWorld(name)
+	world, err := db.GetWorld(name)
 	if err != nil {
 		return
 	}
-	_ = path
+	nodes, err := world.Ls(all)
+	for _, node := range nodes {
+		entry := pb.NodeEntry{Path: node.Key.String(), Label: node.Label}
+		leafs = append(leafs, entry.String())
+	}
 	return
 }
 

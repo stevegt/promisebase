@@ -440,15 +440,7 @@ func (w *World) Get() (path string, err error) {
 }
 */
 
-func (w *World) Ls() (nodes []*Node, err error) {
-	return w.ls(false)
-}
-
-func (w *World) LsAll() (nodes []*Node, err error) {
-	return w.ls(true)
-}
-
-func (w *World) ls(all bool) (nodes []*Node, err error) {
+func (w *World) Ls(all bool) (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	key := KeyFromPath(w.Src)
@@ -507,7 +499,7 @@ func (node *Node) traverse(all bool) (nodes []*Node, err error) {
 
 	// include child nodes
 	if node.Key.Class == "node" {
-		children, err := node.Children()
+		children, err := node.ChildNodes()
 		if err != nil {
 			return nil, err
 		}
@@ -790,8 +782,14 @@ func getGID() uint64 {
 }
 
 type NodeEntry struct {
-	path  string
-	label string
+	Path  string
+	Label string
+}
+
+func (ne *NodeEntry) String() (out string) {
+	out = strings.Join([]string{ne.Path, ne.Label}, " ")
+	out = strings.TrimSpace(out) + "\n"
+	return
 }
 
 type Node struct {
@@ -802,38 +800,30 @@ type Node struct {
 }
 
 func (node *Node) String() (out string) {
-	children, err := node.Children()
-	if err != nil {
-		panic(err) // XXX
-	}
-	fmt.Printf("asdfjk %#v", children)
-	for _, child := range children {
-		line := strings.Join([]string{child.Key.String(), child.Label}, " ")
-		line = strings.TrimSpace(line) + "\n"
-		// line += "\n"
-		out += line
+	for _, entry := range node.entries {
+		out += entry.String()
 	}
 	return
 }
 
-func (node *Node) Children() (children []*Node, err error) {
+func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	for _, entry := range node.entries {
-		key := KeyFromPath(entry.path)
+		key := KeyFromPath(entry.Path)
 		var child *Node
 		switch key.Class {
+		case "blob":
+			child = &Node{Key: key, Db: node.Db}
 		case "node":
 			child, err = node.Db.GetNode(key)
-		case "blob":
-			child, err = node.Db.GetBlob(key)
+			if err != nil {
+				log.Errorf("unreachable key %#v err %#v", key, err)
+				return nil, err
+			}
 		}
-		if err != nil {
-			log.Errorf("unreachable key %#v err %#v", key, err)
-			return nil, err
-		}
-		child.Label = entry.label
-		children = append(children, child)
+		child.Label = entry.Label
+		nodes = append(nodes, child)
 	}
 	return
 }
@@ -847,22 +837,17 @@ func bin2hex(bin *[]byte) (hex string) {
 // and returns a pointer to a Node object.
 func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 
-	fmt.Printf("woeiqru %#v\n", children[0].Key)
-
 	node = &Node{Db: db}
 
 	// populate the entries field
 	var entries []NodeEntry
 	for _, child := range children {
 		path := child.Key.String()
-		fmt.Printf("oiuasdf path %#v\n", path)
 		label := child.Label
-		entry := NodeEntry{path: path, label: label}
-		fmt.Printf("asdfghjk entry %#v\n", entry)
+		entry := NodeEntry{Path: path, Label: label}
 		entries = append(entries, entry)
 	}
 	node.entries = entries
-	fmt.Printf("kjjhkk entries %#v\n", node.entries)
 
 	// concatenate all keys together (include the full key string with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
@@ -915,7 +900,7 @@ func (db *Db) getNode(key *Key, verify bool) (node *Node, err error) {
 		if len(parts) >= 2 {
 			label = parts[1]
 		}
-		entry := NodeEntry{path: path, label: label}
+		entry := NodeEntry{Path: path, Label: label}
 		entries = append(entries, entry)
 
 		content = append(content, buf...)

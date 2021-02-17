@@ -605,7 +605,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	children, err := node.Children()
+	children, err := node.ChildNodes()
 	if err != nil {
 		return
 	}
@@ -712,6 +712,7 @@ func TestWorld(t *testing.T) {
 	if node1 == nil {
 		t.Fatal("node1 is nil")
 	}
+	node1.Label = "node1label"
 	node2, err := db.PutNode("sha256", node1, child3)
 	if err != nil {
 		t.Fatal(err)
@@ -732,7 +733,7 @@ func TestWorld(t *testing.T) {
 	tassert(t, reflect.DeepEqual(world1, gotworld), "world mismatch: expect %v got %v", pretty(world1), pretty(gotworld))
 
 	// list leaf nodes
-	nodes, err := world1.Ls()
+	nodes, err := world1.Ls(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -741,11 +742,11 @@ func TestWorld(t *testing.T) {
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
 	// list all nodes
-	nodes, err = world1.LsAll()
+	nodes, err = world1.Ls(true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "XXX"
+	expect = "node/sha256/fc489024469b5e9acfa85e4c117e9bef69552720ef5154edaaa6123bad98ec56 world1\nnode/sha256/9ae11d65603f394a9dcb6a54166dde24ebdd9479c480ad8b8e5b700f3a1cde4b node1label\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
 	gotnodes = nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 

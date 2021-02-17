@@ -43,12 +43,12 @@ blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo
 # make a world from that parent node
 # - this just makes a symlink in var/world and shows the result
 $ pb putworld node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 world1
-world/world1 -> ../node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
+world/world1 -> node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
 
 # get a world
 # - just calls Readlink("var/world/world1") and returns the thing it's pointing at
 $ pb getworld world1
-../node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
+node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
 
 # list all of the leaf nodes in a world 
 $ pb lsworld world1
