@@ -810,6 +810,7 @@ func (node *Node) String() (out string) {
 	for _, child := range children {
 		line := strings.Join([]string{child.Key.String(), child.Label}, " ")
 		line = strings.TrimSpace(line) + "\n"
+		// line += "\n"
 		out += line
 	}
 	return
@@ -820,7 +821,13 @@ func (node *Node) Children() (children []*Node, err error) {
 	// with large trees
 	for _, entry := range node.entries {
 		key := KeyFromPath(entry.path)
-		child, err := node.Db.GetNode(key)
+		var child *Node
+		switch key.Class {
+		case "node":
+			child, err = node.Db.GetNode(key)
+		case "blob":
+			child, err = node.Db.GetBlob(key)
+		}
 		if err != nil {
 			log.Errorf("unreachable key %#v err %#v", key, err)
 			return nil, err
@@ -843,12 +850,15 @@ func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 	fmt.Printf("woeiqru %#v\n", children[0].Key)
 
 	node = &Node{Db: db}
+
+	// populate the entries field
 	var entries []NodeEntry
 	for _, child := range children {
 		path := child.Key.String()
 		fmt.Printf("oiuasdf path %#v\n", path)
 		label := child.Label
 		entry := NodeEntry{path: path, label: label}
+		fmt.Printf("asdfghjk entry %#v\n", entry)
 		entries = append(entries, entry)
 	}
 	node.entries = entries
