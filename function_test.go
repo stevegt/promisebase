@@ -605,7 +605,11 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, child := range node.Children {
+	children, err := node.Children()
+	if err != nil {
+		return
+	}
+	for i, child := range children {
 		switch i {
 		case 0:
 			expect := "node/sha256/563dcb27d5d8ae1c579ea8b2af89db2d125ade16d95efde13952821230d28e46"
@@ -737,15 +741,13 @@ func TestWorld(t *testing.T) {
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
 	// list all nodes
-	/*
-		nodes, err := world1.LsAll(true)
-		if err != nil {
-			t.Fatal(err)
-		}
-		expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
-		gotnodes := nodes2str(nodes)
-		tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
-	*/
+	nodes, err = world1.LsAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect = "XXX"
+	gotnodes = nodes2str(nodes)
+	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
 	// XXX catworld
 }

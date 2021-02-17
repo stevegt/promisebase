@@ -441,37 +441,86 @@ func (w *World) Get() (path string, err error) {
 */
 
 func (w *World) Ls() (nodes []*Node, err error) {
+	return w.ls(false)
+}
+
+func (w *World) LsAll() (nodes []*Node, err error) {
+	return w.ls(true)
+}
+
+func (w *World) ls(all bool) (nodes []*Node, err error) {
+	// XXX this should be a generator, to prevent memory consumption
+	// with large trees
 	key := KeyFromPath(w.Src)
 	rootnode, err := w.Db.GetNode(key)
 	if err != nil {
 		return
 	}
-	// fmt.Println("root node: ", pretty(rootnode))
-	nodes, err = rootnode.traverse()
+	rootnode.Label = w.Name
+	return rootnode.traverse(all)
+}
+
+func (node *Node) Verify() (ok bool, err error) {
+	nodes, err := node.traverse(true)
 	if err != nil {
 		return
 	}
-	return
+	for _, node := range nodes {
+		key := node.Key
+		switch key.Class {
+		case "blob":
+			// XXX add a verify flag to GetBlob and do this there
+			content, err := node.Db.GetBlob(key)
+			if err != nil {
+				return false, err
+			}
+			// hash content
+			binhash, err := Hash(key.Algo, content)
+			if err != nil {
+				return false, err
+			}
+			// compare hash with key.Hash
+			hex := bin2hex(binhash)
+			if key.Hash != hex {
+				log.Debugf("node %v key %v content '%s'", node, key, *content)
+				return false, fmt.Errorf("expected %v, calculated %v", key.Hash, hex)
+			}
+		case "node":
+			_, err := node.Db.getNode(key, true)
+			if err != nil {
+				return false, err
+			}
+		default:
+			err = fmt.Errorf("invalid key.Class %v", key.Class)
+			return false, err
+		}
+	}
+	return true, nil
 }
 
-func (n *Node) traverse() (nodes []*Node, err error) {
-	for _, child := range n.Children {
-		// fmt.Println(pretty(child))
-		if child.Key.Class == "blob" {
-			nodes = append(nodes, child)
-		} else {
-			child, err = n.Db.GetNode(child.Key)
-			if err != nil {
-				return
-			}
+func (node *Node) traverse(all bool) (nodes []*Node, err error) {
+
+	// include this node
+	if all || node.Key.Class == "blob" {
+		nodes = append(nodes, node)
+	}
+
+	// include child nodes
+	if node.Key.Class == "node" {
+		children, err := node.Children()
+		if err != nil {
+			return nil, err
+		}
+		for _, child := range children {
 			var childnodes []*Node
-			childnodes, err = child.traverse()
+			childnodes, err = child.traverse(all)
 			if err != nil {
-				return
+				return nil, err
 			}
 			nodes = append(nodes, childnodes...)
 		}
 	}
+
 	return
 }
 
@@ -667,6 +716,9 @@ func (k Key) String() string {
 // KeyFromPath takes a path relative to db root dir and returns a populated Key object
 func KeyFromPath(path string) (key *Key) {
 	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		panic(fmt.Errorf("path %#v", path))
+	}
 	key = &Key{
 		Class: parts[0],
 		Algo:  parts[1],
@@ -737,16 +789,25 @@ func getGID() uint64 {
 	return n
 }
 
+type NodeEntry struct {
+	path  string
+	label string
+}
+
 type Node struct {
-	Key      *Key
-	Children []*Node
-	Db       *Db
-	Label    string
-	content  *[]byte
+	Key     *Key
+	Db      *Db
+	Label   string
+	entries []NodeEntry
 }
 
 func (node *Node) String() (out string) {
-	for _, child := range node.Children {
+	children, err := node.Children()
+	if err != nil {
+		panic(err) // XXX
+	}
+	fmt.Printf("asdfjk %#v", children)
+	for _, child := range children {
 		line := strings.Join([]string{child.Key.String(), child.Label}, " ")
 		line = strings.TrimSpace(line) + "\n"
 		out += line
@@ -754,45 +815,20 @@ func (node *Node) String() (out string) {
 	return
 }
 
-func (node *Node) Verify() (ok bool, err error) {
-	// verify our child hashes
-	for _, child := range node.Children {
-		key := child.Key
-		var content *[]byte
-		switch key.Class {
-		case "blob":
-			// read content
-			content, err = node.Db.GetBlob(key)
-			if err != nil {
-				return
-			}
-		case "node":
-			c, err := node.Db.GetNode(key)
-			if err != nil {
-				return false, err
-			}
-			ok, err = c.Verify()
-			if !ok || err != nil {
-				return false, err
-			}
-			content = c.content
-		default:
-			err = fmt.Errorf("invalid key.Class %v", key.Class)
-			return false, err
-		}
-		// hash content
-		binhash, err := Hash(key.Algo, content)
+func (node *Node) Children() (children []*Node, err error) {
+	// XXX this should be a generator, to prevent memory consumption
+	// with large trees
+	for _, entry := range node.entries {
+		key := KeyFromPath(entry.path)
+		child, err := node.Db.GetNode(key)
 		if err != nil {
-			return false, err
+			log.Errorf("unreachable key %#v err %#v", key, err)
+			return nil, err
 		}
-		// compare hash with key.Hash
-		hex := bin2hex(binhash)
-		if key.Hash != hex {
-			log.Debugf("node %v key %v content '%s'", node, key, *content)
-			return false, fmt.Errorf("expected %v, calculated %v", key.Hash, hex)
-		}
+		child.Label = entry.label
+		children = append(children, child)
 	}
-	return true, nil
+	return
 }
 
 func bin2hex(bin *[]byte) (hex string) {
@@ -804,14 +840,26 @@ func bin2hex(bin *[]byte) (hex string) {
 // and returns a pointer to a Node object.
 func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 
+	fmt.Printf("woeiqru %#v\n", children[0].Key)
+
+	node = &Node{Db: db}
+	var entries []NodeEntry
+	for _, child := range children {
+		path := child.Key.String()
+		fmt.Printf("oiuasdf path %#v\n", path)
+		label := child.Label
+		entry := NodeEntry{path: path, label: label}
+		entries = append(entries, entry)
+	}
+	node.entries = entries
+	fmt.Printf("kjjhkk entries %#v\n", node.entries)
+
 	// concatenate all keys together (include the full key string with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
-	node = &Node{Db: db, Children: children}
 	content := []byte(node.String())
-	node.content = &content
 
-	binhash, err := Hash(algo, node.content)
+	binhash, err := Hash(algo, &content)
 	if err != nil {
 		return
 	}
@@ -822,7 +870,7 @@ func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 		Hash:  hash,
 	}
 
-	err = db.put(node.Key, node.content)
+	err = db.put(node.Key, &content)
 	if err != nil {
 		return
 	}
@@ -832,7 +880,10 @@ func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 
 // GetNode takes a node key and returns a Node struct
 func (db *Db) GetNode(key *Key) (node *Node, err error) {
-	// open file
+	return db.getNode(key, true)
+}
+
+func (db *Db) getNode(key *Key, verify bool) (node *Node, err error) {
 	fn := filepath.Join(db.Dir, key.String())
 	file, err := os.Open(fn)
 	if err != nil {
@@ -840,39 +891,45 @@ func (db *Db) GetNode(key *Key) (node *Node, err error) {
 	}
 	defer file.Close()
 
-	// XXX we should probably be verifying hash on read
-	// XXX probably want to use a boolean parameter to decide whether or not to verify
-	// key := KeyFromPath(path)
-	// digest := sha256.New()
-
 	node = &Node{Db: db, Key: key}
 	scanner := bufio.NewScanner(file)
-	// for each line in file, call KeyFromPath and append result to Keys
 	var content []byte
+	var entries []NodeEntry
 	for scanner.Scan() {
-		// txt := strings.TrimSpace(scanner.Text())
 		buf := scanner.Bytes()
 		line := string(buf)
+
 		parts := strings.Split(line, " ")
-		hash := parts[0]
+		path := parts[0]
 		var label string
 		if len(parts) >= 2 {
 			label = parts[1]
 		}
-		// canonical representation of child data is key followed by newline
+		entry := NodeEntry{path: path, label: label}
+		entries = append(entries, entry)
+
 		content = append(content, buf...)
 		content = append(content, '\n')
-		// digest.Write(txt)
-		k := KeyFromPath(hash)
-		child := &Node{Db: db, Key: k, Label: label}
-		node.Children = append(node.Children, child)
-		// fmt.Println("Children: ", pretty(node.Children))
 	}
-	// node.Sum = digest.Sum()
-	node.content = &content
-
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
+	}
+
+	node.entries = entries
+
+	if verify {
+		// hash content
+		binhash, err := Hash(key.Algo, &content)
+		if err != nil {
+			return node, err
+		}
+		// compare hash with key.Hash
+		hex := bin2hex(binhash)
+		if key.Hash != hex {
+			log.Debugf("node %v key %v content '%s'", node, key, content)
+			err = fmt.Errorf("expected %v, calculated %v", key.Hash, hex)
+			return node, err
+		}
 	}
 
 	return
