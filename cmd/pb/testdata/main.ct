@@ -79,3 +79,9 @@ sagittis varius. Orci varius natoque penatibus et magnis dis
 parturient montes, nascetur ridiculus mus.
 this is blob1
 
+# improve coverage
+$ pb putblob lkdsajf --> FAIL
+
+$ pb getblob lkfdsaj --> FAIL
+
+$ pb lsworld lsadkfj --> FAIL
