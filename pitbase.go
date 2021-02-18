@@ -462,17 +462,23 @@ func (w *World) Cat() (buf *[]byte, err error) {
 	if err != nil {
 		return
 	}
-	rootnode.Label = w.Name
+
+	// get leaf nodes
 	nodes, err := rootnode.traverse(false)
 	if err != nil {
 		return
 	}
 
-	// XXX
-	_ = nodes
-	b := []byte("XXX")
-	buf = &b
-
+	// append leaf node content to buf
+	buf = &[]byte{}
+	for _, node := range nodes {
+		var content *[]byte
+		content, err = node.Db.GetBlob(node.Key)
+		if err != nil {
+			return
+		}
+		*buf = append(*buf, *content...)
+	}
 	return
 }
 
