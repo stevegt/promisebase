@@ -9,9 +9,21 @@ $ fecho blob1 this is blob1
 $ pb putblob sha256 < blob1
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
+# put blob fail 
+$ fecho badblob1 this is badblob1
+$ pb putblob sha257 < badblob1 --> FAIL
+$ pb putblob sha256 < badblob2 --> FAIL
+
+#not implemented: sha257 
+
 # get it
 $ pb getblob blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 this is blob1
+
+# get nonexisting blob
+$ pb getblob blob/sha256/a0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 --> FAIL
+
+#open /tmp/cmdtest426797214/var/blob/sha256/a0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908: no such file or directory 
 
 # try a multiline blob
 $ fecho blob2 multiline blob\nthis is line 2
@@ -50,6 +62,9 @@ world/world1 -> node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843
 $ pb getworld world1
 node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
 
+# get world fail
+$ pb getworld world42 --> FAIL
+
 # list all of the leaf nodes in a world 
 $ pb lsworld world1
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
@@ -63,6 +78,11 @@ node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431 nod
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1
+
+# lsworld fail
+$ pb lsworld world42 --> FAIL
+$ pb lsworld -a world42 --> FAIL
+
 
 # show a concatenation of all leaf node content in a world
 $ pb catworld world1
@@ -78,6 +98,9 @@ sollicitudin id, porttitor eu urna. Quisque vitae ligula non mi
 sagittis varius. Orci varius natoque penatibus et magnis dis
 parturient montes, nascetur ridiculus mus.
 this is blob1
+
+# catworld fail
+$ pb catworld world42 --> FAIL
 
 # improve coverage
 $ pb putblob lkdsajf --> FAIL
