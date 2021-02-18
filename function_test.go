@@ -768,3 +768,15 @@ func nodes2str(nodes []*Node) (out string) {
 	}
 	return
 }
+
+// XXX clean up locking stuff
+// XXX clean up go vet output
+// XXX add PutFile code
+// XXX split into multiple files or packages
+// XXX unexport things that don't need exporting
+// XXX add README and ROADMAP and CONTRIBUTING
+// XXX release on github
+// XXX start using github flow
+// XXX host management app
+// XXX docker image management app
+// XXX container mgmt app

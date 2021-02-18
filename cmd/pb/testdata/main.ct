@@ -82,6 +82,8 @@ this is blob1
 # improve coverage
 $ pb putblob lkdsajf --> FAIL
 
-$ pb getblob lkfdsaj --> FAIL
+$ pb getblob kakajsn --> FAIL
+path not found: "kakajsn"
+
 
 $ pb lsworld lsadkfj --> FAIL

@@ -119,7 +119,7 @@ Options:
 		fmt.Println(key)
 	case opts.Getblob:
 		buf, err := getBlob(opts.Key)
-		if err != nil {
+		if err != nil || buf == nil {
 			log.Error(err)
 			return 42
 		}
@@ -205,6 +205,11 @@ func putBlob(algo string, buf *[]byte) (key *pb.Key, err error) {
 }
 
 func getBlob(keypath string) (buf *[]byte, err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
 	db, err := opendb()
 	if err != nil {
 		return
