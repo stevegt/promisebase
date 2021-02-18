@@ -590,7 +590,7 @@ func TestKey(t *testing.T) {
 }
 
 func TestGetGID(t *testing.T) {
-	n := getGID()
+	n := GetGID()
 	if n == 0 {
 		t.Fatalf("oh no n is 0")
 	}

@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-minpct=80
+minpct=70
 cmd="go test -v -timeout 20s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
 
 dirs=$(find -name go.mod |xargs dirname)
@@ -22,6 +22,7 @@ do
 		rm -f $html
 		pass=false
 	fi
+    echo coverage $pct%
 
 	if test "0$pct" -lt "0$minpct"  
 	then
@@ -35,6 +36,6 @@ if $pass
 then
 	echo PASS
 else
-	echo FAIL
+	echo FAIL -- scroll up for details
 	exit 1
 fi

@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -39,10 +37,11 @@ func init() {
 func caller() func(*runtime.Frame) (function string, file string) {
 	return func(f *runtime.Frame) (function string, file string) {
 		p, _ := os.Getwd()
-		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, getGID())
+		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, pb.GetGID())
 	}
 }
 
+/*
 func getGID() uint64 {
 	b := make([]byte, 64)
 	b = b[:runtime.Stack(b, false)]
@@ -51,6 +50,7 @@ func getGID() uint64 {
 	n, _ := strconv.ParseUint(string(b), 10, 64)
 	return n
 }
+*/
 
 type Opts struct {
 	Putblob  bool
@@ -168,6 +168,13 @@ Options:
 			return 42
 		}
 		fmt.Println(strings.Join(leafs, ""))
+	case opts.Catworld:
+		buf, err := catWorld(opts.Name)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Print(string(*buf))
 	}
 
 	return 0
@@ -281,6 +288,18 @@ func lsWorld(name string, all bool) (leafs []string, err error) {
 	for _, node := range nodes {
 		entry := pb.NodeEntry{Path: node.Key.String(), Label: node.Label}
 		leafs = append(leafs, entry.String())
+	}
+	return
+}
+
+func catWorld(name string) (buf *[]byte, err error) {
+	w, err := getWorld(name)
+	if err != nil {
+		return
+	}
+	buf, err = w.Cat()
+	if err != nil {
+		return
 	}
 	return
 }

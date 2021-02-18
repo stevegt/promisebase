@@ -59,7 +59,7 @@ func init() {
 func caller() func(*runtime.Frame) (function string, file string) {
 	return func(f *runtime.Frame) (function string, file string) {
 		p, _ := os.Getwd()
-		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, getGID())
+		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, GetGID())
 	}
 }
 
@@ -802,7 +802,7 @@ func Hash(algo string, blob *[]byte) (hash *[]byte, err error) {
 	return &binhash, nil
 }
 
-func getGID() uint64 {
+func GetGID() uint64 {
 	b := make([]byte, 64)
 	b = b[:runtime.Stack(b, false)]
 	b = bytes.TrimPrefix(b, []byte("goroutine "))
