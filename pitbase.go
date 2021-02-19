@@ -394,6 +394,7 @@ type Key struct {
 	Hash  string
 }
 
+// String returns the path of a key
 func (k Key) String() string {
 	if k.Class == "ref" {
 		return filepath.Join(k.Class, k.World, k.Algo, k.Hash)
@@ -451,6 +452,7 @@ func KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
 	return
 }
 
+// Hash returns the hash of a blob using a given algorithm
 func Hash(algo string, blob *[]byte) (hash *[]byte, err error) {
 	var binhash []byte
 	switch algo {
@@ -469,6 +471,7 @@ func Hash(algo string, blob *[]byte) (hash *[]byte, err error) {
 	return &binhash, nil
 }
 
+// GetGID returns the goroutine ID of its calling function, for logging purposes.
 func GetGID() uint64 {
 	b := make([]byte, 64)
 	b = b[:runtime.Stack(b, false)]
@@ -478,17 +481,20 @@ func GetGID() uint64 {
 	return n
 }
 
+// NodeEntry stores the metadata of a Merkle tree inner or leaf node.
 type NodeEntry struct {
 	Path  string
 	Label string
 }
 
+// String combines the node's path and label into one string.
 func (ne *NodeEntry) String() (out string) {
 	out = strings.Join([]string{ne.Path, ne.Label}, " ")
 	out = strings.TrimSpace(out) + "\n"
 	return
 }
 
+// Node is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Node struct {
 	Key     *Key
 	Db      *Db
@@ -496,6 +502,7 @@ type Node struct {
 	entries []NodeEntry
 }
 
+//
 func (node *Node) String() (out string) {
 	for _, entry := range node.entries {
 		out += entry.String()
