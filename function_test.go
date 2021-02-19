@@ -403,12 +403,16 @@ func nodes2str(nodes []*Node) (out string) {
 	return
 }
 
-// XXX x clean up locking stuff
-// XXX x clean up golint output
+// XXX continue improving coverage
+// XXX stress and benchmark testing
 // XXX add PutFile code
+// XXX write world.GetLabels(), or start on the next layer up and put it there?
+// XXX can we merge world name and label so we can do nested worlds?
+// XXX can we apply more than one label to the same node entry?
 // XXX split into multiple files or packages
 // XXX unexport things that don't need exporting
 // XXX add README and ROADMAP and CONTRIBUTING
+// XXX review exported comments
 // XXX release on github
 // XXX start using github flow
 // XXX host management app

@@ -22,8 +22,6 @@ import (
 // Db is a key-value database
 type Db struct {
 	Dir string
-	// inode Inode
-	locknode Inode
 }
 
 // Inode contains various file-related items such as file descriptor,
@@ -106,22 +104,6 @@ func Open(dir string) (db *Db, err error) {
 	}
 
 	db.Dir = dir
-
-	// create a lock file
-	// XXX move openKey() guts into an inode constructor and
-	// call that here
-	db.locknode = Inode{
-		path: filepath.Join(dir, ".lock"),
-	}
-	err = touch(db.locknode.path)
-	if err != nil {
-		return
-	}
-	db.locknode.fh, err = os.OpenFile(db.locknode.path, os.O_RDONLY, 0644)
-	if err != nil {
-		return
-	}
-	db.locknode.fd = db.locknode.fh.Fd()
 
 	return
 }
