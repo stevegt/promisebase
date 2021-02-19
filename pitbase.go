@@ -385,7 +385,7 @@ func exists(parts ...string) (found bool) {
 	return true
 }
 
-// Key is a relative path to an object.  An object is a blob, tree, or
+// Key is a unique identifier for an object. An object is a Merkle tree inner or leaf node (blob), world, or
 // ref.
 type Key struct {
 	Class string
@@ -502,7 +502,7 @@ type Node struct {
 	entries []NodeEntry
 }
 
-//
+// String returns the concatenated node entries
 func (node *Node) String() (out string) {
 	for _, entry := range node.entries {
 		out += entry.String()
@@ -510,6 +510,7 @@ func (node *Node) String() (out string) {
 	return
 }
 
+// ChildNodes returns a list of the node's immediate inner or leaf node (blob) children as node objects.
 func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
@@ -518,6 +519,8 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 		var child *Node
 		switch key.Class {
 		case "blob":
+			// we are shoehorning blobs into node objects for easier handling here
+			// XXX we should probably finish merging blobs and nodes into one object
 			child = &Node{Key: key, Db: node.Db}
 		case "node":
 			child, err = node.Db.GetNode(key)
@@ -532,6 +535,7 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	return
 }
 
+// bin2hex converts byte slice into hex string
 func bin2hex(bin *[]byte) (hex string) {
 	hex = fmt.Sprintf("%x", *bin)
 	return

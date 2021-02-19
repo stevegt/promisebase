@@ -403,8 +403,8 @@ func nodes2str(nodes []*Node) (out string) {
 	return
 }
 
-// XXX clean up locking stuff
-// XXX clean up golint output
+// XXX x clean up locking stuff
+// XXX x clean up golint output
 // XXX add PutFile code
 // XXX split into multiple files or packages
 // XXX unexport things that don't need exporting
