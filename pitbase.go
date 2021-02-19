@@ -254,6 +254,7 @@ func (db *Db) PutWorld(key *Key, name string) (world *World, err error) {
 	return
 }
 
+// GetWorld returns a world pointer from a name
 func (db *Db) GetWorld(name string) (world *World, err error) {
 	world = &World{Db: db, Name: name}
 	src, err := os.Readlink(world.String())
@@ -265,6 +266,8 @@ func (db *Db) GetWorld(name string) (world *World, err error) {
 	return
 }
 
+// Ls lists all of the leaf nodes in a world and optionally both
+// leaf and inner
 func (world *World) Ls(all bool) (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
@@ -307,6 +310,7 @@ func (world *World) Cat() (buf *[]byte, err error) {
 	return
 }
 
+// Verify hashes the node content and compares it to its key
 func (node *Node) Verify() (ok bool, err error) {
 	nodes, err := node.traverse(true)
 	if err != nil {
@@ -345,6 +349,7 @@ func (node *Node) Verify() (ok bool, err error) {
 	return true, nil
 }
 
+// traverse recurses down the tree of nodes returning leaves or optionally all nodes
 func (node *Node) traverse(all bool) (nodes []*Node, err error) {
 
 	// include this node
@@ -426,6 +431,7 @@ func KeyFromPath(path string) (key *Key) {
 	return
 }
 
+// KeyFromString returns a key pointer corresponding to the given algo and string
 func KeyFromString(algo string, s string) (key *Key, err error) {
 	blob := []byte(s)
 	return KeyFromBlob(algo, &blob)
