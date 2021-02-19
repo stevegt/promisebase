@@ -30,193 +30,6 @@ func TestNotExist(t *testing.T) {
 	}
 }
 
-/*
-func TestPut(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	key := []byte("somekey")
-	val := []byte("somevalue")
-	err = db.Put(key, val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ioutil.ReadFile(db.Path(key))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
-	}
-}
-
-func TestGet(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	key := []byte("somekey")
-	val := []byte("somevalue")
-	err = db.Put(key, val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := db.Get(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
-	}
-}
-
-func TestRm(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	key := []byte("somekey")
-	val := []byte("somevalue")
-	err = db.Put(key, val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = db.Rm(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = db.Get(key)
-	if err == nil {
-		t.Fatalf("key not deleted: %s", key)
-	}
-}
-func TestOpenKey(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	key, err := KeyFromString("sha256", "somekey")
-	if err != nil {
-		t.Fatal(err)
-	}
-	inode, err := db.openKey(key, os.O_WRONLY|os.O_CREATE)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = inode.ExLock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = inode.Unlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-*/
-
-/*
-func TestConcurrent(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// key := []byte("somekey")
-	valA := mkblob("valueA")
-	valB := mkblob("valueB")
-	worldA := &World{Db: db, Name: "worldA"}
-	worldB := &World{Db: db, Name: "worldB"}
-	doneA := make(chan bool)
-	doneB := make(chan bool)
-
-	// have both A and B do concurrent reads and writes -- this is in
-	// different worlds, so there should be no collisions
-	iterations := 2000
-	go iterate(t, worldA, iterations, doneA, valA, valB)
-	go iterate(t, worldB, iterations, doneB, valB, valA)
-
-	<-doneA
-	<-doneB
-}
-
-func iterate(t *testing.T, world *World, iterations int, done chan bool, myblob, otherblob *[]byte) {
-	for i := 0; i < iterations; i++ {
-		// store a blob
-		key, err := db.putBlob("sha256", myblob)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// start a transaction so we're isolated
-		tx, err := db.()
-		if err != nil {
-			t.Fatal(err)
-		}
-		// inside transaction 1
-		// try to create a conflict by putting the blob's key in the
-		// same ref that the other goroutine is using
-		err = tx.PutRef(key, "iterate")
-		if err != nil {
-			t.Fatal(err)
-		}
-		// get the ref
-		gotkey, err := tx.GetRef("iterate")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if key.Algo != "sha256" {
-			t.Fatalf("expected 'sha256', got '%s'", key.Algo)
-		}
-		// get the blob
-		gotblob, err := db.GetBlob(gotkey)
-		// compare the blob we put with the one we got
-		if bytes.Compare(*myblob, *gotblob) != 0 {
-			t.Fatalf("expected %s, got %s", string(*myblob), string(*gotblob))
-		}
-		// XXX deal with the case of removing a blob inside a
-		// transaction -- do we use gc, or do we replay a log?
-		// XXX if we support delete, then how do we ensure WORM?
-		err = tx.Commit()
-		if err != nil {
-			t.Fatal(err)
-		}
-		// end transaction 1
-
-		// start transaction 2
-		// new transaction should pick up whatever is in db now
-		tx, err = db.StartTransaction()
-		if err != nil {
-			// XXX  A  call  to  flock()  may block if an incompatible lock is held by another process.
-			// To make a nonblocking request, include LOCK_NB (by ORing) with any of the above operations.
-			// syscall.Flock(int(db.locknode.fd), syscall.LOCK_EX | syscall.LOCK_NB)
-			t.Fatal(err)
-		}
-		// get the ref
-		gotkey, err = tx.GetRef("iterate")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if key.Algo != "sha256" {
-			t.Fatalf("expected 'sha256', got '%s'", key.Algo)
-		}
-		// get the blob
-		gotblob, err = db.GetBlob(gotkey)
-		// compare the blob we put with the one we got
-		// the result must be either A or B, otherwise it's
-		// corrupt due to something wrong in Commit()
-		if bytes.Compare(*myblob, *gotblob) != 0 && bytes.Compare(*otherblob, *gotblob) != 0 {
-			t.Fatalf("expected %s or %s, got %s", string(*myblob), string(*otherblob), string(*gotblob))
-		}
-		err = tx.Commit()
-		if err != nil {
-			t.Fatal(err)
-		}
-		// end transaction 2
-
-	}
-	done <- true
-}
-*/
-
 func nonMissingErr(err error) error {
 	switch err.(type) {
 	case *os.PathError:
@@ -226,34 +39,6 @@ func nonMissingErr(err error) error {
 	}
 	return err
 }
-
-func TestDbLock(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	locknode, err := db.ExLock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = locknode.Unlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	locknode, err = db.ShLock()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = locknode.Unlock()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-}
-
-// XXX once all of the following tests are working, delete all of the
-// locking code and rename the *NoLock functions
 
 func mkblob(s string) *[]byte {
 	tmp := []byte(s)
@@ -381,46 +166,6 @@ func TestGetBlob(t *testing.T) {
 	}
 }
 
-/*
-func TestPutRef(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	world := &World{Db: db, Name: "world1"}
-
-	ref := "someref"
-	key, err := KeyFromBlob("sha256", mkblob("somevalue"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = world.PutRef(key, ref)
-	if err != nil {
-		t.Fatal(err)
-	}
-	buf, err := ioutil.ReadFile("var/world/world1/someref")
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := string(buf)
-	expect := key.String()
-	if expect != got {
-		t.Fatalf("expected %s, got %s", expect, got)
-	}
-	gotkey, err := world.GetRef(ref)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotkey.Algo != "sha256" {
-		t.Fatalf("expected 'sha256', got '%s'", gotkey.Algo)
-	}
-	if !keyEqual(key, gotkey) {
-		t.Fatalf("expected '%s', got '%s'", key, gotkey)
-	}
-}
-*/
-
 func keyEqual(a, b *Key) bool {
 	return a.String() == b.String()
 }
@@ -430,44 +175,6 @@ func deepEqual(a, b interface{}) bool {
 	// fmt.Printf("a:\n%s\nb:\n%s\n", pretty(a), pretty(b))
 	return pretty(a) == pretty(b)
 }
-
-/*
-func TestSubRef(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	world := &World{Db: db, Name: "world1"}
-	ref := "somedir/someref"
-	key, err := KeyFromBlob("sha256", mkblob("somevalue"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = world.PutRef(key, ref)
-	if err != nil {
-		t.Fatal(err)
-	}
-	buf, err := ioutil.ReadFile("var/world/world1/somedir/someref")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expect := key.String()
-	got := string(buf)
-	if expect != got {
-		t.Fatalf("expected %s, got %s", expect, got)
-	}
-	gotkey, err := world.GetRef(ref)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotkey.Algo != "sha256" {
-		t.Fatalf("expected 'sha256', got '%s'", gotkey.Algo)
-	}
-	if !keyEqual(key, gotkey) {
-		t.Fatalf("expected '%s', got '%s'", key.String(), gotkey)
-	}
-}
-*/
 
 func TestPath(t *testing.T) {
 	db, err := Open(dir)
@@ -487,80 +194,7 @@ func TestPath(t *testing.T) {
 	}
 }
 
-/*
-func XXXTestRefPath(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ref := "someref"
-	path := "var/refs/someref"
-	gotpath := db.RefPath(ref)
-	if path != gotpath {
-		t.Fatalf("expected %s, got %s", path, gotpath)
-	}
-}
-*/
-/*
-func TestCloneWorld(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	oldworld := &World{Db: db, Name: "world0"}
-
-	// create blob and ref in oldworld
-	blob := mkblob(fmt.Sprintf("value.outside"))
-	blobkey, err := db.PutBlob("sha256", blob)
-	if err != nil {
-		t.Fatal(err)
-	}
-	outref := "ref.outside"
-	err = oldworld.PutRef(blobkey, outref)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	newworld, err := db.CloneWorld(oldworld, "world1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// verify old ref is hardlinked into newworld
-	if !exists(newworld.Dir(), outref) {
-		t.Fatalf("missing %s/%s", newworld.Dir(), outref)
-	}
-
-	// create ref in our world
-	inref := "ref.inside"
-	err = newworld.PutRef(blobkey, inref)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// verify new ref is in our world
-	if !exists(newworld.Dir(), inref) {
-		t.Fatalf("missing %s/%s", newworld.Dir(), inref)
-	}
-	// verify new ref is not in oldworld
-	if exists(oldworld.Dir(), inref) {
-		t.Fatalf("found %s/%s", oldworld.Dir(), inref)
-	}
-
-	// check blob content
-	gotkey, err := newworld.GetRef(inref)
-	if gotkey.Algo != "sha256" {
-		t.Fatalf("expected 'sha256', got '%s'", gotkey.Algo)
-	}
-	if !keyEqual(blobkey, gotkey) {
-		t.Fatalf("expected key %s, got %s", blobkey, gotkey)
-	}
-
-	// XXX test db.GetRef
-}
-*/
+// XXX test db.GetRef
 
 // XXX redefine "key" to mean the path to a blob, tree, or ref
 // XXX change ref format accordingly
@@ -770,7 +404,7 @@ func nodes2str(nodes []*Node) (out string) {
 }
 
 // XXX clean up locking stuff
-// XXX clean up go vet output
+// XXX clean up golint output
 // XXX add PutFile code
 // XXX split into multiple files or packages
 // XXX unexport things that don't need exporting

@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/google/renameio"
 	"github.com/sirupsen/logrus"
@@ -136,37 +135,6 @@ func (inode *Inode) Close() (err error) {
 	return inode.fh.Close()
 }
 
-func (db *Db) lock(locktype int) (inode *Inode, err error) {
-	log.Debugf("db.lock starting db %+v fd %v locktype %v", db, db.locknode.fd, locktype)
-	fh, err := os.OpenFile(db.locknode.path, os.O_RDONLY, 0644)
-	inode = &Inode{fd: fh.Fd()}
-	err = syscall.Flock(int(inode.fd), locktype)
-	log.Debugf("db.lock finishing, err=%#v", err)
-	// log.Debug(string(debug.Stack()))
-	return
-}
-
-// Unlock uses syscall.Flock to unlock (LOCK_UN) the file referenced
-// by `key`.
-func (inode *Inode) Unlock() (err error) {
-	log.Debug("inode.Unlock starting")
-	err = syscall.Flock(int(inode.fd), syscall.LOCK_UN)
-	log.Debug("inode.Unlock finishing")
-	return
-}
-
-// ExLock uses syscall.Flock to get an exclusive lock (LOCK_EX)
-// on the database
-func (db *Db) ExLock() (inode *Inode, err error) {
-	return db.lock(syscall.LOCK_EX)
-}
-
-// ShLock uses syscall.Flock to get a shared lock (LOCK_SH) on
-// the database
-func (db *Db) ShLock() (inode *Inode, err error) {
-	return db.lock(syscall.LOCK_SH)
-}
-
 func (db *Db) tmpFile() (inode Inode, err error) {
 	return tmpFile(db.Dir)
 }
@@ -211,7 +179,7 @@ func (db *Db) put(key *Key, val *[]byte) (err error) {
 	return
 }
 
-// Get retrieves the value of a key by reading its file contents.
+// GetBlob retrieves the blob of a key by reading its file contents.
 func (db *Db) GetBlob(key *Key) (blob *[]byte, err error) {
 	buf, err := ioutil.ReadFile(db.Path(key))
 	if err != nil {
@@ -221,7 +189,7 @@ func (db *Db) GetBlob(key *Key) (blob *[]byte, err error) {
 	return
 }
 
-//Rm deletes the entry associated with the key and returns an error if the key doesn't exist.
+// Rm deletes the entry associated with the key and returns an error if the key doesn't exist.
 func (db *Db) Rm(key *Key) (err error) {
 	err = os.Remove(db.Path(key))
 	if err != nil {
@@ -230,12 +198,13 @@ func (db *Db) Rm(key *Key) (err error) {
 	return
 }
 
-// PutBlob hashes the blob, stores the blob in a file named after the hash,
-// and returns the hash.
+// PutBlob performs db.PutBlob on world.Db
 func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	return world.Db.PutBlob(algo, blob)
 }
 
+// PutBlob hashes the blob, stores the blob in a file named after the hash,
+// and returns the hash.
 func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	key, err = KeyFromBlob(algo, blob)
 	if err != nil {
@@ -261,57 +230,60 @@ func (db *Db) Path(key *Key) (path string) {
 	return
 }
 
+// World is a reference to a database
 type World struct {
 	Db   *Db
 	Name string
 	Src  string
 }
 
-func (w *World) String() (path string) {
-	return filepath.Join(w.Db.Dir, "world", w.Name)
+// String returns the path for a world
+func (world *World) String() (path string) {
+	return filepath.Join(world.Db.Dir, "world", world.Name)
 }
 
-func (db *Db) PutWorld(key *Key, name string) (w *World, err error) {
-	w = &World{Db: db, Name: name}
+// PutWorld takes a key and a name and creates a world with that name
+func (db *Db) PutWorld(key *Key, name string) (world *World, err error) {
+	world = &World{Db: db, Name: name}
 	src := filepath.Join("..", key.String())
-	err = renameio.Symlink(src, w.String())
+	err = renameio.Symlink(src, world.String())
 	if err != nil {
 		return
 	}
-	w.Src = key.String()
+	world.Src = key.String()
 	return
 }
 
-func (db *Db) GetWorld(name string) (w *World, err error) {
-	w = &World{Db: db, Name: name}
-	src, err := os.Readlink(w.String())
+func (db *Db) GetWorld(name string) (world *World, err error) {
+	world = &World{Db: db, Name: name}
+	src, err := os.Readlink(world.String())
 	if err != nil {
 		return
 	}
 	parts := strings.Split(src, string(filepath.Separator))
-	w.Src = filepath.Join(parts[1:]...)
+	world.Src = filepath.Join(parts[1:]...)
 	return
 }
 
-func (w *World) Ls(all bool) (nodes []*Node, err error) {
+func (world *World) Ls(all bool) (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	key := KeyFromPath(w.Src)
-	rootnode, err := w.Db.GetNode(key)
+	key := KeyFromPath(world.Src)
+	rootnode, err := world.Db.GetNode(key)
 	if err != nil {
 		return
 	}
-	rootnode.Label = w.Name
+	rootnode.Label = world.Name
 	return rootnode.traverse(all)
 }
 
 // Cat concatenates all of the leaf node content in World and returns
 // it as a pointer to a byte slice.
-func (w *World) Cat() (buf *[]byte, err error) {
+func (world *World) Cat() (buf *[]byte, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	key := KeyFromPath(w.Src)
-	rootnode, err := w.Db.GetNode(key)
+	key := KeyFromPath(world.Src)
+	rootnode, err := world.Db.GetNode(key)
 	if err != nil {
 		return
 	}
