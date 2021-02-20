@@ -422,6 +422,43 @@ func TestWorld(t *testing.T) {
 
 }
 
+// XXX add chattr for failure test
+func TestMkdir(t *testing.T) {
+	err := mkdir("/etc/foobar")
+	if err == nil {
+		t.Fatal("expected error, got none")
+	}
+}
+
+func BenchmarkPutBlob(b *testing.B) {
+	db, err := Open("/tmp/bench/")
+	if err != nil {
+		b.Fatal(err)
+	}
+	for n := 0; n < b.N; n++ {
+		val := mkblob(string(n))
+		gotkey, err := db.PutBlob("sha256", val)
+		_ = gotkey
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPutBlobSame(b *testing.B) {
+	db, err := Open("/tmp/bench/")
+	if err != nil {
+		b.Fatal(err)
+	}
+	val := mkblob("foo")
+	for n := 0; n < b.N; n++ {
+		gotkey, err := db.PutBlob("sha256", val)
+		_ = gotkey
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
 func nodes2str(nodes []*Node) (out string) {
 	for _, node := range nodes {
 		line := strings.Join([]string{node.Key.String(), node.Label}, " ")
