@@ -358,6 +358,7 @@ func (node *Node) traverse(all bool) (nodes []*Node, err error) {
 	return
 }
 
+/*
 func exists(parts ...string) (found bool) {
 	path := filepath.Join(parts...)
 	_, err := os.Stat(path)
@@ -366,6 +367,7 @@ func exists(parts ...string) (found bool) {
 	}
 	return true
 }
+*/
 
 // Key is a unique identifier for an object. An object is a Merkle tree inner or leaf node (blob), world, or
 // ref.

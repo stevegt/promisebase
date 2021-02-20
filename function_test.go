@@ -53,6 +53,34 @@ func mkkey(t *testing.T, s string) (key *Key) {
 	return
 }
 
+func TestHash(t *testing.T) {
+	val := mkblob("somevalue")
+	binhash, err := Hash("sha256", val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hexhash := bin2hex(binhash)
+	expect := "70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
+	tassert(t, expect == hexhash, "expected %q got %q", expect, hexhash)
+
+	binhash, err = Hash("sha512", val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hexhash = bin2hex(binhash)
+	expect = "8e77e71abe427ced1c93d883aeeddfa57ce39b787f229caaf176fdd71353f3466d340a2cdb5a219c429c53ad37f2f144c7ce01b985b6b33e397c4b8fd1433cc3"
+	tassert(t, expect == hexhash, "expected %q got %q", expect, hexhash)
+
+	binhash, err = Hash("foobar", val)
+	if err == nil {
+		t.Fatal("expected error, received none")
+	}
+
+	//expecterr := fmt.Errorf("not implemented: %s", "foobar")
+	//binhash, err = Hash("foobar", val)
+	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
+}
+
 func TestPut(t *testing.T) {
 	db, err := Open(dir)
 	if err != nil {
