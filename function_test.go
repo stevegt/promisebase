@@ -470,7 +470,7 @@ func nodes2str(nodes []*Node) (out string) {
 
 // XXX continue improving coverage
 // XXX stress and benchmark testing
-// XXX add PutFile code
+// XXX add PutFile code -- start with World.AppendBlock()
 // XXX write world.GetLabels(), or start on the next layer up and put it there?
 // XXX can we merge world name and label so we can do nested worlds?
 // XXX can we apply more than one label to the same node entry?
