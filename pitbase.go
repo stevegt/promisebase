@@ -185,6 +185,22 @@ func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	return world.Db.PutBlob(algo, blob)
 }
 
+// AppendBlock puts a blob in the database, appends it to the world's
+// Merkle tree as a new leaf node, and then rewrites the world's symlink
+// to point at the new tree root.  This function can be used to append
+// new records or blocks to journals or files in accounting, trading,
+// version control, blockchain, and file storage applications.
+func (world *World) AppendBlock(algo string, blob *[]byte) (key *Key, err error) {
+	// put blob
+
+	// put node
+
+	// rewrite symlink
+	// - use renameio.Symlink as in PutWorld, or maybe just call PutWorld
+
+	return
+}
+
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
 func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {

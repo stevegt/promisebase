@@ -420,6 +420,19 @@ func TestWorld(t *testing.T) {
 	expectbuf := mkblob("blob1valueblob2valueblob3value")
 	tassert(t, bytes.Compare(*expectbuf, *gotbuf) == 0, "expected %v got %v", string(*expectbuf), string(*gotbuf))
 
+	// append
+	blob4 := mkblob("blob4value")
+	_, err = world1.AppendBlock("sha256", blob4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotbuf, err = world1.Cat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectbuf = mkblob("blob1valueblob2valueblob3valueblob4value")
+	tassert(t, bytes.Compare(*expectbuf, *gotbuf) == 0, "expected %v got %v", string(*expectbuf), string(*gotbuf))
+
 }
 
 // XXX add chattr for failure test
@@ -468,18 +481,4 @@ func nodes2str(nodes []*Node) (out string) {
 	return
 }
 
-// XXX continue improving coverage
-// XXX stress and benchmark testing
-// XXX add PutFile code -- start with World.AppendBlock()
-// XXX write world.GetLabels(), or start on the next layer up and put it there?
-// XXX can we merge world name and label so we can do nested worlds?
-// XXX can we apply more than one label to the same node entry?
-// XXX split into multiple files or packages
-// XXX unexport things that don't need exporting
-// XXX add README and ROADMAP and CONTRIBUTING
-// XXX review exported comments
-// XXX release on github
-// XXX start using github flow
-// XXX host management app
-// XXX docker image management app
-// XXX container mgmt app
+// XXX todo items moved to ./ROADMAP.md
