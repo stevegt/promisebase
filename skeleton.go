@@ -1,14 +1,10 @@
 package pitbase
 
-import (
-	"os"
-)
-
-// Inode contains various file-related items such as file descriptor,
-// file handle, maybe some methods, etc.
-type Inode struct {
-	fd   uintptr
-	fh   *os.File
-	path string
-	key  []byte
+/*
+// PutTree creates a file that contains the given tree or object
+// references, one per line.
+func (tx *Transaction) PutTree(algo string, keys ...[]Key) (err error) {
+	// XXX
+	return
 }
+*/
