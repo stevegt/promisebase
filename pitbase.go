@@ -190,14 +190,30 @@ func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // to point at the new tree root.  This function can be used to append
 // new records or blocks to journals or files in accounting, trading,
 // version control, blockchain, and file storage applications.
-func (world *World) AppendBlock(algo string, blob *[]byte) (key *Key, err error) {
-	// put blob
+func (world *World) AppendBlock(algo string, blob *[]byte) (newworld *World, err error) {
+	// get node for top of merkle tree
+	oldkey := KeyFromPath(world.Src)
+	oldroot, err := world.Db.GetNode(oldkey)
+	if err != nil {
+		log.Debugf("oldkey: %v, oldroot: %v", oldkey, oldroot)
+		return
+	}
 
-	// put node
+	// put blob
+	key, err := world.PutBlob(algo, blob)
+	newnode := &Node{Db: world.Db, Key: key, Label: ""}
+
+	// put node for new top of merkle tree
+	newroot, err := world.Db.PutNode(algo, oldroot, newnode)
+	if err != nil {
+		return
+	}
 
 	// rewrite symlink
-	// - use renameio.Symlink as in PutWorld, or maybe just call PutWorld
-
+	newworld, err = world.Db.PutWorld(newroot.Key, world.Name)
+	if err != nil {
+		return
+	}
 	return
 }
 
