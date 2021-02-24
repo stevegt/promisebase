@@ -443,6 +443,8 @@ func TestMkdir(t *testing.T) {
 	}
 }
 
+var benchSize int
+
 func BenchmarkPutBlob(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
@@ -450,9 +452,27 @@ func BenchmarkPutBlob(b *testing.B) {
 	}
 	for n := 0; n < b.N; n++ {
 		val := mkblob(string(n))
-		gotkey, err := db.PutBlob("sha256", val)
-		_ = gotkey
+		_, err = db.PutBlob("sha256", val)
 		if err != nil {
+			b.Fatal(err)
+		}
+		benchSize = n
+	}
+}
+
+func BenchmarkGetBlob(b *testing.B) {
+	db, err := Open("/tmp/bench/")
+	if err != nil {
+		b.Fatal(err)
+	}
+	for n := 0; n <= benchSize; n++ {
+		key, err := KeyFromString("sha256", string(n))
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = db.GetBlob(key)
+		if err != nil {
+			fmt.Printf("n: %d\n", n)
 			b.Fatal(err)
 		}
 	}
@@ -472,6 +492,7 @@ func BenchmarkPutBlobSame(b *testing.B) {
 		}
 	}
 }
+
 func nodes2str(nodes []*Node) (out string) {
 	for _, node := range nodes {
 		line := strings.Join([]string{node.Key.String(), node.Label}, " ")
