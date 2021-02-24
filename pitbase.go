@@ -224,14 +224,18 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	if err != nil {
 		return
 	}
-
+	path := db.Path(key)
 	// check if it's already stored
-	// XXX
-
-	// store it
-	err = db.put(key, blob)
-	if err != nil {
-		return
+	_, err = os.Stat(path)
+	if err == nil {
+		// content, err2 := ioutil.ReadFile(path)
+		// if err2 != nil {
+		// 	return nil, err2
+		// }
+		// fmt.Println("Exists:", key.String(), string(content))
+	} else if os.IsNotExist(err) {
+		// store it
+		err = db.put(key, blob)
 	}
 	return
 }

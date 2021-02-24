@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -445,13 +446,13 @@ func TestMkdir(t *testing.T) {
 
 var benchSize int
 
-func BenchmarkPutBlob(b *testing.B) {
+func Benchmark0PutBlob(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		val := mkblob(string(n))
+		val := mkblob(asString(n))
 		_, err = db.PutBlob("sha256", val)
 		if err != nil {
 			b.Fatal(err)
@@ -459,14 +460,18 @@ func BenchmarkPutBlob(b *testing.B) {
 		benchSize = n
 	}
 }
+func XXXBenchmark1Sync(b *testing.B) {
+	shell("sync")
+}
 
-func BenchmarkGetBlob(b *testing.B) {
+func Benchmark2GetBlob(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
 	}
+	// fmt.Println("bench size:", benchSize)
 	for n := 0; n <= benchSize; n++ {
-		key, err := KeyFromString("sha256", string(n))
+		key, err := KeyFromString("sha256", asString(n))
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -478,7 +483,7 @@ func BenchmarkGetBlob(b *testing.B) {
 	}
 }
 
-func BenchmarkPutBlobSame(b *testing.B) {
+func XXXBenchmarkPutBlobSame(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
@@ -499,6 +504,17 @@ func nodes2str(nodes []*Node) (out string) {
 		line = strings.TrimSpace(line) + "\n"
 		out += line
 	}
+	return
+}
+
+func asString(input interface{}) (out string) {
+	out = fmt.Sprintf("%v", input)
+	return
+}
+
+func shell(path string, args ...string) (out []byte, err error) {
+	cmd := exec.Command(path, args...)
+	out, err = cmd.CombinedOutput()
 	return
 }
 
