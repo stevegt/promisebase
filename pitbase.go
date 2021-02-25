@@ -21,7 +21,8 @@ import (
 
 // Db is a key-value database
 type Db struct {
-	Dir string
+	Dir    string // base of tree
+	Levels int    // depth of subdirs in blob and node trees
 }
 
 // Inode contains various file-related items such as file descriptor,
@@ -70,9 +71,15 @@ func mkdir(dir string) (err error) {
 	return
 }
 
-// Open creates a db object and its directory (if one doesn't already exist)
-func Open(dir string) (db *Db, err error) {
-	db = &Db{}
+// Create creates a db object and its directory
+func (db *Db) Create() (out *Db, err error) {
+	_, err = os.Stat(db.Dir)
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("already exists: %s", db.Dir)
+	} else if err != nil {
+		return
+	}
+
 	err = mkdir(dir)
 	if err != nil {
 		return
@@ -103,7 +110,24 @@ func Open(dir string) (db *Db, err error) {
 		return
 	}
 
-	db.Dir = dir
+	// XXX save db as json into $dir/.config
+
+	return db, nil
+}
+
+// Open loads an existing db object from db.Dir
+func (db *Db) Open() (out *Db, err error) {
+	_, err = os.Stat(db.Dir)
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("already exists: %s", db.Dir)
+	} else if err != nil {
+		return
+	}
+
+	// XXX load json $dir/.config into out
+
+	// handle the case of dir being moved and then Open()ed
+	out.Dir = db.Dir
 
 	return
 }
