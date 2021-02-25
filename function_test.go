@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 )
 
 const dir = "var"
@@ -460,8 +461,11 @@ func Benchmark0PutBlob(b *testing.B) {
 		benchSize = n
 	}
 }
-func XXXBenchmark1Sync(b *testing.B) {
+
+func Benchmark1Sync(b *testing.B) {
 	shell("sync")
+	os.Stat("/tmp/bench")
+	time.Sleep(10 * time.Second)
 }
 
 func Benchmark2GetBlob(b *testing.B) {
