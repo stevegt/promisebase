@@ -1,3 +1,5 @@
+- implement multilevel storage
+    - configurable defaults to 2 levels, 3 digits
 - continue improving coverage
 - stress and benchmark testing
 - split into multiple files or packages

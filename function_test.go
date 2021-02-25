@@ -11,7 +11,6 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
-	"time"
 )
 
 const dir = "var"
@@ -463,9 +462,9 @@ func Benchmark0PutBlob(b *testing.B) {
 }
 
 func Benchmark1Sync(b *testing.B) {
-	shell("sync")
-	os.Stat("/tmp/bench")
-	time.Sleep(10 * time.Second)
+	shell("/bin/bash", "-c", "echo 3 | sudo tee /proc/sys/vm/drop_caches")
+	// os.Stat("/tmp/bench")
+	// time.Sleep(10 * time.Second)
 }
 
 func Benchmark2GetBlob(b *testing.B) {
@@ -497,6 +496,25 @@ func XXXBenchmarkPutBlobSame(b *testing.B) {
 		gotkey, err := db.PutBlob("sha256", val)
 		_ = gotkey
 		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPutGetBlob(b *testing.B) {
+	db, err := Open("/tmp/bench/")
+	if err != nil {
+		b.Fatal(err)
+	}
+	for n := 0; n < b.N; n++ {
+		val := mkblob(asString(n))
+		key, err := db.PutBlob("sha256", val)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = db.GetBlob(key)
+		if err != nil {
+			//	fmt.Printf("n: %d\n", n)
 			b.Fatal(err)
 		}
 	}
