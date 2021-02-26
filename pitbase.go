@@ -78,11 +78,19 @@ func mkdir(dir string) (err error) {
 	return
 }
 
+type ExistsError struct {
+	Dir string
+}
+
+func (e *ExistsError) Error() string {
+	return fmt.Sprintf("already exists: %s", e.Dir)
+}
+
 // Create initializes a db directory and its contents
 func (db Db) Create() (out *Db, err error) {
 	_, err = os.Stat(db.Dir)
 	if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("already exists: %s", db.Dir)
+		return nil, &ExistsError{Dir: db.Dir}
 	} else if err != nil {
 		return
 	}
@@ -131,14 +139,15 @@ func (db Db) Create() (out *Db, err error) {
 // Open loads an existing db object from dir.
 func Open(dir string) (db *Db, err error) {
 	_, err = os.Stat(dir)
-	if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("already exists: %s", db.Dir)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("does not exist: %s", db.Dir)
 	} else if err != nil {
 		return
 	}
 
 	// XXX load json db.Dir/config.json into out
 	// json.Unmarshal(fh, &db)
+	db = &Db{Dir: dir, Depth: 2}
 
 	return
 }

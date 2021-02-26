@@ -28,8 +28,11 @@ func setup(t *testing.T) (db *Db) {
 		t.Fatal(err)
 	}
 	db, err = Db{Dir: dir}.Create()
-	if !strings.HasPrefix(err.Error(), "already exists") && err != nil {
-		log.Printf("db err: %T", err)
+	_, ok := err.(*ExistsError)
+	if ok {
+		db, err = Open(dir)
+	} else if err != nil {
+		log.Printf("db err: %v", err)
 		t.Fatal(err)
 	}
 	// XXX test other depths
