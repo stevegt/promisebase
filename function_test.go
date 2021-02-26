@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"reflect"
@@ -27,6 +28,13 @@ func setup(t *testing.T) (db *Db) {
 		t.Fatal(err)
 	}
 	db, err = Db{Dir: dir}.Create()
+	_, ok := err.(*ExistsError)
+	if ok {
+		db, err = Open(dir)
+	} else if err != nil {
+		log.Printf("db err: %v", err)
+		t.Fatal(err)
+	}
 	// XXX test other depths
 	// db, err = Db{Dir: dir, Depth: 4}.Create()
 	return
@@ -34,6 +42,7 @@ func setup(t *testing.T) (db *Db) {
 
 func TestExist(t *testing.T) {
 	db := setup(t)
+	log.Printf("db: %v", db)
 	db, err := Open(db.Dir)
 	if err != nil {
 		t.Fatal(err)
@@ -92,13 +101,10 @@ func TestHash(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setup(t)
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.put(key, val)
+	err := db.put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,13 +118,10 @@ func TestPut(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setup(t)
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.put(key, val)
+	err := db.put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,13 +135,10 @@ func TestGet(t *testing.T) {
 }
 
 func TestRm(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setup(t)
 	key := mkkey(t, "somekey")
 	val := mkblob("somevalue")
-	err = db.put(key, val)
+	err := db.put(key, val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,10 +153,7 @@ func TestRm(t *testing.T) {
 }
 
 func TestPutBlob(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setup(t)
 	val := mkblob("somevalue")
 	key, err := KeyFromBlob("sha256", val)
 	if err != nil {
@@ -179,10 +176,7 @@ func TestPutBlob(t *testing.T) {
 }
 
 func TestGetBlob(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setup(t)
 	val := mkblob("somevalue")
 	key, err := KeyFromBlob("sha256", val)
 	if err != nil {
@@ -215,11 +209,7 @@ func deepEqual(a, b interface{}) bool {
 }
 
 func TestPath(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	db := setup(t)
 	val := mkblob("somevalue")
 	key, err := KeyFromBlob("sha256", val)
 	if err != nil {
@@ -301,11 +291,7 @@ func TestVerify(t *testing.T) {
 }
 
 func TestNode(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	db := setup(t)
 	// setup
 	blob1 := mkblob("blob1value")
 	key1, err := db.PutBlob("sha256", blob1)
@@ -351,10 +337,7 @@ func TestNode(t *testing.T) {
 }
 
 func TestWorld(t *testing.T) {
-	db, err := Open(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := setup(t)
 
 	// setup
 	blob1 := mkblob("blob1value")
