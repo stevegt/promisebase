@@ -13,8 +13,6 @@ import (
 	"testing"
 )
 
-const dir = "var"
-
 // test boolean condition
 func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	if !cond {
@@ -23,9 +21,20 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	}
 }
 
-func TestNotExist(t *testing.T) {
-	os.RemoveAll(dir)
-	_, err := Open(dir)
+func setup(t *testing.T) (db *Db) {
+	dir, err := ioutil.TempDir("", "pitbase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err = Db{Dir: dir}.Create()
+	// XXX test other depths
+	// db, err = Db{Dir: dir, Depth: 4}.Create()
+	return
+}
+
+func TestExist(t *testing.T) {
+	db := setup(t)
+	db, err := Open(db.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +225,7 @@ func TestPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := "var/blob/sha256/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
+	path := "var/blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
 	gotpath := db.Path(key)
 	if path != gotpath {
 		t.Fatalf("expected %s, got %s", path, gotpath)
