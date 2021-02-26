@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"reflect"
 	"runtime/debug"
 	"strings"
 	"testing"
 )
-
-const dir = "var"
 
 // test boolean condition
 func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
@@ -22,9 +21,20 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	}
 }
 
-func TestNotExist(t *testing.T) {
-	os.RemoveAll(dir)
-	_, err := Open(dir)
+func setup(t *testing.T) (db *Db) {
+	dir, err := ioutil.TempDir("", "pitbase")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err = Db{Dir: dir}.Create()
+	// XXX test other depths
+	// db, err = Db{Dir: dir, Depth: 4}.Create()
+	return
+}
+
+func TestExist(t *testing.T) {
+	db := setup(t)
+	db, err := Open(db.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +225,7 @@ func TestPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := "var/blob/sha256/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
+	path := "var/blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
 	gotpath := db.Path(key)
 	if path != gotpath {
 		t.Fatalf("expected %s, got %s", path, gotpath)
@@ -443,22 +453,49 @@ func TestMkdir(t *testing.T) {
 	}
 }
 
-func BenchmarkPutBlob(b *testing.B) {
+var benchSize int
+
+func Benchmark0PutBlob(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		val := mkblob(string(n))
-		gotkey, err := db.PutBlob("sha256", val)
-		_ = gotkey
+		val := mkblob(asString(n))
+		_, err = db.PutBlob("sha256", val)
 		if err != nil {
+			b.Fatal(err)
+		}
+		benchSize = n
+	}
+}
+
+func Benchmark1Sync(b *testing.B) {
+	shell("/bin/bash", "-c", "echo 3 | sudo tee /proc/sys/vm/drop_caches")
+	// os.Stat("/tmp/bench")
+	// time.Sleep(10 * time.Second)
+}
+
+func Benchmark2GetBlob(b *testing.B) {
+	db, err := Open("/tmp/bench/")
+	if err != nil {
+		b.Fatal(err)
+	}
+	// fmt.Println("bench size:", benchSize)
+	for n := 0; n <= benchSize; n++ {
+		key, err := KeyFromString("sha256", asString(n))
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = db.GetBlob(key)
+		if err != nil {
+			fmt.Printf("n: %d\n", n)
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkPutBlobSame(b *testing.B) {
+func XXXBenchmarkPutBlobSame(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
@@ -472,12 +509,43 @@ func BenchmarkPutBlobSame(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkPutGetBlob(b *testing.B) {
+	db, err := Open("/tmp/bench/")
+	if err != nil {
+		b.Fatal(err)
+	}
+	for n := 0; n < b.N; n++ {
+		val := mkblob(asString(n))
+		key, err := db.PutBlob("sha256", val)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = db.GetBlob(key)
+		if err != nil {
+			//	fmt.Printf("n: %d\n", n)
+			b.Fatal(err)
+		}
+	}
+}
+
 func nodes2str(nodes []*Node) (out string) {
 	for _, node := range nodes {
 		line := strings.Join([]string{node.Key.String(), node.Label}, " ")
 		line = strings.TrimSpace(line) + "\n"
 		out += line
 	}
+	return
+}
+
+func asString(input interface{}) (out string) {
+	out = fmt.Sprintf("%v", input)
+	return
+}
+
+func shell(path string, args ...string) (out []byte, err error) {
+	cmd := exec.Command(path, args...)
+	out, err = cmd.CombinedOutput()
 	return
 }
 

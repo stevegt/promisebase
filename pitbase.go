@@ -19,9 +19,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Db is a key-value database
+// Db is a key-value database. Dir is the base directory. Depth is the
+// number of subdirectory levels in the blob and node trees.  We use
+// three-character hexadecimal names for the subdirectories, giving us
+// a maximum of 4096 subdirs in a parent dir -- that's a sweet spot.
+// Two-character names (such as what git uses under .git/objects) only
+// allow for 256 subdirs, which is unnecessarily small.
+// Four-character names would give us 65,536 subdirs, which would
+// cause performance issues on e.g. ext4.
 type Db struct {
-	Dir string
+	Dir   string // base of tree
+	Depth int    // number of subdir levels in blob and node trees
 }
 
 // Inode contains various file-related items such as file descriptor,
@@ -70,9 +78,21 @@ func mkdir(dir string) (err error) {
 	return
 }
 
-// Open creates a db object and its directory (if one doesn't already exist)
-func Open(dir string) (db *Db, err error) {
-	db = &Db{}
+// Create initializes a db directory and its contents
+func (db Db) Create() (out *Db, err error) {
+	_, err = os.Stat(db.Dir)
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("already exists: %s", db.Dir)
+	} else if err != nil {
+		return
+	}
+
+	// set nesting depth
+	if db.Depth < 1 {
+		db.Depth = 2
+	}
+
+	dir := db.Dir
 	err = mkdir(dir)
 	if err != nil {
 		return
@@ -103,7 +123,22 @@ func Open(dir string) (db *Db, err error) {
 		return
 	}
 
-	db.Dir = dir
+	// XXX save db as json into db.Dir/config.json
+
+	return &db, nil
+}
+
+// Open loads an existing db object from dir.
+func Open(dir string) (db *Db, err error) {
+	_, err = os.Stat(dir)
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("already exists: %s", db.Dir)
+	} else if err != nil {
+		return
+	}
+
+	// XXX load json db.Dir/config.json into out
+	// json.Unmarshal(fh, &db)
 
 	return
 }
@@ -224,14 +259,18 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	if err != nil {
 		return
 	}
-
+	path := db.Path(key)
 	// check if it's already stored
-	// XXX
-
-	// store it
-	err = db.put(key, blob)
-	if err != nil {
-		return
+	_, err = os.Stat(path)
+	if err == nil {
+		// content, err2 := ioutil.ReadFile(path)
+		// if err2 != nil {
+		// 	return nil, err2
+		// }
+		// fmt.Println("Exists:", key.String(), string(content))
+	} else if os.IsNotExist(err) {
+		// store it
+		err = db.put(key, blob)
 	}
 	return
 }
@@ -410,8 +449,16 @@ type Key struct {
 	Hash  string
 }
 
-// String returns the path of a key
+// String returns the path of a key.  We use the nesting depth
+// described in the Db comments.  We use the full hash value in the
+// last component of the path in order to make playing and
+// troubleshooting using UNIX tools slightly easier (as opposed to the
+// way git does it, truncating the leading subdir parts of the hash).
+// This may be a problem some decade in the future if a new hash algo
+// produces hashes long enough to overflow the maximum filename
+// length.
 func (k Key) String() string {
+	// XXX add in subdir stuff
 	if k.Class == "ref" {
 		return filepath.Join(k.Class, k.World, k.Algo, k.Hash)
 	}
