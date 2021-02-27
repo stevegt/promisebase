@@ -53,6 +53,7 @@ func getGID() uint64 {
 */
 
 type Opts struct {
+	Init     bool
 	Putblob  bool
 	Getblob  bool
 	Putnode  bool
@@ -78,6 +79,7 @@ func run() (rc int) {
 	usage := `pitbase
 
 Usage:
+  pb init 
   pb putblob <algo>
   pb getblob <key>
   pb putnode <algo> <key_label>... 
@@ -105,6 +107,13 @@ Options:
 	//getblob := optsBool("getblob")
 
 	switch true {
+	case opts.Init:
+		msg, err := create()
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(msg)
 	case opts.Putblob:
 		buf, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
@@ -180,6 +189,18 @@ Options:
 	return 0
 }
 
+func create() (msg string, err error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	db, err := pb.Db{Dir: dir}.Create()
+	if err != nil {
+		return
+	}
+	return fmt.Sprintf("Initialized empty database in %s", db.Dir), nil
+}
+
 func opendb() (db *pb.Db, err error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -214,7 +235,7 @@ func getBlob(keypath string) (buf *[]byte, err error) {
 	if err != nil {
 		return
 	}
-	key := pb.KeyFromPath(keypath)
+	key := db.KeyFromPath(keypath)
 	buf, err = db.GetBlob(key)
 	if err != nil {
 		return
@@ -230,7 +251,7 @@ func putNode(algo string, keylabel []string) (keypath string, err error) {
 	var children []*pb.Node
 	for _, kl := range keylabel {
 		parts := strings.Split(kl, ",")
-		k := pb.KeyFromPath(parts[0])
+		k := db.KeyFromPath(parts[0])
 		l := parts[1]
 		child := &pb.Node{Db: db, Key: k, Label: l}
 		children = append(children, child)
@@ -248,7 +269,7 @@ func getNode(keypath string) (node *pb.Node, err error) {
 	if err != nil {
 		return
 	}
-	key := pb.KeyFromPath(keypath)
+	key := db.KeyFromPath(keypath)
 	node, err = db.GetNode(key)
 	if err != nil {
 		return
@@ -263,7 +284,7 @@ func putWorld(keypath, name string) (world *pb.World, err error) {
 	if err != nil {
 		return
 	}
-	key := pb.KeyFromPath(keypath)
+	key := db.KeyFromPath(keypath)
 	world, err = db.PutWorld(key, name)
 	return
 }

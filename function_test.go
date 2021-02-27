@@ -31,10 +31,10 @@ func newdb(t *testing.T) (db *Db) {
 		t.Fatal(err)
 	}
 	db, err = Db{Dir: dir}.Create()
-	_, ok := err.(*ExistsError)
-	if !ok && err != nil {
+	if err != nil {
 		t.Fatal(err)
 	}
+	tassert(t, db != nil, "db is nil")
 	fmt.Println(dir)
 	testDbDir = dir
 	return
@@ -46,6 +46,7 @@ func setup(t *testing.T) (db *Db) {
 		log.Printf("db err: %v", err)
 		t.Fatal(err)
 	}
+	tassert(t, db != nil, "db is nil")
 	// XXX test other depths
 	// db, err = Db{Dir: dir, Depth: 4}.Create()
 	// fmt.Println(dir)
@@ -403,7 +404,7 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect := "blob/sha256/149/955/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/486/183/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5/a02/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
 	gotnodes := nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
@@ -412,7 +413,8 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "node/sha256/fc489024469b5e9acfa85e4c117e9bef69552720ef5154edaaa6123bad98ec56 world1\nnode/sha256/9ae11d65603f394a9dcb6a54166dde24ebdd9479c480ad8b8e5b700f3a1cde4b node1label\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect = "node/sha256/97a/06f/97a06f4e7da5b556cf7ef9acee145d3af2efd5d1d94b3661f9d1c2eb336857cd world1\nnode/sha256/297/c04/297c040bcdb30b90bc9d143ad1ca90baaad975494efe5e802b0e6d65c9eda54c node1label\nblob/sha256/149/955/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/486/183/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5/a02/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+
 	gotnodes = nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
