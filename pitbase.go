@@ -490,7 +490,7 @@ func (db *Db) KeyFromPath(path string) (key *Key) {
 		Db:    db,
 		Class: parts[0],
 		Algo:  parts[1],
-		Hash:  parts[2],
+		Hash:  parts[2+db.Depth],
 	}
 	/*
 		// convert ascii hex string to binary bytes

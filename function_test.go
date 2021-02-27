@@ -23,26 +23,37 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	}
 }
 
-func setup(t *testing.T) (db *Db) {
+var testDbDir string
+
+func newdb(t *testing.T) (db *Db) {
 	dir, err := ioutil.TempDir("", "pitbase")
 	if err != nil {
 		t.Fatal(err)
 	}
 	db, err = Db{Dir: dir}.Create()
 	_, ok := err.(*ExistsError)
-	if ok {
-		db, err = Open(dir)
-	} else if err != nil {
+	if !ok && err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(dir)
+	testDbDir = dir
+	return
+}
+
+func setup(t *testing.T) (db *Db) {
+	db, err := Open(testDbDir)
+	if err != nil {
 		log.Printf("db err: %v", err)
 		t.Fatal(err)
 	}
 	// XXX test other depths
 	// db, err = Db{Dir: dir, Depth: 4}.Create()
+	// fmt.Println(dir)
 	return
 }
 
 func TestExist(t *testing.T) {
-	db := setup(t)
+	db := newdb(t)
 	log.Printf("db: %v", db)
 	db, err := Open(db.Dir)
 	if err != nil {
@@ -265,7 +276,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode(db.KeyFromPath("node/sha256/14f/e38/14fe3864a6848b8b4b61e6b2c39fae59491c6e017e268f21ce23f1f8b07f736d"))
+	node, err := db.GetNode(db.KeyFromPath("node/sha256/4ca/ca5/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,15 +287,13 @@ func TestVerify(t *testing.T) {
 	for i, child := range children {
 		switch i {
 		case 0:
-			expect := "node/sha256/563dcb27d5d8ae1c579ea8b2af89db2d125ade16d95efde13952821230d28e46"
+			expect := "node/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
 			tassert(t, expect == child.Key.String(), "expected %v got %v", expect, child.Key.String())
 		case 1:
-			expect := "blob/sha256/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
+			expect := "blob/sha256/534/d05/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
 			tassert(t, expect == child.Key.String(), "expected %q got %q", expect, child.Key.String())
 		}
 	}
-	// sha256sum testdata/node/sha256/00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2
-	//expect := "00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2"
 	ok, err := node.Verify()
 	if err != nil {
 		t.Fatal(err)
@@ -308,10 +317,6 @@ func TestNode(t *testing.T) {
 	}
 	child2 := &Node{Db: db, Key: key2, Label: ""}
 	// fmt.Println(child1.Key.String(), child2.Key.String())
-	nodekey := db.KeyFromPath("node/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
-	if nodekey == nil {
-		t.Fatal("nodekey is nil")
-	}
 
 	// put
 	node, err := db.PutNode("sha256", child1, child2)
@@ -320,6 +325,10 @@ func TestNode(t *testing.T) {
 	}
 	if node == nil {
 		t.Fatal("node is nil")
+	}
+	nodekey := db.KeyFromPath("node/sha256/f07/648/f076486aba66cea1dac899989800bf6eaa65d75acb5c278107b3df3e6345567d")
+	if nodekey == nil {
+		t.Fatal("nodekey is nil")
 	}
 	// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
 	tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
