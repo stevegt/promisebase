@@ -83,16 +83,22 @@ type ExistsError struct {
 }
 
 func (e *ExistsError) Error() string {
-	return fmt.Sprintf("already exists: %s", e.Dir)
+	return fmt.Sprintf("directory not empty: %s", e.Dir)
 }
 
 // Create initializes a db directory and its contents
 func (db Db) Create() (out *Db, err error) {
-	_, err = os.Stat(db.Dir)
-	if !os.IsNotExist(err) {
-		return nil, &ExistsError{Dir: db.Dir}
-	} else if err != nil {
-		return
+	dir := db.Dir
+
+	// if directory exists, make sure it's empty
+	if canstat(dir) {
+		var files []os.FileInfo
+		files, err = ioutil.ReadDir(dir)
+		if len(files) > 0 {
+			return nil, &ExistsError{Dir: dir}
+		} else if err != nil {
+			return
+		}
 	}
 
 	// set nesting depth
@@ -100,7 +106,6 @@ func (db Db) Create() (out *Db, err error) {
 		db.Depth = 2
 	}
 
-	dir := db.Dir
 	err = mkdir(dir)
 	if err != nil {
 		return
@@ -132,22 +137,44 @@ func (db Db) Create() (out *Db, err error) {
 	}
 
 	// XXX save db as json into db.Dir/config.json
+	buf, err := json.Marshal(db)
+	if err != nil {
+		return
+	}
+	err = ioutil.WriteFile(filepath.Join(dir, "config.json"), buf, 0644)
+	if err != nil {
+		return
+	}
 
 	return &db, nil
 }
 
+type NotDbError struct {
+	Dir string
+}
+
+func (e *NotDbError) Error() string {
+	return fmt.Sprintf("not a database: %s", e.Dir)
+}
+
 // Open loads an existing db object from dir.
 func Open(dir string) (db *Db, err error) {
-	_, err = os.Stat(dir)
-	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("does not exist: %s", db.Dir)
+	if !canstat(dir) {
+		return nil, fmt.Errorf("cannot open: %s", dir)
 	} else if err != nil {
 		return
 	}
 
-	// XXX load json db.Dir/config.json into out
-	// json.Unmarshal(fh, &db)
-	db = &Db{Dir: dir, Depth: 2}
+	// load config
+	buf, err := ioutil.ReadFile(filepath.Join(dir, "config.json"))
+	if err != nil {
+		return nil, &NotDbError{Dir: dir}
+	}
+	db = &Db{}
+	err = json.Unmarshal(buf, db)
+	if err != nil {
+		return
+	}
 
 	return
 }
@@ -236,7 +263,7 @@ func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // version control, blockchain, and file storage applications.
 func (world *World) AppendBlock(algo string, blob *[]byte) (newworld *World, err error) {
 	// get node for top of merkle tree
-	oldkey := KeyFromPath(world.Src)
+	oldkey := world.Db.KeyFromPath(world.Src)
 	oldroot, err := world.Db.GetNode(oldkey)
 	if err != nil {
 		log.Debugf("oldkey: %v, oldroot: %v", oldkey, oldroot)
@@ -264,7 +291,7 @@ func (world *World) AppendBlock(algo string, blob *[]byte) (newworld *World, err
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
 func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
-	key, err = KeyFromBlob(algo, blob)
+	key, err = db.KeyFromBlob(algo, blob)
 	if err != nil {
 		return
 	}
@@ -333,7 +360,7 @@ func (db *Db) GetWorld(name string) (world *World, err error) {
 func (world *World) Ls(all bool) (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	key := KeyFromPath(world.Src)
+	key := world.Db.KeyFromPath(world.Src)
 	rootnode, err := world.Db.GetNode(key)
 	if err != nil {
 		return
@@ -347,7 +374,7 @@ func (world *World) Ls(all bool) (nodes []*Node, err error) {
 func (world *World) Cat() (buf *[]byte, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	key := KeyFromPath(world.Src)
+	key := world.Db.KeyFromPath(world.Src)
 	rootnode, err := world.Db.GetNode(key)
 	if err != nil {
 		return
@@ -452,6 +479,7 @@ func exists(parts ...string) (found bool) {
 // Key is a unique identifier for an object. An object is a Merkle tree inner or leaf node (blob), world, or
 // ref.
 type Key struct {
+	Db    *Db
 	Class string
 	World string
 	Algo  string
@@ -468,22 +496,28 @@ type Key struct {
 // length.
 func (k Key) String() string {
 	// XXX add in subdir stuff
-	if k.Class == "ref" {
-		return filepath.Join(k.Class, k.World, k.Algo, k.Hash)
+	var subpath string
+	for i := 0; i < k.Db.Depth; i++ {
+		subdir := k.Hash[(3 * i):((3 * i) + 3)]
+		subpath = filepath.Join(subpath, subdir)
 	}
-	return filepath.Join(k.Class, k.Algo, k.Hash)
+	if k.Class == "ref" {
+		return filepath.Join(k.Class, k.World, k.Algo, subpath, k.Hash)
+	}
+	return filepath.Join(k.Class, k.Algo, subpath, k.Hash)
 }
 
 // KeyFromPath takes a path relative to db root dir and returns a populated Key object
-func KeyFromPath(path string) (key *Key) {
+func (db *Db) KeyFromPath(path string) (key *Key) {
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
 		panic(fmt.Errorf("path not found: %q", path))
 	}
 	key = &Key{
+		Db:    db,
 		Class: parts[0],
 		Algo:  parts[1],
-		Hash:  parts[2],
+		Hash:  parts[2+db.Depth],
 	}
 	/*
 		// convert ascii hex string to binary bytes
@@ -505,18 +539,19 @@ func KeyFromPath(path string) (key *Key) {
 }
 
 // KeyFromString returns a key pointer corresponding to the given algo and string
-func KeyFromString(algo string, s string) (key *Key, err error) {
+func (db *Db) KeyFromString(algo string, s string) (key *Key, err error) {
 	blob := []byte(s)
-	return KeyFromBlob(algo, &blob)
+	return db.KeyFromBlob(algo, &blob)
 }
 
 // KeyFromBlob takes a class, algo, and blob and returns a populated Key object
-func KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
+func (db *Db) KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
 	binhash, err := Hash(algo, blob)
 	if err != nil {
 		return
 	}
 	key = &Key{
+		Db:    db,
 		Class: "blob",
 		Algo:  algo,
 		Hash:  bin2hex(binhash),
@@ -587,7 +622,7 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	for _, entry := range node.entries {
-		key := KeyFromPath(entry.Path)
+		key := node.Db.KeyFromPath(entry.Path)
 		var child *Node
 		switch key.Class {
 		case "blob":
@@ -640,6 +675,7 @@ func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 	}
 	hash := bin2hex(binhash)
 	node.Key = &Key{
+		Db:    db,
 		Class: "node",
 		Algo:  algo,
 		Hash:  hash,
@@ -716,4 +752,15 @@ func pretty(x interface{}) string {
 		panic(err)
 	}
 	return string(b)
+}
+
+func canstat(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
 }

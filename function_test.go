@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -22,26 +23,38 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	}
 }
 
-func setup(t *testing.T) (db *Db) {
+var testDbDir string
+
+func newdb(t *testing.T) (db *Db) {
 	dir, err := ioutil.TempDir("", "pitbase")
 	if err != nil {
 		t.Fatal(err)
 	}
 	db, err = Db{Dir: dir}.Create()
-	_, ok := err.(*ExistsError)
-	if ok {
-		db, err = Open(dir)
-	} else if err != nil {
+	if err != nil {
+		t.Fatal(err)
+	}
+	tassert(t, db != nil, "db is nil")
+	fmt.Println(dir)
+	testDbDir = dir
+	return
+}
+
+func setup(t *testing.T) (db *Db) {
+	db, err := Open(testDbDir)
+	if err != nil {
 		log.Printf("db err: %v", err)
 		t.Fatal(err)
 	}
+	tassert(t, db != nil, "db is nil")
 	// XXX test other depths
 	// db, err = Db{Dir: dir, Depth: 4}.Create()
+	// fmt.Println(dir)
 	return
 }
 
 func TestExist(t *testing.T) {
-	db := setup(t)
+	db := newdb(t)
 	log.Printf("db: %v", db)
 	db, err := Open(db.Dir)
 	if err != nil {
@@ -64,8 +77,8 @@ func mkblob(s string) *[]byte {
 	return &tmp
 }
 
-func mkkey(t *testing.T, s string) (key *Key) {
-	key, err := KeyFromString("sha256", s)
+func mkkey(t *testing.T, db *Db, s string) (key *Key) {
+	key, err := db.KeyFromString("sha256", s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +115,7 @@ func TestHash(t *testing.T) {
 
 func TestPut(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, "somekey")
+	key := mkkey(t, db, "somekey")
 	val := mkblob("somevalue")
 	err := db.put(key, val)
 	if err != nil {
@@ -119,7 +132,7 @@ func TestPut(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, "somekey")
+	key := mkkey(t, db, "somekey")
 	val := mkblob("somevalue")
 	err := db.put(key, val)
 	if err != nil {
@@ -136,7 +149,7 @@ func TestGet(t *testing.T) {
 
 func TestRm(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, "somekey")
+	key := mkkey(t, db, "somekey")
 	val := mkblob("somevalue")
 	err := db.put(key, val)
 	if err != nil {
@@ -155,7 +168,7 @@ func TestRm(t *testing.T) {
 func TestPutBlob(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +191,7 @@ func TestPutBlob(t *testing.T) {
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,11 +224,11 @@ func deepEqual(a, b interface{}) bool {
 func TestPath(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := "var/blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
+	path := filepath.Join(db.Dir, "blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342")
 	gotpath := db.Path(key)
 	if path != gotpath {
 		t.Fatalf("expected %s, got %s", path, gotpath)
@@ -231,6 +244,7 @@ func TestPath(t *testing.T) {
 // TestKey makes sure we have a Key struct and that the KeyFromPath
 // function works.
 func TestKey(t *testing.T) {
+	db := setup(t)
 	var key *Key
 	val := mkblob("somevalue")
 	algo := "sha256"
@@ -238,14 +252,14 @@ func TestKey(t *testing.T) {
 	bin := make([]byte, len(d))
 	copy(bin[:], d[0:len(d)])
 	hex := fmt.Sprintf("%x", bin)
-	key, err := KeyFromBlob(algo, val)
+	key, err := db.KeyFromBlob(algo, val)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if algo != key.Algo {
 		t.Fatalf("expected %s, got %s", algo, key.Algo)
 	}
-	expect := fmt.Sprintf("blob/sha256/%s", hex)
+	expect := filepath.Join("blob/sha256", hex[0:3], hex[3:6], hex)
 	if expect != key.String() {
 		t.Fatalf("expected %s, got %s", expect, key.String())
 	}
@@ -263,7 +277,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode(KeyFromPath("node/sha256/14fe3864a6848b8b4b61e6b2c39fae59491c6e017e268f21ce23f1f8b07f736d"))
+	node, err := db.GetNode(db.KeyFromPath("node/sha256/4ca/ca5/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,15 +288,13 @@ func TestVerify(t *testing.T) {
 	for i, child := range children {
 		switch i {
 		case 0:
-			expect := "node/sha256/563dcb27d5d8ae1c579ea8b2af89db2d125ade16d95efde13952821230d28e46"
+			expect := "node/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
 			tassert(t, expect == child.Key.String(), "expected %v got %v", expect, child.Key.String())
 		case 1:
-			expect := "blob/sha256/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
+			expect := "blob/sha256/534/d05/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
 			tassert(t, expect == child.Key.String(), "expected %q got %q", expect, child.Key.String())
 		}
 	}
-	// sha256sum testdata/node/sha256/00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2
-	//expect := "00e2a12b4ae802c79344fa05fd49ff63c1335fdd5bc308dab69a6d6b5b5884b2"
 	ok, err := node.Verify()
 	if err != nil {
 		t.Fatal(err)
@@ -306,10 +318,6 @@ func TestNode(t *testing.T) {
 	}
 	child2 := &Node{Db: db, Key: key2, Label: ""}
 	// fmt.Println(child1.Key.String(), child2.Key.String())
-	nodekey := KeyFromPath("node/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
-	if nodekey == nil {
-		t.Fatal("nodekey is nil")
-	}
 
 	// put
 	node, err := db.PutNode("sha256", child1, child2)
@@ -318,6 +326,10 @@ func TestNode(t *testing.T) {
 	}
 	if node == nil {
 		t.Fatal("node is nil")
+	}
+	nodekey := db.KeyFromPath("node/sha256/f07/648/f076486aba66cea1dac899989800bf6eaa65d75acb5c278107b3df3e6345567d")
+	if nodekey == nil {
+		t.Fatal("nodekey is nil")
 	}
 	// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
 	tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
@@ -392,7 +404,7 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect := "blob/sha256/149/955/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/486/183/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5/a02/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
 	gotnodes := nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
@@ -401,7 +413,8 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "node/sha256/fc489024469b5e9acfa85e4c117e9bef69552720ef5154edaaa6123bad98ec56 world1\nnode/sha256/9ae11d65603f394a9dcb6a54166dde24ebdd9479c480ad8b8e5b700f3a1cde4b node1label\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect = "node/sha256/97a/06f/97a06f4e7da5b556cf7ef9acee145d3af2efd5d1d94b3661f9d1c2eb336857cd world1\nnode/sha256/297/c04/297c040bcdb30b90bc9d143ad1ca90baaad975494efe5e802b0e6d65c9eda54c node1label\nblob/sha256/149/955/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/486/183/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5/a02/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+
 	gotnodes = nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
@@ -466,7 +479,7 @@ func Benchmark2GetBlob(b *testing.B) {
 	}
 	// fmt.Println("bench size:", benchSize)
 	for n := 0; n <= benchSize; n++ {
-		key, err := KeyFromString("sha256", asString(n))
+		key, err := db.KeyFromString("sha256", asString(n))
 		if err != nil {
 			b.Fatal(err)
 		}
