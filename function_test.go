@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -215,7 +216,7 @@ func TestPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := "var/blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342"
+	path := filepath.Join(db.Dir, "blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342")
 	gotpath := db.Path(key)
 	if path != gotpath {
 		t.Fatalf("expected %s, got %s", path, gotpath)
@@ -231,6 +232,7 @@ func TestPath(t *testing.T) {
 // TestKey makes sure we have a Key struct and that the KeyFromPath
 // function works.
 func TestKey(t *testing.T) {
+	db := setup(t)
 	var key *Key
 	val := mkblob("somevalue")
 	algo := "sha256"
@@ -238,14 +240,14 @@ func TestKey(t *testing.T) {
 	bin := make([]byte, len(d))
 	copy(bin[:], d[0:len(d)])
 	hex := fmt.Sprintf("%x", bin)
-	key, err := KeyFromBlob(algo, val)
+	key, err := db.KeyFromBlob(algo, val)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if algo != key.Algo {
 		t.Fatalf("expected %s, got %s", algo, key.Algo)
 	}
-	expect := fmt.Sprintf("blob/sha256/%s", hex)
+	expect := filepath.Join("blob/sha256", hex[0:3], hex[3:6], hex)
 	if expect != key.String() {
 		t.Fatalf("expected %s, got %s", expect, key.String())
 	}
@@ -263,7 +265,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode(KeyFromPath("node/sha256/14fe3864a6848b8b4b61e6b2c39fae59491c6e017e268f21ce23f1f8b07f736d"))
+	node, err := db.GetNode(db.KeyFromPath("node/sha256/14f/e38/14fe3864a6848b8b4b61e6b2c39fae59491c6e017e268f21ce23f1f8b07f736d"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +308,7 @@ func TestNode(t *testing.T) {
 	}
 	child2 := &Node{Db: db, Key: key2, Label: ""}
 	// fmt.Println(child1.Key.String(), child2.Key.String())
-	nodekey := KeyFromPath("node/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
+	nodekey := db.KeyFromPath("node/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
 	if nodekey == nil {
 		t.Fatal("nodekey is nil")
 	}
@@ -466,7 +468,7 @@ func Benchmark2GetBlob(b *testing.B) {
 	}
 	// fmt.Println("bench size:", benchSize)
 	for n := 0; n <= benchSize; n++ {
-		key, err := KeyFromString("sha256", asString(n))
+		key, err := db.KeyFromString("sha256", asString(n))
 		if err != nil {
 			b.Fatal(err)
 		}

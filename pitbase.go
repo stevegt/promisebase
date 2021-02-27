@@ -288,12 +288,7 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // hex-encoded pathname.
 func (db *Db) Path(key *Key) (path string) {
 	log.Debugf("db: %v, key: %v", db, key)
-	var subpath string
-	for i := 0; i < db.Depth; i++ {
-		subdir := key.Hash[(3 * i):((3 * i) + 3)]
-		subpath = filepath.Join(subpath, subdir)
-	}
-	path = filepath.Join(db.Dir, subpath, key.String())
+	path = filepath.Join(db.Dir, key.String())
 	return
 }
 
@@ -457,6 +452,7 @@ func exists(parts ...string) (found bool) {
 // Key is a unique identifier for an object. An object is a Merkle tree inner or leaf node (blob), world, or
 // ref.
 type Key struct {
+	Db    *Db
 	Class string
 	World string
 	Algo  string
@@ -473,10 +469,15 @@ type Key struct {
 // length.
 func (k Key) String() string {
 	// XXX add in subdir stuff
-	if k.Class == "ref" {
-		return filepath.Join(k.Class, k.World, k.Algo, k.Hash)
+	var subpath string
+	for i := 0; i < k.Db.Depth; i++ {
+		subdir := k.Hash[(3 * i):((3 * i) + 3)]
+		subpath = filepath.Join(subpath, subdir)
 	}
-	return filepath.Join(k.Class, k.Algo, k.Hash)
+	if k.Class == "ref" {
+		return filepath.Join(k.Class, k.World, k.Algo, subpath, k.Hash)
+	}
+	return filepath.Join(k.Class, k.Algo, subpath, k.Hash)
 }
 
 // KeyFromPath takes a path relative to db root dir and returns a populated Key object
@@ -486,6 +487,7 @@ func (db *Db) KeyFromPath(path string) (key *Key) {
 		panic(fmt.Errorf("path not found: %q", path))
 	}
 	key = &Key{
+		Db:    db,
 		Class: parts[0],
 		Algo:  parts[1],
 		Hash:  parts[2],
@@ -522,6 +524,7 @@ func (db *Db) KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
 		return
 	}
 	key = &Key{
+		Db:    db,
 		Class: "blob",
 		Algo:  algo,
 		Hash:  bin2hex(binhash),
@@ -645,6 +648,7 @@ func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 	}
 	hash := bin2hex(binhash)
 	node.Key = &Key{
+		Db:    db,
 		Class: "node",
 		Algo:  algo,
 		Hash:  hash,
