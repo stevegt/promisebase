@@ -3,7 +3,7 @@ package pitbase
 import (
 	"io"
 
-	"github.com/restic/chunker"
+	resticRabin "github.com/restic/chunker"
 )
 
 const (
@@ -16,18 +16,20 @@ const (
 	defMaxSize = 8 * miB
 )
 
-// Chunker lightly wraps restic's chunker on the slight chance that we
+// Rabin lightly wraps restic's chunker on the slight chance that we
 // might need to replace it someday.
 // XXX restic's Next() does copies rather than passing pointers --
 // we might want to replace restic's lib sooner rather than later
-type Chunker struct {
-	Poly    chunker.Pol
-	C       *chunker.Chunker
+type Rabin struct {
+	Poly    resticRabin.Pol
+	C       *resticRabin.Chunker
 	MinSize uint
 	MaxSize uint
 }
 
-func (c Chunker) Init() (res *Chunker, err error) {
+type Chunk resticRabin.Chunk
+
+func (c Rabin) Init() (res *Rabin, err error) {
 	if c.MinSize == 0 {
 		c.MinSize = defMinSize
 	}
@@ -35,16 +37,16 @@ func (c Chunker) Init() (res *Chunker, err error) {
 		c.MaxSize = defMaxSize
 	}
 	if c.Poly == 0 {
-		c.Poly, err = chunker.RandomPolynomial()
+		c.Poly, err = resticRabin.RandomPolynomial()
 	}
 	return &c, err
 }
 
-func (c *Chunker) Start(rd io.Reader) {
-	c.C = chunker.NewWithBoundaries(rd, c.Poly, c.MinSize, c.MaxSize)
+func (c *Rabin) Start(rd io.Reader) {
+	c.C = resticRabin.NewWithBoundaries(rd, c.Poly, c.MinSize, c.MaxSize)
 }
 
-func (c *Chunker) Next(buf []byte) (chunk chunker.Chunk, err error) {
+func (c *Rabin) Next(buf []byte) (chunk resticRabin.Chunk, err error) {
 	// restic chunker.Next() is underdocumented -- as of this writing
 	// it says:
 	//
@@ -74,12 +76,6 @@ func (c *Chunker) Next(buf []byte) (chunk chunker.Chunk, err error) {
 
 	// buf := make([]byte, 100000000)
 	chunk, err = c.C.Next(buf)
-	_ = err
-	// data = buf         // nok
-
-	// chunk, err := c.C.Next(buf)
-	// data := chunk.Data // ok
-	// data = *buf        // ok
 
 	return
 }
