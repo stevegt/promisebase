@@ -64,8 +64,8 @@ func mkblob(s string) *[]byte {
 	return &tmp
 }
 
-func mkkey(t *testing.T, s string) (key *Key) {
-	key, err := KeyFromString("sha256", s)
+func mkkey(t *testing.T, db *Db, s string) (key *Key) {
+	key, err := db.KeyFromString("sha256", s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestHash(t *testing.T) {
 
 func TestPut(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, "somekey")
+	key := mkkey(t, db, "somekey")
 	val := mkblob("somevalue")
 	err := db.put(key, val)
 	if err != nil {
@@ -119,7 +119,7 @@ func TestPut(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, "somekey")
+	key := mkkey(t, db, "somekey")
 	val := mkblob("somevalue")
 	err := db.put(key, val)
 	if err != nil {
@@ -136,7 +136,7 @@ func TestGet(t *testing.T) {
 
 func TestRm(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, "somekey")
+	key := mkkey(t, db, "somekey")
 	val := mkblob("somevalue")
 	err := db.put(key, val)
 	if err != nil {
@@ -155,7 +155,7 @@ func TestRm(t *testing.T) {
 func TestPutBlob(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestPutBlob(t *testing.T) {
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func deepEqual(a, b interface{}) bool {
 func TestPath(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}

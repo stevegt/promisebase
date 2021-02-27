@@ -236,7 +236,7 @@ func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // version control, blockchain, and file storage applications.
 func (world *World) AppendBlock(algo string, blob *[]byte) (newworld *World, err error) {
 	// get node for top of merkle tree
-	oldkey := KeyFromPath(world.Src)
+	oldkey := world.Db.KeyFromPath(world.Src)
 	oldroot, err := world.Db.GetNode(oldkey)
 	if err != nil {
 		log.Debugf("oldkey: %v, oldroot: %v", oldkey, oldroot)
@@ -264,7 +264,7 @@ func (world *World) AppendBlock(algo string, blob *[]byte) (newworld *World, err
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
 func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
-	key, err = KeyFromBlob(algo, blob)
+	key, err = db.KeyFromBlob(algo, blob)
 	if err != nil {
 		return
 	}
@@ -288,7 +288,12 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // hex-encoded pathname.
 func (db *Db) Path(key *Key) (path string) {
 	log.Debugf("db: %v, key: %v", db, key)
-	path = filepath.Join(db.Dir, key.String())
+	var subpath string
+	for i := 0; i < db.Depth; i++ {
+		subdir := key.Hash[(3 * i):((3 * i) + 3)]
+		subpath = filepath.Join(subpath, subdir)
+	}
+	path = filepath.Join(db.Dir, subpath, key.String())
 	return
 }
 
@@ -333,7 +338,7 @@ func (db *Db) GetWorld(name string) (world *World, err error) {
 func (world *World) Ls(all bool) (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	key := KeyFromPath(world.Src)
+	key := world.Db.KeyFromPath(world.Src)
 	rootnode, err := world.Db.GetNode(key)
 	if err != nil {
 		return
@@ -347,7 +352,7 @@ func (world *World) Ls(all bool) (nodes []*Node, err error) {
 func (world *World) Cat() (buf *[]byte, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	key := KeyFromPath(world.Src)
+	key := world.Db.KeyFromPath(world.Src)
 	rootnode, err := world.Db.GetNode(key)
 	if err != nil {
 		return
@@ -475,7 +480,7 @@ func (k Key) String() string {
 }
 
 // KeyFromPath takes a path relative to db root dir and returns a populated Key object
-func KeyFromPath(path string) (key *Key) {
+func (db *Db) KeyFromPath(path string) (key *Key) {
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
 		panic(fmt.Errorf("path not found: %q", path))
@@ -505,13 +510,13 @@ func KeyFromPath(path string) (key *Key) {
 }
 
 // KeyFromString returns a key pointer corresponding to the given algo and string
-func KeyFromString(algo string, s string) (key *Key, err error) {
+func (db *Db) KeyFromString(algo string, s string) (key *Key, err error) {
 	blob := []byte(s)
-	return KeyFromBlob(algo, &blob)
+	return db.KeyFromBlob(algo, &blob)
 }
 
 // KeyFromBlob takes a class, algo, and blob and returns a populated Key object
-func KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
+func (db *Db) KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
 	binhash, err := Hash(algo, blob)
 	if err != nil {
 		return
@@ -587,7 +592,7 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	for _, entry := range node.entries {
-		key := KeyFromPath(entry.Path)
+		key := node.Db.KeyFromPath(entry.Path)
 		var child *Node
 		switch key.Class {
 		case "blob":
