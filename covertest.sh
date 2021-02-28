@@ -5,9 +5,11 @@ cmd="go test -v -timeout 20s -cover -coverprofile=/tmp/covertest.out -coverpkg=.
 
 dirs=$(find -name go.mod |xargs dirname)
 
-pass=true
+passes=""
+fails=""
 for dir in $dirs
 do
+	pass=true
 	cd $dir
 	$cmd 
 	html=/tmp/$(echo $PWD | perl -pne 's|^/||; s|/|-|g').html
@@ -20,6 +22,7 @@ do
 	then
 		echo FAIL unable to determine coverage 
 		rm -f $html
+		fails="$fail $dir"
 		pass=false
 	fi
     echo coverage $pct%
@@ -27,15 +30,29 @@ do
 	if test "0$pct" -lt "0$minpct"  
 	then
 		echo FAIL coverage less than $minpct
+		fail="$fail $dir"
 		pass=false
+	fi
+	if $pass
+	then
+		passes="$passes $dir"
 	fi
 	cd -
 done
 
-if $pass
+for pass in $passes
+do
+	echo PASS $pass
+done
+
+for fail in $fails
+do
+	echo FAIL $fail
+done
+
+if [ -n "$fails" ]
 then
-	echo PASS
-else
-	echo FAIL -- scroll up for details
 	exit 1
+else
+	echo PASS all functional and coverage tests
 fi
