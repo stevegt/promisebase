@@ -428,7 +428,7 @@ func TestWorld(t *testing.T) {
 
 	// append
 	blob4 := mkblob("blob4value")
-	world1, err = world1.AppendBlock("sha256", blob4)
+	world1, err = world1.AppendBlob("sha256", blob4)
 	if err != nil {
 		t.Fatal(err)
 	}
