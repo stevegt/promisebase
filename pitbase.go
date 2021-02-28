@@ -7,6 +7,7 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -252,40 +253,63 @@ func (db *Db) Rm(key *Key) (err error) {
 }
 
 // PutBlob performs db.PutBlob on world.Db
+// XXX can't do this, 'cause then it's no longer the same world
+/*
 func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	return world.Db.PutBlob(algo, blob)
 }
+*/
 
-// AppendBlock puts a blob in the database, appends it to the world's
+// AppendBlob puts a blob in the database, appends it to the world's
 // Merkle tree as a new leaf node, and then rewrites the world's symlink
 // to point at the new tree root.  This function can be used to append
 // new records or blocks to journals or files in accounting, trading,
 // version control, blockchain, and file storage applications.
-func (world *World) AppendBlock(algo string, blob *[]byte) (newworld *World, err error) {
+func (world *World) AppendBlob(algo string, blob *[]byte) (newworld *World, err error) {
 	// get node for top of merkle tree
 	oldkey := world.Db.KeyFromPath(world.Src)
-	oldroot, err := world.Db.GetNode(oldkey)
+	oldrootnode, err := world.Db.GetNode(oldkey)
 	if err != nil {
-		log.Debugf("oldkey: %v, oldroot: %v", oldkey, oldroot)
+		log.Debugf("oldkey: %v, oldrootnode: %v", oldkey, oldrootnode)
 		return
 	}
-
-	// put blob
-	key, err := world.PutBlob(algo, blob)
-	newnode := &Node{Db: world.Db, Key: key, Label: ""}
-
-	// put node for new top of merkle tree
-	newroot, err := world.Db.PutNode(algo, oldroot, newnode)
-	if err != nil {
-		return
-	}
+	newrootnode, err := oldrootnode.AppendBlob(algo, blob)
 
 	// rewrite symlink
-	newworld, err = world.Db.PutWorld(newroot.Key, world.Name)
+	newworld, err = world.Db.PutWorld(newrootnode.Key, world.Name)
 	if err != nil {
 		return
 	}
 	return
+
+}
+
+// AppendBlob puts a blob in the database, appends it to the node's
+// Merkle tree as a new leaf node, and returns the new root node.
+// This function can be used to append
+// new records or blocks to journals or files in accounting, trading,
+// version control, blockchain, and file storage applications.
+func (node *Node) AppendBlob(algo string, blob *[]byte) (newrootnode *Node, err error) {
+	oldrootnode := node
+
+	// put blob
+	key, err := node.Db.PutBlob(algo, blob)
+	newblobnode := &Node{Db: node.Db, Key: key, Label: ""}
+
+	// put node for new top of merkle tree
+	newrootnode, err = node.Db.PutNode(algo, oldrootnode, newblobnode)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// PutStream reads blobs from stream, creates a merkle tree with those
+// blobs as leaf nodes, and returns the root node of the new tree.
+func (db *Db) PutStream(stream io.Reader) (rootnode *Node, err error) {
+
+	return
+
 }
 
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
