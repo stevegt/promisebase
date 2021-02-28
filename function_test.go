@@ -10,16 +10,34 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime/debug"
 	"strings"
 	"testing"
 )
 
 // test boolean condition
 func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
+	t.Helper() // cause file:line info to show caller
 	if !cond {
-		debug.PrintStack()
-		t.Errorf(txt, args...)
+		t.Fatalf(txt, args...)
+		/*
+			XXX The following isn't needed with t.Helper(), and doesn't
+			work anyway because t.Logf always prepends the wrong file:line
+			anyway, but keeping here for a while in case it's useful
+			elsewhere.
+
+			// prepend caller's file:line info
+			msg := fmt.Sprintf(txt, args...)
+			_, file, line, ok := runtime.Caller(1)
+			if ok {
+				dir, _ := os.Getwd()
+				file = strings.TrimPrefix(file, dir+"/")
+				// chunker_test.go:74: sadf
+				t.Fatalf("%s:%d: %s", file, line, msg)
+			} else {
+				debug.PrintStack()
+				t.Fatalf("======> %s", msg)
+			}
+		*/
 	}
 }
 
