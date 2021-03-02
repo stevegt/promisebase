@@ -26,7 +26,7 @@ func TestChunker(t *testing.T) {
 	// chunk it
 	chunker.Start(stream)
 
-	buf := make([]byte, 1*miB)
+	buf := make([]byte, 9*miB) // XXX we need to understand buffer size
 	var gotstream []byte
 	for {
 		chunk, err := chunker.Next(buf)
@@ -76,16 +76,20 @@ func genstream(t *testing.T, size int) (stream *Stream) {
 }
 
 func TestPutStream(t *testing.T) {
-	stream := genstream(t, 100*miB)
+	stream := genstream(t, 100*kiB)
+	// stream := &Stream{Data: *(mkblob("apple pear something"))}
+	//	var stream &Stream
 	db := newdb(t)
 
-	node, err := db.PutStream(stream)
+	node, err := db.PutStream("sha256", stream)
 	tassert(t, err == nil, "PutStream(): %v", err)
 	tassert(t, node != nil, "PutStream() node is nil")
 
 	gotbuf, err := node.Cat()
 	tassert(t, err == nil, "node.Cat(): %v", err)
 
-	tassert(t, bytes.Compare(stream.Data, *gotbuf) == 0, "chunk: stream vs. gotbuf mismatch")
+	tassert(t, bytes.Compare(stream.Data, *gotbuf) == 0, "expected %v\n=================\ngot %v", stream.Data, *gotbuf)
+	tassert(t, len(stream.Data) == len(*gotbuf), "size: expected %d got %d", len(stream.Data), len(*gotbuf))
+	tassert(t, bytes.Compare(stream.Data, *gotbuf) == 0, "stream vs. gotbuf mismatch")
 
 }

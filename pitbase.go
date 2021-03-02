@@ -16,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/google/renameio"
+	"github.com/pkg/errors"
+	resticRabin "github.com/restic/chunker"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
@@ -29,8 +31,9 @@ import (
 // Four-character names would give us 65,536 subdirs, which would
 // cause performance issues on e.g. ext4.
 type Db struct {
-	Dir   string // base of tree
-	Depth int    // number of subdir levels in blob and node trees
+	Dir   string          // base of tree
+	Depth int             // number of subdir levels in blob and node trees
+	Poly  resticRabin.Pol // rabin polynomial for chunking
 }
 
 // Inode contains various file-related items such as file descriptor,
@@ -135,6 +138,13 @@ func (db Db) Create() (out *Db, err error) {
 	err = mkdir(filepath.Join(dir, "node"))
 	if err != nil {
 		return
+	}
+
+	if db.Poly == 0 {
+		db.Poly, err = resticRabin.RandomPolynomial()
+		if err != nil {
+			return
+		}
 	}
 
 	// XXX save db as json into db.Dir/config.json
@@ -304,9 +314,69 @@ func (node *Node) AppendBlob(algo string, blob *[]byte) (newrootnode *Node, err 
 	return
 }
 
+/*
+func (blob *Blob) AppendBlob(algo string, newblob *[]byte) (node *Node, err error) {
+
+	// put blob
+	key, err := node.Db.PutBlob(algo, newblob)
+
+	// put node to start new merkle tree
+	node, err = node.Db.PutNode(algo, oldrootnode, newblobnode)
+	if err != nil {
+		return
+	}
+	return
+}
+*/
+
 // PutStream reads blobs from stream, creates a merkle tree with those
 // blobs as leaf nodes, and returns the root node of the new tree.
-func (db *Db) PutStream(stream io.Reader) (rootnode *Node, err error) {
+func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err error) {
+	// setup
+	chunker, err := Rabin{Poly: db.Poly}.Init()
+	if err != nil {
+		return
+	}
+
+	// chunk it
+	chunker.Start(stream)
+
+	// XXX hardcoded buffer size of 1 MB, might want to make this configurable
+	// XXX buffer size really only needs to be slightly larger than the max chunk size,
+	// XXX which we should be able to get out of the rabin struct
+	buf := make([]byte, chunker.MaxSize+1) // this might be wrong
+	var oldnode *Node
+	for {
+		chunk, err := chunker.Next(buf)
+		if errors.Cause(err) == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		key, err := db.PutBlob(algo, &chunk.Data)
+		if err != nil {
+			return nil, err
+		}
+		newblobnode := &Node{Db: db, Key: key, Label: ""}
+
+		if oldnode == nil {
+			// we're just starting the tree
+			oldnode, err = db.PutNode(algo, newblobnode)
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
+		// create the new node
+		rootnode, err = db.PutNode(algo, oldnode)
+		if err != nil {
+			return nil, err
+		}
+		oldnode = rootnode
+	}
 
 	return
 
