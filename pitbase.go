@@ -31,9 +31,11 @@ import (
 // Four-character names would give us 65,536 subdirs, which would
 // cause performance issues on e.g. ext4.
 type Db struct {
-	Dir   string          // base of tree
-	Depth int             // number of subdir levels in blob and node trees
-	Poly  resticRabin.Pol // rabin polynomial for chunking
+	Dir     string          // base of tree
+	Depth   int             // number of subdir levels in blob and node trees
+	Poly    resticRabin.Pol // rabin polynomial for chunking
+	MinSize uint            // minimum chunk size
+	MaxSize uint            // maximum chunk size
 }
 
 // Inode contains various file-related items such as file descriptor,
@@ -333,7 +335,7 @@ func (blob *Blob) AppendBlob(algo string, newblob *[]byte) (node *Node, err erro
 // blobs as leaf nodes, and returns the root node of the new tree.
 func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err error) {
 	// setup
-	chunker, err := Rabin{Poly: db.Poly}.Init()
+	chunker, err := Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
 	if err != nil {
 		return
 	}
@@ -363,23 +365,21 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 
 		if oldnode == nil {
 			// we're just starting the tree
-			oldnode, err = db.PutNode(algo, newblobnode)
+			rootnode, err = db.PutNode(algo, newblobnode)
 			if err != nil {
 				return nil, err
 			}
-
-		}
-
-		// create the new node
-		rootnode, err = db.PutNode(algo, oldnode)
-		if err != nil {
-			return nil, err
+		} else {
+			// add the next node
+			rootnode, err = db.PutNode(algo, oldnode, newblobnode)
+			if err != nil {
+				return nil, err
+			}
 		}
 		oldnode = rootnode
 	}
 
 	return
-
 }
 
 // PutBlob hashes the blob, stores the blob in a file named after the hash,

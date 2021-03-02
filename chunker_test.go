@@ -75,20 +75,32 @@ func genstream(t *testing.T, size int) (stream *Stream) {
 	return
 }
 
-func TestPutStream(t *testing.T) {
-	stream := genstream(t, 100*kiB)
-	// stream := &Stream{Data: *(mkblob("apple pear something"))}
-	//	var stream &Stream
-	db := newdb(t)
+func TestPutStreamSmall(t *testing.T) {
+	stream := &Stream{Data: *(mkblob("apple bob carol dave echo foxtrot golf hotel india juliet kilo lima mike november oscar pear something "))}
+	db := newdb(t, &Db{MinSize: 10, MaxSize: 20})
+	testPutStream(t, db, stream)
+}
+
+func TestPutStreamBig(t *testing.T) {
+	stream := genstream(t, 100*miB)
+	db := newdb(t, nil)
+	testPutStream(t, db, stream)
+}
+
+func testPutStream(t *testing.T, db *Db, stream *Stream) {
 
 	node, err := db.PutStream("sha256", stream)
 	tassert(t, err == nil, "PutStream(): %v", err)
 	tassert(t, node != nil, "PutStream() node is nil")
 
+	fmt.Printf("root %s/%s\n", db.Dir, node.Key.String())
+
 	gotbuf, err := node.Cat()
 	tassert(t, err == nil, "node.Cat(): %v", err)
 
-	tassert(t, bytes.Compare(stream.Data, *gotbuf) == 0, "expected %v\n=================\ngot %v", stream.Data, *gotbuf)
+	if len(stream.Data) < 200 && len(*gotbuf) < 200 {
+		tassert(t, bytes.Compare(stream.Data, *gotbuf) == 0, "expected %v\n=================\ngot %v", string(stream.Data), string(*gotbuf))
+	}
 	tassert(t, len(stream.Data) == len(*gotbuf), "size: expected %d got %d", len(stream.Data), len(*gotbuf))
 	tassert(t, bytes.Compare(stream.Data, *gotbuf) == 0, "stream vs. gotbuf mismatch")
 

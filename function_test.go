@@ -43,19 +43,31 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 
 var testDbDir string
 
-func newdb(t *testing.T) (db *Db) {
-	dir, err := ioutil.TempDir("", "pitbase")
-	if err != nil {
-		t.Fatal(err)
+func newdb(t *testing.T, db *Db) *Db {
+	var err error
+
+	if db == nil {
+		db = &Db{}
 	}
-	db, err = Db{Dir: dir}.Create()
+
+	// create Dir if needed
+	// (if Dir is passed in, then assume the caller has done mkdir)
+	if db.Dir == "" {
+		db.Dir, err = ioutil.TempDir("", "pitbase")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	db, err = (*db).Create()
 	if err != nil {
 		t.Fatal(err)
 	}
 	tassert(t, db != nil, "db is nil")
-	fmt.Println(dir)
-	testDbDir = dir
-	return
+
+	fmt.Println(db.Dir)
+	testDbDir = db.Dir // XXX hackkk
+	return db
 }
 
 func setup(t *testing.T) (db *Db) {
@@ -72,8 +84,8 @@ func setup(t *testing.T) (db *Db) {
 }
 
 func TestExist(t *testing.T) {
-	db := newdb(t)
-	log.Printf("db: %v", db)
+	db := newdb(t, nil)
+	// log.Printf("db: %v", db)
 	db, err := Open(db.Dir)
 	if err != nil {
 		t.Fatal(err)
