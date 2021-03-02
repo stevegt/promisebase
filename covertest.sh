@@ -5,54 +5,56 @@ cmd="go test -v -timeout 20s -cover -coverprofile=/tmp/covertest.out -coverpkg=.
 
 dirs=$(find -name go.mod |xargs dirname)
 
-passes=""
-fails=""
+declare -A msg
+
 for dir in $dirs
 do
-	pass=true
 	cd $dir
-	$cmd 
-	html=/tmp/$(echo $PWD | perl -pne 's|^/||; s|/|-|g').html
-	go tool cover -html=/tmp/covertest.out -o $html
-	echo run this to see coverage detail: 
-	echo xdg-open $html
+	msg[$dir]="FAIL"
+	if $cmd 
+	then 
+		msg[$dir]="PASS"
 
-	pct=$(go tool cover -func=/tmp/covertest.out | grep total: | perl -ne 'print if s/.*\s+(\d+)\..*/$1/')
-	if test -z "$pct" 
-	then
-		echo FAIL unable to determine coverage 
-		rm -f $html
-		fails="$fail $dir"
-		pass=false
-	fi
-    echo coverage $pct%
+		html=/tmp/$(echo $PWD | perl -pne 's|^/||; s|/|-|g').html
+		go tool cover -html=/tmp/covertest.out -o $html
+		echo run this to see coverage detail: 
+		echo xdg-open $html
 
-	if test "0$pct" -lt "0$minpct"  
-	then
-		echo FAIL coverage less than $minpct
-		fail="$fail $dir"
-		pass=false
+		pct=$(go tool cover -func=/tmp/covertest.out | grep total: | perl -ne 'print if s/.*\s+(\d+)\..*/$1/')
+		if [ "0$pct" -le "0" ]
+		then
+			msg[$dir]="FAIL unable to determine coverage"
+			rm -f $html
+		elif test "0$pct" -lt "0$minpct"  
+		then
+			msg[$dir]="FAIL coverage $pct is less than $minpct"
+		else
+			echo coverage $pct%
+		fi
 	fi
-	if $pass
-	then
-		passes="$passes $dir"
-	fi
+
+	# echo ${msg[$dir]}
 	cd -
 done
 
-for pass in $passes
+echo 
+echo Summary of all tests:
+rc=0
+for dir in $dirs
 do
-	echo PASS $pass
+	# printf "%40s %s\n" $(realpath $dir) "${msg[$dir]}"
+	printf "%-10s %s\n" $dir "${msg[$dir]}"
+	if echo ${msg[$dir]} | grep -q FAIL 
+	then
+		rc=1
+	fi
 done
 
-for fail in $fails
-do
-	echo FAIL $fail
-done
+# echo ${msg[@]}
 
-if [ -n "$fails" ]
+if [ "$rc" -ne 0 ]
 then
-	exit 1
+	exit $rc
 else
 	echo PASS all functional and coverage tests
 fi

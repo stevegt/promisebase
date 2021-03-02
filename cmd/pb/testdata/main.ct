@@ -85,7 +85,6 @@ blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4a
 $ pb lsworld world42 --> FAIL
 $ pb lsworld -a world42 --> FAIL
 
-
 # show a concatenation of all leaf node content in a world
 $ pb catworld world1
 multiline blob
@@ -110,5 +109,17 @@ $ pb putblob lkdsajf --> FAIL
 $ pb getblob kakajsn --> FAIL
 path not found: "kakajsn"
 
-
 $ pb lsworld lsadkfj --> FAIL
+
+# putfile
+# create a huge file
+$ dd if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
+
+# put it 
+$ pb putstream world7 < ${ROOTDIR}/hugefile
+
+# get it and save to hugefile.copy
+$ pb catworld -o ${ROOTDIR}/hugefile.copy world7
+
+# compare
+$ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy

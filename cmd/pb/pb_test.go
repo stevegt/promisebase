@@ -30,5 +30,7 @@ func TestCLI(t *testing.T) {
 		return
 	}
 	ts.Commands["pb"] = cmdtest.InProcessProgram("pb", run)
+	ts.Commands["dd"] = cmdtest.Program("/bin/dd")
+	ts.Commands["cmp"] = cmdtest.Program("/usr/bin/cmp")
 	ts.Run(t, *update)
 }

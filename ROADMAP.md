@@ -1,8 +1,9 @@
 x add rabin, PutStream and PutFile test cases
-- add PutFile code 
+x add PutFile code 
     x start with World.AppendBlock()
 - reconcile Node and blob
   - maybe call them both Object
+    - maybe Object interface
   - maybe merge in Key as well
 - split into multiple files or packages
     - db, node, world, and util
