@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 minpct=70
-cmd="go test -v -timeout 20s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
+cmd="go test -v -timeout 60s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
 
 dirs=$(find -name go.mod |xargs dirname)
 

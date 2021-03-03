@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -53,20 +54,23 @@ func getGID() uint64 {
 */
 
 type Opts struct {
-	Init     bool
-	Putblob  bool
-	Getblob  bool
-	Putnode  bool
-	Getnode  bool
-	Putworld bool
-	Getworld bool
-	Lsworld  bool
-	Catworld bool
-	Algo     string
-	Key      string
-	KeyLabel []string `docopt:"<key_label>"`
-	Name     string
-	All      bool `docopt:"-a"`
+	Init      bool
+	Putblob   bool
+	Getblob   bool
+	Putnode   bool
+	Getnode   bool
+	Putworld  bool
+	Getworld  bool
+	Lsworld   bool
+	Catworld  bool
+	Putstream bool
+	Algo      string
+	Key       string
+	KeyLabel  []string `docopt:"<key_label>"`
+	Name      string
+	All       bool `docopt:"-a"`
+	Out       bool `docopt:"-o"`
+	Filename  string
 }
 
 func main() {
@@ -87,13 +91,15 @@ Usage:
   pb putworld <key> <name>
   pb getworld <name>
   pb lsworld [-a] <name>
-  pb catworld <name>
+  pb catworld <name> [-o <filename>] 
+  pb putstream <algo> <name>
 
 Options:
   -h --help     Show this screen.
   --version     Show version.
 `
-	o, _ := docopt.ParseDoc(usage)
+	parser := &docopt.Parser{OptionsFirst: false}
+	o, _ := parser.ParseArgs(usage, os.Args[1:], "0.0")
 	var opts Opts
 	err := o.Bind(&opts)
 	if err != nil {
@@ -183,7 +189,28 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		fmt.Print(string(*buf))
+		if opts.Out {
+			err = ioutil.WriteFile(opts.Filename, *buf, 0644)
+			if err != nil {
+				log.Error(err)
+				return 43
+			}
+		} else {
+			fmt.Print(string(*buf))
+		}
+	case opts.Putstream:
+		world, err := putStream(opts.Algo, opts.Name, os.Stdin)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		gotworld, err := getWorld(world.Name)
+		if err != nil {
+			log.Error(err)
+			return 43
+		}
+		_ = gotworld
+		// fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Src)
 	}
 
 	return 0
@@ -324,6 +351,22 @@ func catWorld(name string) (buf *[]byte, err error) {
 		return
 	}
 	buf, err = w.Cat()
+	if err != nil {
+		return
+	}
+	return
+}
+
+func putStream(algo string, name string, rd io.Reader) (world *pb.World, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	node, err := db.PutStream(algo, rd)
+	if err != nil {
+		return
+	}
+	world, err = db.PutWorld(node.Key, name)
 	if err != nil {
 		return
 	}

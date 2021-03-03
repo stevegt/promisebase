@@ -113,13 +113,13 @@ $ pb lsworld lsadkfj --> FAIL
 
 # putfile
 # create a huge file
-$ dd if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
+$ dd status=none if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
 
 # put it 
-$ pb putstream world7 < ${ROOTDIR}/hugefile
+$ pb putstream sha256 world7 < ${ROOTDIR}/hugefile
 
 # get it and save to hugefile.copy
-$ pb catworld -o ${ROOTDIR}/hugefile.copy world7
+$ pb catworld world7 -o ${ROOTDIR}/hugefile.copy 
 
 # compare
 $ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy
