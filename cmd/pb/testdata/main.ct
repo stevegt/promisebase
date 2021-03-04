@@ -134,3 +134,19 @@ $ pb catworld world7 -o ${ROOTDIR}/hugefile.copy
 
 # compare
 $ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy
+
+# try executing code in an arbitrary language
+# load the lang1 interpreter
+$ pb putstream sha256 lang1 < ../lang1.sh 
+# run a script written in lang1
+$ pb exec ../hello.lang1
+Hello, Universe!
+
+# ensure world names can include slashes
+# XXX - also need to ensure they don't include '..', or that they otherwise
+# XXX   resolve to anything outside of ./world/
+# $ pb putnode sha256 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262,/some/path
+# node/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
+# $ pb putworld node/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c /some/world
+# /some/world -> node/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
+

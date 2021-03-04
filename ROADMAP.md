@@ -5,13 +5,15 @@ x implement multilevel storage
     x configurable defaults to 2 levels, 3 digits
     x isolate internal db level config from UI-visible and node
       content path strings
+- implement `pb exec` and a language prototype 
+  - spike, likely to inform all of the following
 - reconcile Node and blob
   - maybe call them both Object
     - maybe Object interface
   - maybe merge in Key as well
 - split into multiple files or packages
     - db, node, world, and util
-    - leave function_test in one file for now
+    - World may be a good candidate for a separate package
 - continue improving coverage
 - start writing test cases for possible next layer to prove or disprove the following
     - likely application is image and container management, host management, file version control, accounting, logging...
