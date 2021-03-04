@@ -11,18 +11,23 @@ $ fecho blob1 this is blob1
 $ pb putblob sha256 < blob1
 blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
-# put blob fail 
-$ fecho badblob1 this is badblob1
-$ pb putblob sha257 < badblob1 --> FAIL
-$ pb putblob sha256 < badblob2 --> FAIL
-
-#not implemented: sha257 
-
 # get it
 $ pb getblob blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 this is blob1
 
-# get nonexisting blob
+# get it using canonical path
+$ pb getblob blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
+this is blob1
+
+# put blob with bad hash algo
+$ fecho badblob1 this is badblob1
+$ pb putblob sha257 < badblob1 --> FAIL
+#not implemented: sha257 
+
+# put nonexistent blob
+$ pb putblob sha256 < badblob2 --> FAIL
+
+# get nonexistent blob
 $ pb getblob blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000 --> FAIL
 
 #open /tmp/cmdtest426797214/var/blob/sha256/a0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908: no such file or directory 

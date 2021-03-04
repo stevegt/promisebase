@@ -409,7 +409,7 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // hex-encoded pathname.
 func (db *Db) Path(key *Key) (path string) {
 	log.Debugf("db: %v, key: %v", db, key)
-	path = filepath.Join(db.Dir, key.String())
+	path = filepath.Join(db.Dir, key.Path())
 	return
 }
 
@@ -428,12 +428,12 @@ func (world *World) String() (path string) {
 // PutWorld takes a key and a name and creates a world with that name
 func (db *Db) PutWorld(key *Key, name string) (world *World, err error) {
 	world = &World{Db: db, Name: name}
-	src := filepath.Join("..", key.String())
+	src := filepath.Join("..", key.Path())
 	err = renameio.Symlink(src, world.String())
 	if err != nil {
 		return
 	}
-	world.Src = key.String()
+	world.Src = key.Path()
 	return
 }
 
@@ -587,28 +587,43 @@ type Key struct {
 	Hash  string
 }
 
-// String returns the path of a key.  We use the nesting depth
+// Path returns the filesystem path of a key.  We use the nesting depth
 // described in the Db comments.  We use the full hash value in the
 // last component of the path in order to make playing and
 // troubleshooting using UNIX tools slightly easier (as opposed to the
 // way git does it, truncating the leading subdir parts of the hash).
-// This may be a problem some decade in the future if a new hash algo
+// (This may be a problem some decade in the future if a new hash algo
 // produces hashes long enough to overflow the maximum filename
-// length.
-func (k Key) String() string {
-	// XXX add in subdir stuff
-	var subpath string
-	for i := 0; i < k.Db.Depth; i++ {
-		subdir := k.Hash[(3 * i):((3 * i) + 3)]
-		subpath = filepath.Join(subpath, subdir)
-	}
-	if k.Class == "ref" {
-		return filepath.Join(k.Class, k.World, k.Algo, subpath, k.Hash)
-	}
-	return filepath.Join(k.Class, k.Algo, subpath, k.Hash)
+// length.)
+func (k Key) Path() string {
+	return k.path(true)
 }
 
-// KeyFromPath takes a path relative to db root dir and returns a populated Key object
+func (k Key) path(full bool) string {
+	if full {
+		var subpath string
+		for i := 0; i < k.Db.Depth; i++ {
+			subdir := k.Hash[(3 * i):((3 * i) + 3)]
+			subpath = filepath.Join(subpath, subdir)
+		}
+		return filepath.Join(k.Class, k.Algo, subpath, k.Hash)
+	} else {
+		return filepath.Join(k.Class, k.Algo, k.Hash)
+	}
+}
+
+func (k Key) String() string {
+	return k.Canon()
+}
+
+// Canon returns the canonical path of a key, without the intermediate
+// subdirectory levels.
+func (k Key) Canon() string {
+	return k.path(false)
+}
+
+// KeyFromPath takes either a canonical path or a path relative to db
+// root dir and returns a populated Key object
 func (db *Db) KeyFromPath(path string) (key *Key) {
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
@@ -618,9 +633,16 @@ func (db *Db) KeyFromPath(path string) (key *Key) {
 		Db:    db,
 		Class: parts[0],
 		Algo:  parts[1],
-		Hash:  parts[2+db.Depth],
+		// the last part of the path should always be the full hash,
+		// regardless of whether we were given the full or canonical
+		// path
+		Hash: parts[len(parts)-1],
 	}
-	/*
+	return
+}
+
+/*
+func hex2bin (hexkey string) (binhash []byte) {
 		// convert ascii hex string to binary bytes
 		decodedlen := hex.DecodedLen(len(hexkey))
 		binhash = make([]byte, decodedlen)
@@ -635,9 +657,8 @@ func (db *Db) KeyFromPath(path string) (key *Key) {
 				return
 			}
 		}
-	*/
-	return
 }
+*/
 
 // KeyFromString returns a key pointer corresponding to the given algo and string
 func (db *Db) KeyFromString(algo string, s string) (key *Key, err error) {
@@ -691,13 +712,13 @@ func GetGID() uint64 {
 
 // NodeEntry stores the metadata of a Merkle tree inner or leaf node.
 type NodeEntry struct {
-	Path  string
-	Label string
+	CanonPath string
+	Label     string
 }
 
 // String combines the node's path and label into one string.
 func (ne *NodeEntry) String() (out string) {
-	out = strings.Join([]string{ne.Path, ne.Label}, " ")
+	out = strings.Join([]string{ne.CanonPath, ne.Label}, " ")
 	out = strings.TrimSpace(out) + "\n"
 	return
 }
@@ -723,7 +744,7 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	for _, entry := range node.entries {
-		key := node.Db.KeyFromPath(entry.Path)
+		key := node.Db.KeyFromPath(entry.CanonPath)
 		var child *Node
 		switch key.Class {
 		case "blob":
@@ -758,9 +779,9 @@ func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
 	// populate the entries field
 	var entries []NodeEntry
 	for _, child := range children {
-		path := child.Key.String()
+		canon := child.Key.Canon()
 		label := child.Label
-		entry := NodeEntry{Path: path, Label: label}
+		entry := NodeEntry{CanonPath: canon, Label: label}
 		entries = append(entries, entry)
 	}
 	node.entries = entries
@@ -796,7 +817,7 @@ func (db *Db) GetNode(key *Key) (node *Node, err error) {
 }
 
 func (db *Db) getNode(key *Key, verify bool) (node *Node, err error) {
-	fn := filepath.Join(db.Dir, key.String())
+	fn := filepath.Join(db.Dir, key.Path())
 	file, err := os.Open(fn)
 	if err != nil {
 		return
@@ -812,12 +833,12 @@ func (db *Db) getNode(key *Key, verify bool) (node *Node, err error) {
 		line := string(buf)
 
 		parts := strings.Split(line, " ")
-		path := parts[0]
+		canon := parts[0]
 		var label string
 		if len(parts) >= 2 {
 			label = parts[1]
 		}
-		entry := NodeEntry{Path: path, Label: label}
+		entry := NodeEntry{CanonPath: canon, Label: label}
 		entries = append(entries, entry)
 
 		content = append(content, buf...)

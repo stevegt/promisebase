@@ -54,23 +54,25 @@ func getGID() uint64 {
 */
 
 type Opts struct {
-	Init      bool
-	Putblob   bool
-	Getblob   bool
-	Putnode   bool
-	Getnode   bool
-	Putworld  bool
-	Getworld  bool
-	Lsworld   bool
-	Catworld  bool
-	Putstream bool
-	Algo      string
-	Key       string
-	KeyLabel  []string `docopt:"<key_label>"`
-	Name      string
-	All       bool `docopt:"-a"`
-	Out       bool `docopt:"-o"`
-	Filename  string
+	Init       bool
+	Putblob    bool
+	Getblob    bool
+	Putnode    bool
+	Getnode    bool
+	Putworld   bool
+	Getworld   bool
+	Lsworld    bool
+	Catworld   bool
+	Putstream  bool
+	Canon2path bool
+	Path2canon bool
+	Algo       string
+	Key        string
+	KeyLabel   []string `docopt:"<key_label>"`
+	Name       string
+	All        bool `docopt:"-a"`
+	Out        bool `docopt:"-o"`
+	Filename   string
 }
 
 func main() {
@@ -93,6 +95,8 @@ Usage:
   pb lsworld [-a] <name>
   pb catworld <name> [-o <filename>] 
   pb putstream <algo> <name>
+  pb canon2path <filename>
+  pb path2canon <filename>
 
 Options:
   -h --help     Show this screen.
@@ -211,13 +215,39 @@ Options:
 		}
 		_ = gotworld
 		// fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Src)
+	case opts.Canon2path:
+		path, err := canon2Path(opts.Filename)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(path)
+	case opts.Path2canon:
+		canon, err := path2Canon(opts.Filename)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(canon)
 	}
-
 	return 0
 }
 
+func dbdir() (dir string) {
+	dir = os.Getenv("DBDIR")
+	if dir == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			// XXX
+			panic("can't get current directory")
+		}
+	}
+	return
+}
+
 func create() (msg string, err error) {
-	dir, err := os.Getwd()
+	dir := dbdir()
 	if err != nil {
 		return
 	}
@@ -229,7 +259,7 @@ func create() (msg string, err error) {
 }
 
 func opendb() (db *pb.Db, err error) {
-	dir, err := os.Getwd()
+	dir := dbdir()
 	if err != nil {
 		return
 	}
@@ -339,7 +369,7 @@ func lsWorld(name string, all bool) (leafs []string, err error) {
 	}
 	nodes, err := world.Ls(all)
 	for _, node := range nodes {
-		entry := pb.NodeEntry{Path: node.Key.String(), Label: node.Label}
+		entry := pb.NodeEntry{CanonPath: node.Key.String(), Label: node.Label}
 		leafs = append(leafs, entry.String())
 	}
 	return
@@ -373,12 +403,22 @@ func putStream(algo string, name string, rd io.Reader) (world *pb.World, err err
 	return
 }
 
-/*
-func optsbool(name string) (opt bool) {
-	opt, err := opts.Bool(name)
+func canon2Path(canon string) (path string, err error) {
+	db, err := opendb()
 	if err != nil {
-		panic(err)
+		return
 	}
-	return
+	key := db.KeyFromPath(canon)
+	// XXX verify hash?
+	return key.Path(), nil
 }
-*/
+
+func path2Canon(path string) (canon string, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	key := db.KeyFromPath(canon)
+	// XXX verify hash?
+	return key.Canon(), nil
+}

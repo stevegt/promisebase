@@ -191,7 +191,7 @@ func TestRm(t *testing.T) {
 	}
 	_, err = db.GetBlob(key)
 	if err == nil {
-		t.Fatalf("key not deleted: %s", key)
+		t.Fatalf("key not deleted: %s", key.Path())
 	}
 }
 
@@ -206,8 +206,8 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key.String() != gotkey.String() {
-		t.Fatalf("expected key %s, got %s", key, gotkey)
+	if key.Canon() != gotkey.Canon() {
+		t.Fatalf("expected key %s, got %s", key.Canon(), gotkey.Canon())
 	}
 	got, err := ioutil.ReadFile(db.Path(key))
 	if err != nil {
@@ -229,8 +229,8 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key.String() != gotkey.String() {
-		t.Fatalf("expected key %s, got %s", key, gotkey)
+	if key.Canon() != gotkey.Canon() {
+		t.Fatalf("expected key %s, got %s", key.Canon(), gotkey.Canon())
 	}
 	got, err := db.GetBlob(key)
 	if err != nil {
@@ -242,7 +242,7 @@ func TestGetBlob(t *testing.T) {
 }
 
 func keyEqual(a, b *Key) bool {
-	return a.String() == b.String()
+	return a.Path() == b.Path() && a.Canon() == b.Canon()
 }
 
 // XXX should use reflect.DeepEqual()
@@ -290,8 +290,8 @@ func TestKey(t *testing.T) {
 		t.Fatalf("expected %s, got %s", algo, key.Algo)
 	}
 	expect := filepath.Join("blob/sha256", hex[0:3], hex[3:6], hex)
-	if expect != key.String() {
-		t.Fatalf("expected %s, got %s", expect, key.String())
+	if expect != key.Path() {
+		t.Fatalf("expected %s, got %s", expect, key.Path())
 	}
 }
 
@@ -307,7 +307,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode(db.KeyFromPath("node/sha256/4ca/ca5/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
+	node, err := db.GetNode(db.KeyFromPath("node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,10 +319,10 @@ func TestVerify(t *testing.T) {
 		switch i {
 		case 0:
 			expect := "node/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
-			tassert(t, expect == child.Key.String(), "expected %v got %v", expect, child.Key.String())
+			tassert(t, expect == child.Key.Path(), "expected %v got %v", expect, child.Key.Path())
 		case 1:
 			expect := "blob/sha256/534/d05/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
-			tassert(t, expect == child.Key.String(), "expected %q got %q", expect, child.Key.String())
+			tassert(t, expect == child.Key.Path(), "expected %q got %q", expect, child.Key.Path())
 		}
 	}
 	ok, err := node.Verify()
@@ -357,7 +357,7 @@ func TestNode(t *testing.T) {
 	if node == nil {
 		t.Fatal("node is nil")
 	}
-	nodekey := db.KeyFromPath("node/sha256/f07/648/f076486aba66cea1dac899989800bf6eaa65d75acb5c278107b3df3e6345567d")
+	nodekey := db.KeyFromPath("node/sha256/cb4/678/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
 	if nodekey == nil {
 		t.Fatal("nodekey is nil")
 	}
@@ -434,7 +434,7 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := "blob/sha256/149/955/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/486/183/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5/a02/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
 	gotnodes := nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
 
@@ -443,7 +443,7 @@ func TestWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "node/sha256/97a/06f/97a06f4e7da5b556cf7ef9acee145d3af2efd5d1d94b3661f9d1c2eb336857cd world1\nnode/sha256/297/c04/297c040bcdb30b90bc9d143ad1ca90baaad975494efe5e802b0e6d65c9eda54c node1label\nblob/sha256/149/955/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/486/183/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5/a02/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect = "node/sha256/fc489024469b5e9acfa85e4c117e9bef69552720ef5154edaaa6123bad98ec56 world1\nnode/sha256/9ae11d65603f394a9dcb6a54166dde24ebdd9479c480ad8b8e5b700f3a1cde4b node1label\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
 
 	gotnodes = nodes2str(nodes)
 	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
@@ -557,7 +557,7 @@ func BenchmarkPutGetBlob(b *testing.B) {
 
 func nodes2str(nodes []*Node) (out string) {
 	for _, node := range nodes {
-		line := strings.Join([]string{node.Key.String(), node.Label}, " ")
+		line := strings.Join([]string{node.Key.Canon(), node.Label}, " ")
 		line = strings.TrimSpace(line) + "\n"
 		out += line
 	}
