@@ -80,17 +80,17 @@ $ pb getworld world42 --> FAIL
 
 # list all of the leaf nodes in a world 
 $ pb lsworld world1
-blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
-blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
-blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1
+blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
+blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
+blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1
 
 # list all of the nodes in a world, both leaf and inner, depth first
 $ pb lsworld -a world1
-node/sha256/0fc/ae0/0fcae01da3971ccfa7aeb3936ff0f6460928a1591c0430518b14bb9d538a3f9f world1
-node/sha256/72d/a79/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431 node1
-blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
-blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
-blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1
+node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 world1
+node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431 node1
+blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
+blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
+blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1
 
 # lsworld fail
 $ pb lsworld world42 --> FAIL
