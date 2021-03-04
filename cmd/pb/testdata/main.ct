@@ -9,9 +9,9 @@ Initialized empty database in ${ROOTDIR}/var
 # put a blob
 $ fecho blob1 this is blob1
 $ pb putblob sha256 < blob1
-blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
+blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
-# get it
+# get it (fully qualified path)
 $ pb getblob blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 this is blob1
 
@@ -35,39 +35,45 @@ $ pb getblob blob/sha256/000/000/000000deadbeef000000000000000000000000000000000
 # try a multiline blob
 $ fecho blob2 multiline blob\nthis is line 2
 $ pb putblob sha256 < blob2
-blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
+blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 
 # try a slightly bigger blob 
 $ pb putblob sha256 < ../bigblob
-blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
+blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 
 # put a node
 $ pb putnode sha256 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262,multiline blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590,bigblob
-node/sha256/774/e44/774e448792c94450c23943c2cd33250c6083387eeafadef2193bc13d379eae34
+node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431
 
-# get it
-$ pb getnode node/sha256/774/e44/774e448792c94450c23943c2cd33250c6083387eeafadef2193bc13d379eae34
-blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
-blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
+# get it (fully qualified)
+$ pb getnode node/sha256/72d/a79/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431 
+blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
+blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
+
+# get it (canonical)
+$ pb getnode node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431 
+blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
+blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
 
 # put a parent node
-$ pb putnode sha256 node/sha256/774/e44/774e448792c94450c23943c2cd33250c6083387eeafadef2193bc13d379eae34,node1 blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908,foo/blob1
-node/sha256/0fc/ae0/0fcae01da3971ccfa7aeb3936ff0f6460928a1591c0430518b14bb9d538a3f9f
+# XXX also test fully qualified inputs
+$ pb putnode sha256 node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431,node1 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908,foo/blob1
+node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
 
 # get it
-$ pb getnode node/sha256/0fc/ae0/0fcae01da3971ccfa7aeb3936ff0f6460928a1591c0430518b14bb9d538a3f9f
-node/sha256/774/e44/774e448792c94450c23943c2cd33250c6083387eeafadef2193bc13d379eae34 node1
-blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1
+$ pb getnode node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
+node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431 node1
+blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1
 
 # make a world from that parent node
 # - this just makes a symlink in var/world and shows the result
-$ pb putworld node/sha256/0fc/ae0/0fcae01da3971ccfa7aeb3936ff0f6460928a1591c0430518b14bb9d538a3f9f world1
-world/world1 -> node/sha256/0fc/ae0/0fcae01da3971ccfa7aeb3936ff0f6460928a1591c0430518b14bb9d538a3f9f
+$ pb putworld node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 world1
+world/world1 -> node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
 
 # get a world
 # - just calls Readlink("var/world/world1") and returns the thing it's pointing at
 $ pb getworld world1
-node/sha256/0fc/ae0/0fcae01da3971ccfa7aeb3936ff0f6460928a1591c0430518b14bb9d538a3f9f
+node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
 
 # get world fail
 $ pb getworld world42 --> FAIL
@@ -81,7 +87,7 @@ blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4a
 # list all of the nodes in a world, both leaf and inner, depth first
 $ pb lsworld -a world1
 node/sha256/0fc/ae0/0fcae01da3971ccfa7aeb3936ff0f6460928a1591c0430518b14bb9d538a3f9f world1
-node/sha256/774/e44/774e448792c94450c23943c2cd33250c6083387eeafadef2193bc13d379eae34 node1
+node/sha256/72d/a79/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431 node1
 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 multiline
 blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590 bigblob
 blob/sha256/b0b/7f7/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908 foo/blob1

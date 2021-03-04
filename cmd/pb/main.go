@@ -172,14 +172,14 @@ Options:
 			log.Error(err)
 			return 43
 		}
-		fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Src)
+		fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
 	case opts.Getworld:
 		w, err := getWorld(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(w.Src)
+		fmt.Println(w.Db.KeyFromPath(w.Src).Canon())
 	case opts.Lsworld:
 		leafs, err := lsWorld(opts.Name, opts.All)
 		if err != nil {
