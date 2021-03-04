@@ -66,6 +66,7 @@ type Opts struct {
 	Putstream  bool
 	Canon2path bool
 	Path2canon bool
+	Exec       bool
 	Algo       string
 	Key        string
 	KeyLabel   []string `docopt:"<key_label>"`
@@ -97,6 +98,7 @@ Usage:
   pb putstream <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
+  pb exec <filename>
 
 Options:
   -h --help     Show this screen.
@@ -229,6 +231,14 @@ Options:
 			return 42
 		}
 		fmt.Println(canon)
+	case opts.Exec:
+		err := exec(opts.Filename)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		// if there was no err, then exec() does not return
+		panic("this should be unreachable")
 	}
 	return 0
 }
@@ -421,4 +431,25 @@ func path2Canon(path string) (canon string, err error) {
 	key := db.KeyFromPath(canon)
 	// XXX verify hash?
 	return key.Canon(), nil
+}
+
+func exec(path string) (err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	_ = db
+
+	// read first kilobyte of file at path
+
+	// extract hash (first word ending with whitepace)
+
+	// prepend "node/" to hash
+
+	// cat node -- that's the interpreter code
+
+	// fork/exec the interpreter, passing path as arg[1]
+
+	// does not actually return
+	return
 }
