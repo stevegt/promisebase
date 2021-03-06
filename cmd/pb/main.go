@@ -442,13 +442,16 @@ func exec(path string) (err error) {
 
 	// read first kilobyte of file at path
 
-	// extract hash (first word ending with whitepace)
+	// extract hash (must start at first byte in stream, must be first
+	// word ending with whitepace)
 
 	// prepend "node/" to hash
 
 	// cat node -- that's the interpreter code
 
-	// fork/exec the interpreter, passing path as arg[1]
+	// save interpreter in temporary file
+
+	// os.Exec (probably don't need to fork) the interpreter, passing path as arg[1]
 
 	// does not actually return
 	return

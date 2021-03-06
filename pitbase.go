@@ -278,7 +278,7 @@ func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // new records or blocks to journals or files in accounting, trading,
 // version control, blockchain, and file storage applications.
 func (world *World) AppendBlob(algo string, blob *[]byte) (newworld *World, err error) {
-	// get node for top of merkle tree
+	// get node for root of merkle tree
 	oldkey := world.Db.KeyFromPath(world.Src)
 	oldrootnode, err := world.Db.GetNode(oldkey)
 	if err != nil {
@@ -298,9 +298,9 @@ func (world *World) AppendBlob(algo string, blob *[]byte) (newworld *World, err 
 
 // AppendBlob puts a blob in the database, appends it to the node's
 // Merkle tree as a new leaf node, and returns the new root node.
-// This function can be used to append
-// new records or blocks to journals or files in accounting, trading,
-// version control, blockchain, and file storage applications.
+// This function can be used to append new records or blocks to journals
+// or files in accounting, trading, version control, blockchain, and file
+// storage applications.
 func (node *Node) AppendBlob(algo string, blob *[]byte) (newrootnode *Node, err error) {
 	oldrootnode := node
 
@@ -308,7 +308,7 @@ func (node *Node) AppendBlob(algo string, blob *[]byte) (newrootnode *Node, err 
 	key, err := node.Db.PutBlob(algo, blob)
 	newblobnode := &Node{Db: node.Db, Key: key, Label: ""}
 
-	// put node for new top of merkle tree
+	// put node for new root of merkle tree
 	newrootnode, err = node.Db.PutNode(algo, oldrootnode, newblobnode)
 	if err != nil {
 		return

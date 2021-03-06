@@ -7,6 +7,7 @@ x implement multilevel storage
       content path strings
 - implement `pb exec` and a language prototype 
   - spike, likely to inform all of the following
+  - after this works, move it to its own package
 - reconcile Node and blob
   - maybe call them both Object
     - maybe Object interface
