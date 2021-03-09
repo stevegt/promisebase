@@ -217,7 +217,7 @@ Options:
 			return 43
 		}
 		_ = gotworld
-		// fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Src)
+		fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
 	case opts.Canon2path:
 		path, err := canon2Path(opts.Filename)
 		if err != nil {
@@ -454,11 +454,23 @@ func exec(path string) (err error) {
 	// extract hash from buf (must start at first byte in stream, must be first
 	// word ending with whitepace)
 	re := regexp.MustCompile(`^\S+`)
-	hash := re.Find(buf)
-	fmt.Printf("%q\n", string(hash))
+	hash := string(re.Find(buf))
+	// fmt.Printf("%q\n", string(hash))
+
 	// prepend "node/" to hash
+	hash = "node/" + hash
 
 	// cat node -- that's the interpreter code
+	key := db.KeyFromPath(hash)
+	node, err := db.GetNode(key)
+	if err != nil {
+		return
+	}
+	txt, err := node.Cat()
+	if err != nil {
+		return
+	}
+	fmt.Println(string(*txt))
 
 	// save interpreter in temporary file
 

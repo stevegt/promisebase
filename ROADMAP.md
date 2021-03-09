@@ -16,6 +16,7 @@ x implement multilevel storage
     - db, node, world, and util
     - World may be a good candidate for a separate package
 - continue improving coverage
+- revisit filepath.Join() vs anywhere we really want forward-slashes
 - start writing test cases for possible next layer to prove or disprove the following
     - likely application is image and container management, host management, file version control, accounting, logging...
         - generically, don't forget the decentralized virtual machine model
