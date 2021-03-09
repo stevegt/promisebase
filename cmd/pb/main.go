@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -447,12 +448,14 @@ func exec(path string) (err error) {
 		return
 	}
 	defer file.Close()
-	n, err := ReadAtMost(file, buf)
-	fmt.Println(n, string(buf))
+	_, err = ReadAtMost(file, buf)
+	// fmt.Println(n, string(buf))
 
-	// extract hash (must start at first byte in stream, must be first
+	// extract hash from buf (must start at first byte in stream, must be first
 	// word ending with whitepace)
-
+	re := regexp.MustCompile(`^\S+`)
+	hash := re.Find(buf)
+	fmt.Printf("%q\n", string(hash))
 	// prepend "node/" to hash
 
 	// cat node -- that's the interpreter code
