@@ -441,6 +441,14 @@ func exec(path string) (err error) {
 	_ = db
 
 	// read first kilobyte of file at path
+	buf := make([]byte, 1024)
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	n, err := ReadAtMost(file, buf)
+	fmt.Println(n, string(buf))
 
 	// extract hash (must start at first byte in stream, must be first
 	// word ending with whitepace)
@@ -454,5 +462,19 @@ func exec(path string) (err error) {
 	// os.Exec (probably don't need to fork) the interpreter, passing path as arg[1]
 
 	// does not actually return
+	return
+}
+
+func ReadAtMost(r io.Reader, buf []byte) (n int, err error) {
+	max := len(buf)
+	for n < max && err == nil {
+		var nread int
+		nread, err = r.Read(buf[n:])
+		n += nread
+	}
+	// XXX make sure we're handling EOF and other errors right
+	if err == io.EOF {
+		err = nil
+	}
 	return
 }
