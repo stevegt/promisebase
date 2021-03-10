@@ -477,9 +477,28 @@ func exec(path string) (err error) {
 	if err != nil {
 		return
 	}
-	// defer os.Remove(tempfn) // clean up
-	_ = tempfn
+	defer os.Remove(tempfn) // clean up
+
 	// os.Exec (probably don't need to fork) the interpreter, passing path as arg[1]
+	// see core/u/ryan/
+	// we need to decide whether to pass the script code to the interpreter on stdin
+	// or whether we write the script to another temporary file and pass the name of that file to the interpreter
+	/*
+		cmd := exec.Command("bash", "-c", "dd if=/dev/urandom bs=1M count=1 | hd >&2; echo stdout")
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if err := cmd.Start(); err != nil {
+			log.Fatal(err)
+		}
+	*/
 
 	// does not actually return
 	return
