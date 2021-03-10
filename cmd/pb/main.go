@@ -473,7 +473,12 @@ func exec(path string) (err error) {
 	fmt.Println(string(*txt))
 
 	// save interpreter in temporary file
-
+	tempfn, err := WriteTempFile(*txt)
+	if err != nil {
+		return
+	}
+	// defer os.Remove(tempfn) // clean up
+	_ = tempfn
 	// os.Exec (probably don't need to fork) the interpreter, passing path as arg[1]
 
 	// does not actually return
@@ -490,6 +495,23 @@ func ReadAtMost(r io.Reader, buf []byte) (n int, err error) {
 	// XXX make sure we're handling EOF and other errors right
 	if err == io.EOF {
 		err = nil
+	}
+	return
+}
+
+func WriteTempFile(data []byte) (filename string, err error) {
+	tmpfile, err := ioutil.TempFile("", "pb")
+	if err != nil {
+		return
+	}
+	filename = tmpfile.Name()
+	_, err = tmpfile.Write(data)
+	if err != nil {
+		return
+	}
+	err = tmpfile.Close()
+	if err != nil {
+		return
 	}
 	return
 }
