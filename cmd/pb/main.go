@@ -479,28 +479,38 @@ func exec(path string) (err error) {
 	}
 	defer os.Remove(tempfn) // clean up
 
-	// os.Exec (probably don't need to fork) the interpreter, passing path as arg[1]
-	// see core/u/ryan/
-	// we need to decide whether to pass the script code to the interpreter on stdin
-	// or whether we write the script to another temporary file and pass the name of that file to the interpreter
 	/*
-		cmd := exec.Command("bash", "-c", "dd if=/dev/urandom bs=1M count=1 | hd >&2; echo stdout")
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
 
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
+		We need to decide on one of these alternatives:
 
-		if err := cmd.Start(); err != nil {
-			log.Fatal(err)
-		}
+		(a) pass the script code to the interpreter on stdin
+
+		(b) write the script to another temporary file and pass the name of that file to
+			the interpreter
+
+		(c) pass the hash of the script and the remaining args to the
+			interpreter, and let the interpreter fetch the script from the db
+
+		either way, we'll likely use this code from core/u/ryan/buffering-stdio.go:
+
+			cmd := exec.Command("bash", "-c", "dd if=/dev/urandom bs=1M count=1 | hd >&2; echo stdout")
+			stderr, err := cmd.StderrPipe()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			stdout, err := cmd.StdoutPipe()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if err := cmd.Start(); err != nil {
+				log.Fatal(err)
+			}
+
 	*/
 
-	// does not actually return
+	// might not actually return -- we need to decide
 	return
 }
 
