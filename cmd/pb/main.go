@@ -456,6 +456,8 @@ func execute(scriptPath string, args ...string) (err error) {
 	interpreterHash = "node/" + interpreterHash
 
 	// XXX get scriptHash
+	file.Seek(0, 0)
+	var scriptHash string
 
 	// call xeq
 	err = xeq(interpreterHash, scriptHash, args)
