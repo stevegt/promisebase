@@ -76,6 +76,7 @@ type Opts struct {
 	All        bool `docopt:"-a"`
 	Out        bool `docopt:"-o"`
 	Filename   string
+	Arg        []string
 }
 
 func main() {
@@ -100,7 +101,7 @@ Usage:
   pb putstream <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
-  pb exec <filename>
+  pb exec <filename> <arg>...
 
 Options:
   -h --help     Show this screen.
@@ -234,13 +235,15 @@ Options:
 		}
 		fmt.Println(canon)
 	case opts.Exec:
-		err := execute(opts.Filename)
+		stdout, stderr, rc, err := execute(opts.Filename, opts.Arg...)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		// if there was no err, then execute() does not return
-		panic("this should be unreachable")
+		// XXX show stdout, stderr, rc
+		_ = stdout
+		_ = stderr
+		_ = rc
 	}
 	return 0
 }
@@ -251,7 +254,8 @@ func dbdir() (dir string) {
 		var err error
 		dir, err = os.Getwd()
 		if err != nil {
-			// XXX
+			// XXX handling this better would mean that dbdir() needs
+			// to return an err
 			panic("can't get current directory")
 		}
 	}
@@ -435,7 +439,7 @@ func path2Canon(path string) (canon string, err error) {
 	return key.Canon(), nil
 }
 
-func execute(scriptPath string, args ...string) (err error) {
+func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
 	// read first kilobyte of file at path
 	buf := make([]byte, 1024)
 	file, err := os.Open(scriptPath)
@@ -455,14 +459,20 @@ func execute(scriptPath string, args ...string) (err error) {
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 
-	// XXX get scriptHash
+	// XXX rewind file
+
+	// XXX send file to db.PutStream()
+
+	// XXX get scripthash from stream's root node key
+	scriptHash := ""
 
 	// call xeq
-	err = xeq(interpreterHash, scriptHash, args)
+	args = append([]string{scriptHash}, args...)
+	stdout, stderr, rc, err = xeq(interpreterHash, args...)
 	return
 }
 
-func xeq(hash string, args ...string) (err error) {
+func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
@@ -470,7 +480,7 @@ func xeq(hash string, args ...string) (err error) {
 	_ = db
 
 	// cat node -- that's the interpreter code
-	key := db.KeyFromPath(hash)
+	key := db.KeyFromPath(interpreterHash)
 	node, err := db.GetNode(key)
 	if err != nil {
 		return
@@ -482,51 +492,31 @@ func xeq(hash string, args ...string) (err error) {
 	fmt.Println(string(*txt))
 
 	// save interpreter in temporary file
-	tempfn, err := WriteTempFile(*txt)
+	tempfn, err := WriteTempFile(*txt, 0700)
 	if err != nil {
 		return
 	}
 	defer os.Remove(tempfn) // clean up
 
-	// exec (probably don't need to fork) the interpreter, passing path as arg[1]
-	// see core/u/ryan/
-	/*
-
-		We need to decide on one of these alternatives:
-
-		(a) pass the script code to the interpreter on stdin
-
-		hash_of_interpreter < script_filename
-
-		(b) write the script to another temporary file and pass the name of that file to
-			the interpreter
-
-		hash_of_interpreter script_filename arg1 arg2 arg3
-
-		(c) pass the hash of the script and the remaining args to the
-			interpreter, and let the interpreter fetch the script from the db
-
-		hash_of_interpreter hash_of_script arg1 arg2 arg3
-
-		either way, we'll likely use this code from core/u/ryan/buffering-stdio.go:
-	*/
-
-	cmd := exec.Command(tempfn, path)
-	stderr, err := cmd.StderrPipe()
+	// pass the hash of the script and the remaining args to the
+	//interpreter, and let the interpreter fetch the script from the db
+	//
+	// hash_of_interpreter hash_of_script arg1 arg2 arg3
+	cmd := exec.Command(tempfn, args...)
+	stdout, err = cmd.StdoutPipe()
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
-
-	stdout, err := cmd.StdoutPipe()
+	stderr, err = cmd.StderrPipe()
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
 
-	if err := cmd.Start(); err != nil {
-		log.Fatal(err)
+	err = cmd.Start()
+	if err != nil {
+		return
 	}
 
-	// might not actually return -- we need to decide
 	return
 }
 
@@ -544,7 +534,7 @@ func ReadAtMost(r io.Reader, buf []byte) (n int, err error) {
 	return
 }
 
-func WriteTempFile(data []byte) (filename string, err error) {
+func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 	tmpfile, err := ioutil.TempFile("", "pb")
 	if err != nil {
 		return
@@ -558,5 +548,8 @@ func WriteTempFile(data []byte) (filename string, err error) {
 	if err != nil {
 		return
 	}
+
+	// XXX set mode bits
+
 	return
 }
