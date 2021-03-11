@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
@@ -233,12 +234,12 @@ Options:
 		}
 		fmt.Println(canon)
 	case opts.Exec:
-		err := exec(opts.Filename)
+		err := execute(opts.Filename)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		// if there was no err, then exec() does not return
+		// if there was no err, then execute() does not return
 		panic("this should be unreachable")
 	}
 	return 0
@@ -434,7 +435,7 @@ func path2Canon(path string) (canon string, err error) {
 	return key.Canon(), nil
 }
 
-func exec(path string) (err error) {
+func execute(path string) (err error) {
 	db, err := opendb()
 	if err != nil {
 		return
@@ -479,36 +480,43 @@ func exec(path string) (err error) {
 	}
 	defer os.Remove(tempfn) // clean up
 
+	// exec (probably don't need to fork) the interpreter, passing path as arg[1]
+	// see core/u/ryan/
 	/*
 
 		We need to decide on one of these alternatives:
 
 		(a) pass the script code to the interpreter on stdin
 
+		hash_of_interpreter < script_filename
+
 		(b) write the script to another temporary file and pass the name of that file to
 			the interpreter
+
+		hash_of_interpreter script_filename arg1 arg2 arg3
 
 		(c) pass the hash of the script and the remaining args to the
 			interpreter, and let the interpreter fetch the script from the db
 
+		hash_of_interpreter hash_of_script arg1 arg2 arg3
+
 		either way, we'll likely use this code from core/u/ryan/buffering-stdio.go:
-
-			cmd := exec.Command("bash", "-c", "dd if=/dev/urandom bs=1M count=1 | hd >&2; echo stdout")
-			stderr, err := cmd.StderrPipe()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			stdout, err := cmd.StdoutPipe()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if err := cmd.Start(); err != nil {
-				log.Fatal(err)
-			}
-
 	*/
+
+	cmd := exec.Command(tempfn, path)
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
 
 	// might not actually return -- we need to decide
 	return
