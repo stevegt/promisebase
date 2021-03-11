@@ -435,16 +435,10 @@ func path2Canon(path string) (canon string, err error) {
 	return key.Canon(), nil
 }
 
-func execute(path string) (err error) {
-	db, err := opendb()
-	if err != nil {
-		return
-	}
-	_ = db
-
+func execute(scriptPath string, args ...string) (err error) {
 	// read first kilobyte of file at path
 	buf := make([]byte, 1024)
-	file, err := os.Open(path)
+	file, err := os.Open(scriptPath)
 	if err != nil {
 		return
 	}
@@ -455,11 +449,25 @@ func execute(path string) (err error) {
 	// extract hash from buf (must start at first byte in stream, must be first
 	// word ending with whitepace)
 	re := regexp.MustCompile(`^\S+`)
-	hash := string(re.Find(buf))
+	interpreterHash := string(re.Find(buf))
 	// fmt.Printf("%q\n", string(hash))
 
 	// prepend "node/" to hash
-	hash = "node/" + hash
+	interpreterHash = "node/" + interpreterHash
+
+	// XXX get scriptHash
+
+	// call xeq
+	err = xeq(interpreterHash, scriptHash, args)
+	return
+}
+
+func xeq(hash string, args ...string) (err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	_ = db
 
 	// cat node -- that's the interpreter code
 	key := db.KeyFromPath(hash)
