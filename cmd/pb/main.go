@@ -463,12 +463,17 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 
 	// get hash algorithm
 	algo := filepath.Dir(interpreterHash)
+	fmt.Printf("algo!! %s\n", algo)
 
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 
-	// XXX rewind file
-	file.Seek(0, 0)
+	// XXX check err
+	offset, err := file.Seek(0, 0)
+	fmt.Printf("offset is here: %d\n", offset)
+	if err != nil {
+		return
+	}
 
 	// XXX send file to db.PutStream()
 	rootnode, err := db.PutStream(algo, file)
