@@ -456,16 +456,21 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	interpreterHash := string(re.Find(buf))
 	// fmt.Printf("%q\n", string(hash))
 
+	re = regexp.MustCompile(`^\w+`)
+	algo := string(re.Find([]byte(interpreterHash)))
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 
 	// XXX rewind file
-
+	file.Seek(0, 0)
 	// XXX send file to db.PutStream()
-
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	rootnode, err := db.PutStream(algo, file)
 	// XXX get scripthash from stream's root node key
-	scriptHash := ""
-
+	scriptHash := rootnode.Key.Hash
 	// call xeq
 	args = append([]string{scriptHash}, args...)
 	stdout, stderr, rc, err = xeq(interpreterHash, args...)
