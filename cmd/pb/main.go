@@ -495,7 +495,7 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	}
 
 	// get scripthash from stream's root node key
-	scriptHash := rootnode.Key.Hash
+	scriptHash := rootnode.Key.Canon()
 
 	// call xeq
 	args = append([]string{scriptHash}, args...)
