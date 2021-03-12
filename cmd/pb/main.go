@@ -244,14 +244,23 @@ Options:
 		}
 		// XXX show stdout, stderr, rc
 
-		buf := new(strings.Builder)
-		_, err = io.Copy(buf, stderr)
+		outbuf := new(strings.Builder)
+		_, err = io.Copy(outbuf, stdout)
 		if err != nil {
 			fmt.Println("i have no idea")
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(buf.String())
+		fmt.Println("stdout:", outbuf.String())
+
+		errbuf := new(strings.Builder)
+		_, err = io.Copy(errbuf, stderr)
+		if err != nil {
+			fmt.Println("i have no idea")
+			log.Error(err)
+			return 42
+		}
+		fmt.Println("stderr:", errbuf.String())
 		_ = stdout
 		_ = stderr
 		_ = rc
@@ -521,7 +530,7 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	defer os.Remove(tempfn) // clean up
+	// XXX defer os.Remove(tempfn) // clean up
 
 	// pass the hash of the script and the remaining args to the
 	//interpreter, and let the interpreter fetch the script from the db
