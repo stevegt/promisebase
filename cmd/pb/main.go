@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -101,7 +102,7 @@ Usage:
   pb putstream <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
-  pb exec <filename> <arg>...
+  pb exec <filename> [<arg>...]
 
 Options:
   -h --help     Show this screen.
@@ -237,10 +238,20 @@ Options:
 	case opts.Exec:
 		stdout, stderr, rc, err := execute(opts.Filename, opts.Arg...)
 		if err != nil {
+			fmt.Println("why")
 			log.Error(err)
 			return 42
 		}
 		// XXX show stdout, stderr, rc
+
+		buf := new(strings.Builder)
+		_, err = io.Copy(buf, stderr)
+		if err != nil {
+			fmt.Println("i have no idea")
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(buf.String())
 		_ = stdout
 		_ = stderr
 		_ = rc
@@ -440,6 +451,11 @@ func path2Canon(path string) (canon string, err error) {
 }
 
 func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+
 	// read first kilobyte of file at path
 	buf := make([]byte, 1024)
 	file, err := os.Open(scriptPath)
@@ -454,17 +470,25 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// word ending with whitepace)
 	re := regexp.MustCompile(`^\S+`)
 	interpreterHash := string(re.Find(buf))
+	algo := filepath.Dir(interpreterHash)
 	// fmt.Printf("%q\n", string(hash))
 
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 
-	// XXX rewind file
+	// rewind file
+	_, err = file.Seek(0, 0)
 
-	// XXX send file to db.PutStream()
+	// send file to db.PutStream()
+	// XXX don't know what to put for algo
+	rootnode, err := db.PutStream(algo, file)
+	if err != nil {
+		log.Printf("algo: %s", algo)
+		return
+	}
 
-	// XXX get scripthash from stream's root node key
-	scriptHash := ""
+	// get scripthash from stream's root node key
+	scriptHash := rootnode.Key.Hash
 
 	// call xeq
 	args = append([]string{scriptHash}, args...)
@@ -477,7 +501,6 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	_ = db
 
 	// cat node -- that's the interpreter code
 	key := db.KeyFromPath(interpreterHash)
@@ -489,7 +512,7 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	fmt.Println(string(*txt))
+	// fmt.Println(string(*txt))
 
 	// save interpreter in temporary file
 	tempfn, err := WriteTempFile(*txt, 0700)
@@ -549,7 +572,10 @@ func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 		return
 	}
 
-	// XXX set mode bits
+	err = os.Chmod(filename, mode)
+	if err != nil {
+		return
+	}
 
 	return
 }
