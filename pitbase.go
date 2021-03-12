@@ -409,6 +409,7 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 // hex-encoded pathname.
 func (db *Db) Path(key *Key) (path string) {
 	log.Debugf("db: %v, key: %v", db, key)
+	// fmt.Println(db.Dir, key.Path())
 	path = filepath.Join(db.Dir, key.Path())
 	return
 }

@@ -101,7 +101,7 @@ Usage:
   pb putstream <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
-  pb exec <filename> <arg>...
+  pb exec <filename> [<arg>...]
 
 Options:
   -h --help     Show this screen.
@@ -240,10 +240,19 @@ Options:
 			log.Error(err)
 			return 42
 		}
+		buf := new(strings.Builder)
+		n, err := io.Copy(buf, stderr)
+		// check errors
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Println(buf.String())
 		// XXX show stdout, stderr, rc
 		_ = stdout
 		_ = stderr
 		_ = rc
+		_ = n
 	}
 	return 0
 }
@@ -446,7 +455,7 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	if err != nil {
 		return
 	}
-	defer file.Close()
+	// defer file.Close()
 	_, err = ReadAtMost(file, buf)
 	// fmt.Println(n, string(buf))
 
@@ -460,9 +469,14 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	algo := string(re.Find([]byte(interpreterHash)))
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
+	// fmt.Println(algo, interpreterHash)
 
 	// XXX rewind file
-	file.Seek(0, 0)
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return
+	}
+
 	// XXX send file to db.PutStream()
 	db, err := opendb()
 	if err != nil {
@@ -494,14 +508,14 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	fmt.Println(string(*txt))
+	// fmt.Println(string(*txt))
 
 	// save interpreter in temporary file
 	tempfn, err := WriteTempFile(*txt, 0700)
 	if err != nil {
 		return
 	}
-	defer os.Remove(tempfn) // clean up
+	// XXX defer os.Remove(tempfn) // clean up
 
 	// pass the hash of the script and the remaining args to the
 	//interpreter, and let the interpreter fetch the script from the db
@@ -554,7 +568,11 @@ func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 		return
 	}
 
-	// XXX set mode bits
+	// set mode bits
+	err = os.Chmod(filename, mode)
+	if err != nil {
+		return
+	}
 
 	return
 }
