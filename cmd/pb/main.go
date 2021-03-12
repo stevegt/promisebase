@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -440,6 +441,10 @@ func path2Canon(path string) (canon string, err error) {
 }
 
 func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
 	// read first kilobyte of file at path
 	buf := make([]byte, 1024)
 	file, err := os.Open(scriptPath)
@@ -456,12 +461,18 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	interpreterHash := string(re.Find(buf))
 	// fmt.Printf("%q\n", string(hash))
 
+	// get hash algorithm
+	algo := filepath.Dir(interpreterHash)
+
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 
 	// XXX rewind file
+	file.Seek(0, 0)
 
 	// XXX send file to db.PutStream()
+	rootnode, err := db.PutStream(algo, file)
+	_ = rootnode
 
 	// XXX get scripthash from stream's root node key
 	scriptHash := ""
