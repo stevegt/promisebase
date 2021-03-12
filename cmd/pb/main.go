@@ -415,6 +415,8 @@ func catWorld(name string) (buf *[]byte, err error) {
 }
 
 func putStream(algo string, name string, rd io.Reader) (world *pb.World, err error) {
+	// XXX add -q flag to keep it from printing output
+
 	db, err := opendb()
 	if err != nil {
 		return
@@ -562,11 +564,13 @@ func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 	if err != nil {
 		return
 	}
+
 	filename = tmpfile.Name()
 	_, err = tmpfile.Write(data)
 	if err != nil {
 		return
 	}
+
 	err = tmpfile.Close()
 	if err != nil {
 		return
