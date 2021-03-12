@@ -244,23 +244,19 @@ Options:
 		}
 		// XXX show stdout, stderr, rc
 
-		outbuf := new(strings.Builder)
-		_, err = io.Copy(outbuf, stdout)
+		_, err = io.Copy(os.Stdout, stdout)
 		if err != nil {
 			fmt.Println("i have no idea")
 			log.Error(err)
 			return 42
 		}
-		fmt.Println("stdout:", outbuf.String())
 
-		errbuf := new(strings.Builder)
-		_, err = io.Copy(errbuf, stderr)
+		_, err = io.Copy(os.Stderr, stderr)
 		if err != nil {
 			fmt.Println("i have no idea")
 			log.Error(err)
 			return 42
 		}
-		fmt.Println("stderr:", errbuf.String())
 		_ = stdout
 		_ = stderr
 		_ = rc
