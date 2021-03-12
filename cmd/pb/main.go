@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -101,7 +102,7 @@ Usage:
   pb putstream <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
-  pb exec <filename> <arg>...
+  pb exec <filename> [<arg>...]
 
 Options:
   -h --help     Show this screen.
@@ -240,7 +241,21 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		// XXX show stdout, stderr, rc
+		// show stdout, stderr, rc
+
+		_, err = io.Copy(os.Stdout, stdout)
+		if err != nil {
+			fmt.Println("i have no idea")
+			log.Error(err)
+			return 42
+		}
+
+		_, err = io.Copy(os.Stderr, stderr)
+		if err != nil {
+			fmt.Println("i have no idea")
+			log.Error(err)
+			return 42
+		}
 		_ = stdout
 		_ = stderr
 		_ = rc
@@ -404,6 +419,8 @@ func catWorld(name string) (buf *[]byte, err error) {
 }
 
 func putStream(algo string, name string, rd io.Reader) (world *pb.World, err error) {
+	// XXX add -q flag to keep it from printing output
+
 	db, err := opendb()
 	if err != nil {
 		return
@@ -440,6 +457,11 @@ func path2Canon(path string) (canon string, err error) {
 }
 
 func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+
 	// read first kilobyte of file at path
 	buf := make([]byte, 1024)
 	file, err := os.Open(scriptPath)
@@ -454,17 +476,25 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// word ending with whitepace)
 	re := regexp.MustCompile(`^\S+`)
 	interpreterHash := string(re.Find(buf))
+	algo := filepath.Dir(interpreterHash)
 	// fmt.Printf("%q\n", string(hash))
 
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 
-	// XXX rewind file
+	// rewind file
+	_, err = file.Seek(0, 0)
+	// XXX ck err
 
-	// XXX send file to db.PutStream()
+	// send file to db.PutStream()
+	rootnode, err := db.PutStream(algo, file)
+	if err != nil {
+		log.Printf("algo: %s", algo)
+		return
+	}
 
-	// XXX get scripthash from stream's root node key
-	scriptHash := ""
+	// get scripthash from stream's root node key
+	scriptHash := rootnode.Key.Canon()
 
 	// call xeq
 	args = append([]string{scriptHash}, args...)
@@ -477,7 +507,6 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	_ = db
 
 	// cat node -- that's the interpreter code
 	key := db.KeyFromPath(interpreterHash)
@@ -489,14 +518,14 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	fmt.Println(string(*txt))
+	// fmt.Println(string(*txt))
 
 	// save interpreter in temporary file
 	tempfn, err := WriteTempFile(*txt, 0700)
 	if err != nil {
 		return
 	}
-	defer os.Remove(tempfn) // clean up
+	// XXX defer os.Remove(tempfn) // clean up
 
 	// pass the hash of the script and the remaining args to the
 	//interpreter, and let the interpreter fetch the script from the db
@@ -539,17 +568,22 @@ func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 	if err != nil {
 		return
 	}
+
 	filename = tmpfile.Name()
 	_, err = tmpfile.Write(data)
 	if err != nil {
 		return
 	}
+
 	err = tmpfile.Close()
 	if err != nil {
 		return
 	}
 
-	// XXX set mode bits
+	err = os.Chmod(filename, mode)
+	if err != nil {
+		return
+	}
 
 	return
 }

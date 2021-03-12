@@ -128,6 +128,7 @@ $ dd status=none if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
 
 # put it 
 $ pb putstream sha256 world7 < ${ROOTDIR}/hugefile
+XXX need -q
 
 # get it and save to hugefile.copy
 $ pb catworld world7 -o ${ROOTDIR}/hugefile.copy 
@@ -138,6 +139,7 @@ $ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy
 # try executing code in an arbitrary language
 # load the lang1 interpreter
 $ pb putstream sha256 lang1 < ../lang1.sh 
+XXX needs update
 # run a script written in lang1
 $ pb exec ../hello.lang1
 Hello, Universe!
