@@ -65,6 +65,7 @@ type Opts struct {
 	Putworld   bool
 	Getworld   bool
 	Lsworld    bool
+	Cattree    bool
 	Catworld   bool
 	Putstream  bool
 	Canon2path bool
@@ -99,6 +100,7 @@ Usage:
   pb getworld <name>
   pb lsworld [-a] <name>
   pb catworld <name> [-o <filename>] 
+  pb cattree <key>
   pb putstream <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
@@ -208,6 +210,13 @@ Options:
 		} else {
 			fmt.Print(string(*buf))
 		}
+	case opts.Cattree:
+		buf, err := catTree(opts.Name)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Print(string(*buf))
 	case opts.Putstream:
 		world, err := putStream(opts.Algo, opts.Name, os.Stdin)
 		if err != nil {
@@ -242,7 +251,7 @@ Options:
 			return 42
 		}
 
-		// XXX show stdout, stderr, rc
+		// show stdout, stderr, rc
 		_, err = io.Copy(os.Stdout, stdout)
 		if err != nil {
 			log.Error(err)
@@ -416,7 +425,26 @@ func catWorld(name string) (buf *[]byte, err error) {
 	return
 }
 
+func catTree(keypath string) (buf *[]byte, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	key := db.KeyFromPath(keypath)
+	node, err := db.GetNode(key)
+	if err != nil {
+		return
+	}
+	buf, err = node.Cat()
+	if err != nil {
+		return
+	}
+	return
+}
+
 func putStream(algo string, name string, rd io.Reader) (world *pb.World, err error) {
+	// XXX add -q flag to keep it from printing output
+
 	db, err := opendb()
 	if err != nil {
 		return
@@ -463,7 +491,7 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	if err != nil {
 		return
 	}
-	// defer file.Close()
+	defer file.Close()
 	_, err = ReadAtMost(file, buf)
 	// fmt.Println(n, string(buf))
 
@@ -474,18 +502,22 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	algo := filepath.Dir(interpreterHash)
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
-	// fmt.Println(algo, interpreterHash)
 
-	// XXX rewind file
+	// rewind file
 	_, err = file.Seek(0, 0)
 	if err != nil {
 		return
 	}
 
-	// XXX send file to db.PutStream()
+	// send file to db.PutStream()
 	rootnode, err := db.PutStream(algo, file)
-	// XXX get scripthash from stream's root node key
-	scriptHash := rootnode.Key.Hash
+	if err != nil {
+		return
+	}
+
+	// get scripthash from stream's root node key
+	scriptHash := rootnode.Key.Canon()
+
 	// call xeq
 	args = append([]string{scriptHash}, args...)
 	stdout, stderr, rc, err = xeq(interpreterHash, args...)
@@ -497,7 +529,6 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	_ = db
 
 	// cat node -- that's the interpreter code
 	key := db.KeyFromPath(interpreterHash)
@@ -559,11 +590,13 @@ func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 	if err != nil {
 		return
 	}
+
 	filename = tmpfile.Name()
 	_, err = tmpfile.Write(data)
 	if err != nil {
 		return
 	}
+
 	err = tmpfile.Close()
 	if err != nil {
 		return
