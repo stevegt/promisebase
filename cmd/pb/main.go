@@ -13,8 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	pb "github.com/t7a/pitbase"
-
-	"github.com/docopt/docopt-go"
 )
 
 func init() {
@@ -458,13 +456,6 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
-
-	// XXX rewind file
-
-	// XXX send file to db.PutStream()
-
-	// XXX get scripthash from stream's root node key
-	scriptHash := ""
 
 	// call xeq
 	args = append([]string{scriptHash}, args...)
