@@ -250,18 +250,16 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		// show stdout, stderr, rc
 
+		// show stdout, stderr, rc
 		_, err = io.Copy(os.Stdout, stdout)
 		if err != nil {
-			fmt.Println("i have no idea")
 			log.Error(err)
 			return 42
 		}
 
 		_, err = io.Copy(os.Stderr, stderr)
 		if err != nil {
-			fmt.Println("i have no idea")
 			log.Error(err)
 			return 42
 		}
@@ -515,7 +513,6 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// send file to db.PutStream()
 	rootnode, err := db.PutStream(algo, file)
 	if err != nil {
-		log.Printf("algo: %s", algo)
 		return
 	}
 
