@@ -238,22 +238,19 @@ Options:
 	case opts.Exec:
 		stdout, stderr, rc, err := execute(opts.Filename, opts.Arg...)
 		if err != nil {
-			fmt.Println("why")
 			log.Error(err)
 			return 42
 		}
-		// XXX show stdout, stderr, rc
 
+		// XXX show stdout, stderr, rc
 		_, err = io.Copy(os.Stdout, stdout)
 		if err != nil {
-			fmt.Println("i have no idea")
 			log.Error(err)
 			return 42
 		}
 
 		_, err = io.Copy(os.Stderr, stderr)
 		if err != nil {
-			fmt.Println("i have no idea")
 			log.Error(err)
 			return 42
 		}
@@ -490,7 +487,6 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// XXX don't know what to put for algo
 	rootnode, err := db.PutStream(algo, file)
 	if err != nil {
-		log.Printf("algo: %s", algo)
 		return
 	}
 
