@@ -26,6 +26,7 @@ func TestCLI(t *testing.T) {
 		err = fileutils.CopyFile("bigblob", filepath.Join(srcdir, "testdata/bigblob"))
 		err = fileutils.CopyFile("lang1.sh", filepath.Join(srcdir, "testdata/lang1.sh"))
 		err = fileutils.CopyFile("hello.lang1", filepath.Join(srcdir, "testdata/hello.lang1"))
+		err = fileutils.CopyFile("main.go", filepath.Join(srcdir, "main.go"))
 		if err != nil {
 			panic(err)
 		}

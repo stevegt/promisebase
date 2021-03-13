@@ -65,6 +65,7 @@ type Opts struct {
 	Putworld   bool
 	Getworld   bool
 	Lsworld    bool
+	Cattree    bool
 	Catworld   bool
 	Putstream  bool
 	Canon2path bool
@@ -99,6 +100,7 @@ Usage:
   pb getworld <name>
   pb lsworld [-a] <name>
   pb catworld <name> [-o <filename>] 
+  pb cattree <key>
   pb putstream <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
@@ -208,6 +210,13 @@ Options:
 		} else {
 			fmt.Print(string(*buf))
 		}
+	case opts.Cattree:
+		buf, err := catTree(opts.Name)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
+		fmt.Print(string(*buf))
 	case opts.Putstream:
 		world, err := putStream(opts.Algo, opts.Name, os.Stdin)
 		if err != nil {
@@ -412,6 +421,23 @@ func catWorld(name string) (buf *[]byte, err error) {
 		return
 	}
 	buf, err = w.Cat()
+	if err != nil {
+		return
+	}
+	return
+}
+
+func catTree(keypath string) (buf *[]byte, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
+	key := db.KeyFromPath(keypath)
+	node, err := db.GetNode(key)
+	if err != nil {
+		return
+	}
+	buf, err = node.Cat()
 	if err != nil {
 		return
 	}
