@@ -111,6 +111,21 @@ sagittis varius. Orci varius natoque penatibus et magnis dis
 parturient montes, nascetur ridiculus mus.
 this is blob1
 
+# same, but for tree
+$ pb cattree node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
+multiline blob
+this is line 2
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae
+dapibus lorem. Pellentesque habitant morbi tristique senectus et netus
+et malesuada fames ac turpis egestas. Phasellus suscipit mattis
+interdum. Praesent nec diam mi. In placerat est sit amet cursus
+ullamcorper. Sed porta dignissim elementum. Quisque at dui pharetra,
+rhoncus nibh in, maximus erat. Praesent diam sapien, semper sed
+sollicitudin id, porttitor eu urna. Quisque vitae ligula non mi
+sagittis varius. Orci varius natoque penatibus et magnis dis
+parturient montes, nascetur ridiculus mus.
+this is blob1
+
 # catworld fail
 $ pb catworld world42 --> FAIL
 
@@ -128,6 +143,7 @@ $ dd status=none if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
 
 # put it 
 $ pb putstream sha256 world7 < ${ROOTDIR}/hugefile
+XXX need -q
 
 # get it and save to hugefile.copy
 $ pb catworld world7 -o ${ROOTDIR}/hugefile.copy 
@@ -138,6 +154,7 @@ $ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy
 # try executing code in an arbitrary language
 # load the lang1 interpreter
 $ pb putstream sha256 lang1 < ../lang1.sh 
+XXX needs update
 # run a script written in lang1
 $ pb exec ../hello.lang1
 Hello, Universe!
