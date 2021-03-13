@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -240,19 +241,22 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		buf := new(strings.Builder)
-		n, err := io.Copy(buf, stderr)
-		// check errors
+
+		// XXX show stdout, stderr, rc
+		_, err = io.Copy(os.Stdout, stdout)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(buf.String())
-		// XXX show stdout, stderr, rc
+
+		_, err = io.Copy(os.Stderr, stderr)
+		if err != nil {
+			log.Error(err)
+			return 42
+		}
 		_ = stdout
 		_ = stderr
 		_ = rc
-		_ = n
 	}
 	return 0
 }
@@ -449,6 +453,10 @@ func path2Canon(path string) (canon string, err error) {
 }
 
 func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
+	db, err := opendb()
+	if err != nil {
+		return
+	}
 	// read first kilobyte of file at path
 	buf := make([]byte, 1024)
 	file, err := os.Open(scriptPath)
@@ -463,10 +471,7 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// word ending with whitepace)
 	re := regexp.MustCompile(`^\S+`)
 	interpreterHash := string(re.Find(buf))
-	// fmt.Printf("%q\n", string(hash))
-
-	re = regexp.MustCompile(`^\w+`)
-	algo := string(re.Find([]byte(interpreterHash)))
+	algo := filepath.Dir(interpreterHash)
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 	// fmt.Println(algo, interpreterHash)
@@ -478,10 +483,6 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	}
 
 	// XXX send file to db.PutStream()
-	db, err := opendb()
-	if err != nil {
-		return
-	}
 	rootnode, err := db.PutStream(algo, file)
 	// XXX get scripthash from stream's root node key
 	scriptHash := rootnode.Key.Hash
@@ -515,7 +516,7 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	// XXX defer os.Remove(tempfn) // clean up
+	defer os.Remove(tempfn) // clean up
 
 	// pass the hash of the script and the remaining args to the
 	//interpreter, and let the interpreter fetch the script from the db

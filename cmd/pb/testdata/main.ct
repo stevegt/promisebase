@@ -128,6 +128,7 @@ $ dd status=none if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
 
 # put it 
 $ pb putstream sha256 world7 < ${ROOTDIR}/hugefile
+world/world7 -> node/sha256/1e12451a9f4cbc7ae0f62847d5bbf32ef123481743c08b4c852e6
 
 # get it and save to hugefile.copy
 $ pb catworld world7 -o ${ROOTDIR}/hugefile.copy 
