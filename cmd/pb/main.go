@@ -14,6 +14,8 @@ import (
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	pb "github.com/t7a/pitbase"
+
+	"github.com/docopt/docopt-go"
 )
 
 func init() {
