@@ -180,7 +180,7 @@ Options:
 			log.Error(err)
 			return 43
 		}
-		fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
+		fmt.Printf("world/%s -> %s\n", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
 	case opts.Getworld:
 		w, err := getWorld(opts.Name)
 		if err != nil {
@@ -211,7 +211,7 @@ Options:
 			fmt.Print(string(*buf))
 		}
 	case opts.Cattree:
-		buf, err := catTree(opts.Name)
+		buf, err := catTree(opts.Key)
 		if err != nil {
 			log.Error(err)
 			return 42
@@ -229,7 +229,7 @@ Options:
 			return 43
 		}
 		_ = gotworld
-		fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
+		fmt.Printf("world/%s -> %s\n", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
 	case opts.Canon2path:
 		path, err := canon2Path(opts.Filename)
 		if err != nil {

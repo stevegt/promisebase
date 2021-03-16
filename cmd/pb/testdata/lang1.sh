@@ -21,8 +21,10 @@ script_key=$1
 # database, then we need to run `pb` here.  But while we're testing
 # `pb`, we can't assume that it's built, so instead we just `go run`.
 unset wanthash 
-go run ../main.go cattree $script_key >&7 &
+touch foo
+go run ../main.go cattree $script_key >foo &
 child=$!
+exec 7< foo
 
 while read line <&7
 do
@@ -53,5 +55,6 @@ do
     run $line
 done
 
+#exec 7<&-
 wait $child
 exit $?
