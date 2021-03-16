@@ -142,8 +142,8 @@ $ pb lsworld lsadkfj --> FAIL
 $ dd status=none if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
 
 # put it 
-$ pb putstream sha256 world7 < ${ROOTDIR}/hugefile
-XXX need -q
+$ pb putstream -q sha256 world7 < ${ROOTDIR}/hugefile
+
 
 # get it and save to hugefile.copy
 $ pb catworld world7 -o ${ROOTDIR}/hugefile.copy 

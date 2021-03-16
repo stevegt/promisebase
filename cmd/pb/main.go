@@ -79,6 +79,7 @@ type Opts struct {
 	Out        bool `docopt:"-o"`
 	Filename   string
 	Arg        []string
+	Quiet      bool `docopt:"-q"`
 }
 
 func main() {
@@ -101,7 +102,7 @@ Usage:
   pb lsworld [-a] <name>
   pb catworld <name> [-o <filename>] 
   pb cattree <key>
-  pb putstream <algo> <name>
+  pb putstream [-q] <algo> <name>
   pb canon2path <filename>
   pb path2canon <filename>
   pb exec <filename> [<arg>...]
@@ -229,7 +230,9 @@ Options:
 			return 43
 		}
 		_ = gotworld
-		fmt.Printf("world/%s -> %s", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
+		if !opts.Quiet {
+			fmt.Printf("world/%s -> %s\n", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
+		}
 	case opts.Canon2path:
 		path, err := canon2Path(opts.Filename)
 		if err != nil {
