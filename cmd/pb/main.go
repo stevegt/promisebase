@@ -502,7 +502,11 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// word ending with whitepace)
 	re := regexp.MustCompile(`^\S+`)
 	interpreterHash := string(re.Find(buf))
+
+	// get hash algorithm
 	algo := filepath.Dir(interpreterHash)
+	// fmt.Printf("algo!! %s\n", algo)
+
 	// prepend "node/" to hash
 	interpreterHash = "node/" + interpreterHash
 
