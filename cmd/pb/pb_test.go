@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -22,11 +23,29 @@ func TestCLI(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	exec.Command("go", "build").Run()
 	ts.Setup = func(dir string) (err error) {
 		err = fileutils.CopyFile("bigblob", filepath.Join(srcdir, "testdata/bigblob"))
+		if err != nil {
+			panic(err)
+		}
 		err = fileutils.CopyFile("lang1.sh", filepath.Join(srcdir, "testdata/lang1.sh"))
+		if err != nil {
+			panic(err)
+		}
 		err = fileutils.CopyFile("hello.lang1", filepath.Join(srcdir, "testdata/hello.lang1"))
+		if err != nil {
+			panic(err)
+		}
 		err = fileutils.CopyFile("main.go", filepath.Join(srcdir, "main.go"))
+		if err != nil {
+			panic(err)
+		}
+		err = fileutils.CopyFile("pb", filepath.Join(srcdir, "pb"))
+		if err != nil {
+			panic(err)
+		}
+		err = os.Chmod("pb", 0755)
 		if err != nil {
 			panic(err)
 		}
