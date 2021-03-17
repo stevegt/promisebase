@@ -20,12 +20,11 @@ script_key=$1
 # If `pb` is the API an external process uses to use to talk to the
 # database, then we need to run `pb` here.  But while we're testing
 # `pb`, we can't assume that it's built, so instead we just `go run`.
-unset wanthash 
-touch foo
 go run ../main.go cattree $script_key >foo &
 child=$!
 exec 7< foo
 
+unset wanthash 
 while read line <&7
 do
     # skip blank lines
