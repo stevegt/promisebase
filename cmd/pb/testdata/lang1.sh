@@ -42,13 +42,9 @@ do
     if [ -z "$wanthash" ] 
     then
         wanthash="$line"
-        havehash=sha256/$(sha256sum $0 | awk '{print $1}')
-        if [ "$wanthash" != "$havehash" ]
-        then
-            echo "warning: interpreter hash out of date in $code: actual is $havehash" >&2
-        fi
         continue
     fi
+
     # process statements
     run $line
 done

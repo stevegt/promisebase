@@ -554,7 +554,10 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	if err != nil {
 		return
 	}
-	defer os.Remove(tempfn) // clean up
+	// XXX do not uncomment
+	// XXX redo the xeq api to have more of a io.Reader and Writer interface
+	// that we can close to let it know when it can delete the tempfile
+	// defer os.Remove(tempfn) // clean up
 
 	// pass the hash of the script and the remaining args to the
 	//interpreter, and let the interpreter fetch the script from the db
