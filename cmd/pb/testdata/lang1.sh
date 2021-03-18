@@ -21,7 +21,6 @@ script_key=$1
 # database, then we need to run `pb` here.  But while we're testing
 # `pb`, we can't assume that it's built, so instead we just `go run`.
 exec 7< <(../pb cattree $script_key)
-child=$!
 
 unset wanthash 
 while read line <&7
@@ -49,6 +48,5 @@ do
     run $line
 done
 
-#exec 7<&-
-wait $child
+wait 
 exit $?

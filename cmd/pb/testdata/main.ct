@@ -154,7 +154,7 @@ $ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy
 # try executing code in an arbitrary language
 # load the lang1 interpreter
 $ pb putstream sha256 lang1 < ../lang1.sh 
-world/lang1 -> node/sha256/94ae7e050f0306f65cdd808e1c0991a53ea2b7423c790c6e92aab75659a2c52f
+world/lang1 -> node/sha256/012661ca4b9d603d813d10ef66f08676938b6cd59baa105e1ad526b90645fada
 
 # run a script written in lang1
 $ pb exec ../hello.lang1
