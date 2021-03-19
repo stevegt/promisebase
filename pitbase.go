@@ -413,7 +413,7 @@ func (db *Db) Path(key *Key) (path string) {
 	return
 }
 
-// World is a reference to a database
+// World is a reference to a timeline
 type World struct {
 	Db   *Db
 	Name string
@@ -885,4 +885,48 @@ func canstat(path string) bool {
 		return false
 	}
 	return false
+}
+
+// Stream is an ordered set of bytes of arbitrary (but not infinite)
+// length.  It implements the io.ReadWriteCloser interface so a
+// Stream acts like a file from the perspective of a caller.
+type Stream struct {
+	Db          *Db
+	Algo        string
+	RootNode    *Node
+	currentBlob *Key
+	posInBlob   int64
+}
+
+// Write writes up to len(p) bytes from buf to the database.  It
+// returns the number of bytes written.  Write is guaranteed to return
+// only after writing all bytes from buf or after encountering an
+// error, so `n` can be safely ignored.
+func (s *Stream) Write(buf []byte) (n int, err error) {
+
+	// if RootNode is null, then call db.PutBlob and db.PutNode
+
+	// else call RootNode.AppendBlob() and update RootNode
+
+	return
+}
+
+// Read reads up to len(p) bytes from the database into buf.  It
+// returns the number of bytes read.
+func (s *Stream) Read(buf []byte) (n int, err error) {
+
+	// read the next chunk from currentBlob and update posInBlob
+
+	return
+}
+
+func (s *Stream) Seek(offset int64, whence int) (newOffset int64, err error) {
+	// XXX
+	return
+}
+
+func (s *Stream) Close() (err error) {
+	// do we need to do anything here?  flush?
+
+	return
 }

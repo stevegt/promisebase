@@ -44,12 +44,12 @@ func TestChunker(t *testing.T) {
 	tassert(t, bytes.Compare(stream.Data, gotstream) == 0, "chunk: stream vs. gotstream mismatch")
 }
 
-type Stream struct {
+type testStream struct {
 	Data    []byte
 	nextPos int64
 }
 
-func (s *Stream) Read(p []byte) (n int, err error) {
+func (s *testStream) Read(p []byte) (n int, err error) {
 	bs := 4096 // XXX try different sizes
 	start := s.nextPos
 	if start >= int64(len(s.Data)) {
@@ -62,8 +62,8 @@ func (s *Stream) Read(p []byte) (n int, err error) {
 	return
 }
 
-func genstream(t *testing.T, size int) (stream *Stream) {
-	stream = &Stream{}
+func genstream(t *testing.T, size int) (stream *testStream) {
+	stream = &testStream{}
 	stream.Data = make([]byte, size)
 	rand.Seed(42)
 	// write random data into stream.Data
@@ -76,7 +76,7 @@ func genstream(t *testing.T, size int) (stream *Stream) {
 }
 
 func TestPutStreamSmall(t *testing.T) {
-	stream := &Stream{Data: *(mkblob("apple bob carol dave echo foxtrot golf hotel india juliet kilo lima mike november oscar pear something "))}
+	stream := &testStream{Data: *(mkblob("apple bob carol dave echo foxtrot golf hotel india juliet kilo lima mike november oscar pear something "))}
 	db := newdb(t, &Db{MinSize: 10, MaxSize: 20})
 	testPutStream(t, db, stream)
 }
@@ -87,7 +87,7 @@ func TestPutStreamBig(t *testing.T) {
 	testPutStream(t, db, stream)
 }
 
-func testPutStream(t *testing.T, db *Db, stream *Stream) {
+func testPutStream(t *testing.T, db *Db, stream *testStream) {
 
 	node, err := db.PutStream("sha256", stream)
 	tassert(t, err == nil, "PutStream(): %v", err)
