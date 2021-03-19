@@ -899,8 +899,8 @@ type Stream struct {
 }
 
 // may not need this
-func (s *Stream) Init() *Stream {
-	return s
+func (s Stream) Init() *Stream {
+	return &s
 }
 
 // Write writes up to len(p) bytes from buf to the database.  It
@@ -908,17 +908,17 @@ func (s *Stream) Init() *Stream {
 // only after writing all bytes from buf or after encountering an
 // error, so `n` can be safely ignored.
 func (s *Stream) Write(buf []byte) (n int, err error) {
-
+	n = len(buf)
 	// if RootNode is null, then call db.PutBlob and db.PutNode
 	if s.RootNode == nil {
 		key, err := s.Db.PutBlob(s.Algo, &buf)
 		if err != nil {
-			return
+			return n, err
 		}
-		blobnode := &Node{Db: node.Db, Key: key}
+		blobnode := &Node{Db: s.Db, Key: key}
 		s.RootNode, err = s.Db.PutNode(s.Algo, blobnode)
 		if err != nil {
-			return
+			return n, err
 		}
 	} else {
 		// else call RootNode.AppendBlob() and update RootNode

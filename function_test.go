@@ -579,7 +579,7 @@ func TestStream(t *testing.T) {
 	db := setup(t)
 
 	// open a stream
-	stream := &Stream{Db: db, Algo: "sha256"}.Init()
+	stream := Stream{Db: db, Algo: "sha256"}.Init()
 	_ = stream
 
 	// create a large dataset in a buf using bufio
