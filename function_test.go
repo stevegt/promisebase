@@ -575,4 +575,22 @@ func shell(path string, args ...string) (out []byte, err error) {
 	return
 }
 
-// XXX todo items moved to ./ROADMAP.md
+func TestStream(b *testing.B) {
+	db := setup(t)
+
+	// open a stream
+	stream := db.NewStream("sha256")
+	_ = stream
+
+	// create a large dataset in a buf using bufio
+
+	// use io.Pipe() and/or io.Copy() to write the buf data to the stream
+
+	// use io.Pipe() and/or io.Copy() to read the data from the stream
+	// into a different iobuf buffer
+
+	// compare the original buffer with the new one
+
+	// stream.Close()
+
+}
