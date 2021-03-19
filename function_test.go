@@ -575,11 +575,11 @@ func shell(path string, args ...string) (out []byte, err error) {
 	return
 }
 
-func TestStream(b *testing.B) {
+func TestStream(t *testing.T) {
 	db := setup(t)
 
 	// open a stream
-	stream := db.NewStream("sha256")
+	stream := &Stream{Db: db, Algo: "sha256"}.Init()
 	_ = stream
 
 	// create a large dataset in a buf using bufio

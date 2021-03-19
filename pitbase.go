@@ -898,6 +898,11 @@ type Stream struct {
 	posInBlob   int64
 }
 
+// may not need this
+func (s *Stream) Init() *Stream {
+	return s
+}
+
 // Write writes up to len(p) bytes from buf to the database.  It
 // returns the number of bytes written.  Write is guaranteed to return
 // only after writing all bytes from buf or after encountering an
@@ -905,9 +910,20 @@ type Stream struct {
 func (s *Stream) Write(buf []byte) (n int, err error) {
 
 	// if RootNode is null, then call db.PutBlob and db.PutNode
-
-	// else call RootNode.AppendBlob() and update RootNode
-
+	if s.RootNode == nil {
+		key, err := s.Db.PutBlob(s.Algo, &buf)
+		if err != nil {
+			return
+		}
+		blobnode := &Node{Db: node.Db, Key: key}
+		s.RootNode, err = s.Db.PutNode(s.Algo, blobnode)
+		if err != nil {
+			return
+		}
+	} else {
+		// else call RootNode.AppendBlob() and update RootNode
+		s.RootNode, err = s.RootNode.AppendBlob(s.Algo, &buf)
+	}
 	return
 }
 
