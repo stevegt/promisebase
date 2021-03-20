@@ -331,6 +331,7 @@ func (blob *Blob) AppendBlob(algo string, newblob *[]byte) (node *Node, err erro
 }
 */
 
+// XXX this needs to be replaced with an OpenStream() or Stream.Init() that returns an io.Writer interface
 // PutStream reads blobs from stream, creates a merkle tree with those
 // blobs as leaf nodes, and returns the root node of the new tree.
 func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err error) {
