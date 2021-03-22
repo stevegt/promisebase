@@ -14,6 +14,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/hlubek/readercomp"
 )
 
 // test boolean condition
@@ -584,16 +586,29 @@ func TestStream(t *testing.T) {
 	stream := Stream{Db: db, Algo: "sha256"}.Init()
 	_ = stream
 
-	// create a large dataset in a buf using bufio
+	// get random data
+	randstream := RandStream(10 * miB)
 
-	// use io.Pipe() and/or io.Copy() to write the buf data to the stream
+	// copy random data into db
+	n, err := io.Copy(stream, randstream)
+	tassert(t, err == nil, "io.Copy: %v", err)
+	tassert(t, n == 10*miB, "n: expected %v got %v", 10*miB, n)
 
-	// use io.Pipe() and/or io.Copy() to read the data from the stream
-	// into a different iobuf buffer
+	// rewind db stream
+	n, err = stream.Seek(0, 0)
+	tassert(t, err == nil, "stream.Seek: %v", err)
+	tassert(t, n == 0, "n: expected 0 got %v", n)
 
-	// compare the original buffer with the new one
+	// rewind random stream
+	// (RandStream always produces the same data)
+	randstream = RandStream(10 * miB)
 
-	// stream.Close()
+	// compare the two
+	ok, err := readercomp.Equal(stream, randstream, 4096)
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "stream mismatch")
+
+	// stream.Close() ?
 
 }
 

@@ -934,6 +934,9 @@ func (s *Stream) Read(buf []byte) (n int, err error) {
 
 	// read the next chunk from currentBlob and update posInBlob
 
+	// XXX
+	err = io.EOF
+
 	return
 }
 
