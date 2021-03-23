@@ -145,6 +145,27 @@ func TestHash(t *testing.T) {
 	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
 }
 
+func TestBlob(t *testing.T) {
+	b := Blob{}.Init()
+
+	// put something in the blob
+	data := mkblob("somedata")
+	n, err := b.Write(data)
+	tassert(t, err == nil, "b.Write err %v", err)
+	tassert(t, n == len(data), "b.Write len expected %v, got %v", len(data), n)
+
+	// seek to a location
+	n, err := b.Seek(2, 0)
+	tassert(t, err == nil, "b.Seek err %v", err)
+	tassert(t, n == int64(len(data)), "b.Seek expected %v, got %v", len(data), n)
+
+	// read from that location
+	buf := make([]byte, 100)
+	n, err = b.Read(buf)
+	tassert(t, err == nil, "b.Read err %v", err)
+	tassert(t, n == len(data), "b.Read len expected %v, got %v", len(data), n)
+}
+
 func TestPut(t *testing.T) {
 	db := setup(t)
 	key := mkkey(t, db, "somekey")
