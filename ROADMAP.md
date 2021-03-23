@@ -5,9 +5,9 @@ x implement multilevel storage
     x configurable defaults to 2 levels, 3 digits
     x isolate internal db level config from UI-visible and node
       content path strings
-- implement `pb exec` and a language prototype 
-  - spike, likely to inform all of the following
-  - after this works, move it to its own package
+x implement `pb exec` and a language prototype 
+  x spike, likely to inform all of the following
+  x after this works, move it to its own package
 - reconcile Node and blob
   - maybe call them both Object
     - maybe Object interface
