@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/hlubek/readercomp"
 	"github.com/pkg/errors"
 )
 
@@ -103,5 +104,41 @@ func testPutStream(t *testing.T, db *Db, stream *testStream) {
 	}
 	tassert(t, len(stream.Data) == len(*gotbuf), "size: expected %d got %d", len(stream.Data), len(*gotbuf))
 	tassert(t, bytes.Compare(stream.Data, *gotbuf) == 0, "stream vs. gotbuf mismatch")
+
+}
+
+func TestChunkerWrite(t *testing.T) {
+	// setup
+	// polynomial was randomly generated from a call to chunker.Init()
+	chunker, err := Rabin{Poly: 0x25d92e975e1aa3}.Init()
+	tassert(t, err == nil, "%v", err)
+	// fmt.Printf("%T %#v\n", chunker.Poly, chunker.Poly)
+	tassert(t, chunker.Poly > 0, "polynomial is %v", chunker.Poly)
+
+	// create some data
+	size := int64(100 * miB)
+	src := RandStream(size)
+	cmp := RandStream(size)
+
+	var gotstream []byte
+
+	// start the chunker goroutine
+	buf := make([]byte, 9*miB) // XXX try other buffer sizes
+	chunkchan := chunker.Run(buf, src)
+
+	// read chunks from channel
+	for chunk := range chunkchan {
+		if errors.Cause(chunk.Err) == io.EOF {
+			fmt.Println("EOF")
+			break
+		}
+		fmt.Printf(".")
+		gotstream = append(gotstream, chunk.Data...)
+	}
+
+	// compare src with cmp
+	ok, err := readercomp.Equal(src, cmp, 4096)
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "stream mismatch")
 
 }
