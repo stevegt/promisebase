@@ -27,6 +27,8 @@ type Rabin struct {
 	MaxSize uint
 }
 
+// XXX need to maybe wrap or replace this with our own Chunk so we can
+// add the Err field
 type Chunk resticRabin.Chunk
 
 func (c Rabin) Init() (res *Rabin, err error) {
@@ -40,6 +42,35 @@ func (c Rabin) Init() (res *Rabin, err error) {
 		c.Poly, err = resticRabin.RandomPolynomial()
 	}
 	return &c, err
+}
+
+type CopyRes struct {
+	n   int64
+	err error
+}
+
+func (c *Rabin) Run(buf []byte, src io.Writer) (chunks chan *Chunk) {
+	var copyres chan CopyRes
+	dst, pipeWriter := io.Pipe()
+	go func() {
+		// XXX still obviously confused
+		n, err := io.Copy(pipeWriter, src)
+		copyres <- CopyRes{n, err}
+	}()
+
+	c.Start(dst)
+
+	for {
+		chunk, err := c.Next(buf)
+		if err != nil {
+			chunk.Err = err // XXX see above note at Chunk struct
+			chunks <- chunk
+			break
+		}
+		chunks <- chunk
+	}
+
+	return
 }
 
 func (c *Rabin) Start(rd io.Reader) {

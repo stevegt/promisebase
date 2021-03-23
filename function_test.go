@@ -654,8 +654,8 @@ func RandStream(size int64) (stream *randStream) {
 }
 
 func TestRandStream(t *testing.T) {
-	size := 10 * miB
-	stream := RandStream(10 * miB)
+	size := int64(10 * miB)
+	stream := RandStream(size)
 	buf, err := ioutil.ReadAll(stream)
 	tassert(t, err == nil, "ReadAll: %v", err)
 	tassert(t, size == len(buf), "size: expected %d got %d", size, len(buf))
