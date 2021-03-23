@@ -867,7 +867,8 @@ func (s Stream) Init() *Stream {
 	return &s
 }
 
-func (s Stream) XXX() {
+// XXX this is not the right signature
+func (s Stream) XXX() (rootnode *Node, err error) {
 
 	// XXX  We will need an io.Pipe() somewhere near here to solve the
 	// mismatch between us wanting to be an io.Writer, and restic's
@@ -891,8 +892,11 @@ func (s Stream) XXX() {
 
 	// chunk it
 	// XXX not sure where this should go
-	s.chunker.Start(s) // XXX 's' is not the right stream -- maybe what goes here is the other side of the io.Pipe()
+	// s.chunker.Start(rd) // XXX 's' is not the right stream -- maybe what goes here is the other side of the io.Pipe()
 
+	db := s.Db
+	algo := s.Algo
+	chunker := s.chunker
 	// XXX hardcoded buffer size of 1 MB, might want to make this configurable
 	// XXX buffer size really only needs to be slightly larger than the max chunk size,
 	// XXX which we should be able to get out of the rabin struct
