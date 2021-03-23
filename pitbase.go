@@ -954,6 +954,9 @@ func (s *Stream) Write(buf []byte) (n int, err error) {
 
 		// XXX stuff missing here, and the rest of this function is
 		// probably wrong still
+		if true {
+			return 0, io.EOF
+		}
 
 		key, err := s.Db.PutBlob(s.Algo, &buf)
 		if err != nil {
