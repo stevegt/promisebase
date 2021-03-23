@@ -331,55 +331,17 @@ func (blob *Blob) AppendBlob(algo string, newblob *[]byte) (node *Node, err erro
 }
 */
 
-// XXX this needs to be replaced with an OpenStream() or Stream.Init() that returns an io.Writer interface
+// XXX this needs to be replaced with an OpenStream() or Stream.Init()
+// that returns an io.Writer interface
 // PutStream reads blobs from stream, creates a merkle tree with those
 // blobs as leaf nodes, and returns the root node of the new tree.
-func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err error) {
-	// setup
-	chunker, err := Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
+func (db *Db) PutStream(algo string, instream io.Reader) (rootnode *Node, err error) {
+	outstream := Stream{Db: db, Algo: algo}.Init()
+	_, err = io.Copy(outstream, instream)
 	if err != nil {
 		return
 	}
-
-	// chunk it
-	chunker.Start(stream)
-
-	// XXX hardcoded buffer size of 1 MB, might want to make this configurable
-	// XXX buffer size really only needs to be slightly larger than the max chunk size,
-	// XXX which we should be able to get out of the rabin struct
-	buf := make([]byte, chunker.MaxSize+1) // this might be wrong
-	var oldnode *Node
-	for {
-		chunk, err := chunker.Next(buf)
-		if errors.Cause(err) == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		key, err := db.PutBlob(algo, &chunk.Data)
-		if err != nil {
-			return nil, err
-		}
-		newblobnode := &Node{Db: db, Key: key, Label: ""}
-
-		if oldnode == nil {
-			// we're just starting the tree
-			rootnode, err = db.PutNode(algo, newblobnode)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			// add the next node
-			rootnode, err = db.PutNode(algo, oldnode, newblobnode)
-			if err != nil {
-				return nil, err
-			}
-		}
-		oldnode = rootnode
-	}
-
+	rootnode = outstream.RootNode
 	return
 }
 
@@ -895,23 +857,100 @@ type Stream struct {
 	Db          *Db
 	Algo        string
 	RootNode    *Node
+	chunker     *Rabin
 	currentBlob *Key
 	posInBlob   int64
 }
 
-// may not need this
 func (s Stream) Init() *Stream {
+
 	return &s
 }
 
-// Write writes up to len(p) bytes from buf to the database.  It
-// returns the number of bytes written.  Write is guaranteed to return
+func (s Stream) XXX() {
+
+	// XXX  We will need an io.Pipe() somewhere near here to solve the
+	// mismatch between us wanting to be an io.Writer, and restic's
+	// chunker wanting to be an io.Reader
+	//
+	// i.e. We need to write a wrapper around restic's chunker
+	// library.  The wrapper acts as an adapter.  The purpose of the
+	// adapter is to provide an io.Writer interface (a Write() method)
+	// to callers, so callers can simply write to the chunker.  There
+	// may already be a library on github that does this; there may
+	// already be something somewhere in the restic user's repos.  If
+	// not, we may want to write it in a standalone repo, and publish
+	// it ourselves.
+	//
+	// example pseudo-code for what a test case for this might look
+	// like:
+	//
+	// chunker := ChunkerWrapper{}.Init()
+	// io.Copy(chunker, os.Stdin) // copy bytes from stdin to the chunker
+	//
+
+	// chunk it
+	// XXX not sure where this should go
+	s.chunker.Start(s) // XXX 's' is not the right stream -- maybe what goes here is the other side of the io.Pipe()
+
+	// XXX hardcoded buffer size of 1 MB, might want to make this configurable
+	// XXX buffer size really only needs to be slightly larger than the max chunk size,
+	// XXX which we should be able to get out of the rabin struct
+	buf := make([]byte, chunker.MaxSize+1) // this might be wrong
+	var oldnode *Node
+	for {
+		chunk, err := chunker.Next(buf)
+		if errors.Cause(err) == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		key, err := db.PutBlob(algo, &chunk.Data)
+		if err != nil {
+			return nil, err
+		}
+		newblobnode := &Node{Db: db, Key: key, Label: ""}
+
+		if oldnode == nil {
+			// we're just starting the tree
+			rootnode, err = db.PutNode(algo, newblobnode)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// add the next node
+			rootnode, err = db.PutNode(algo, oldnode, newblobnode)
+			if err != nil {
+				return nil, err
+			}
+		}
+		oldnode = rootnode
+	}
+
+	return
+}
+
+// Write writes up to len(buf) bytes from buf to the database.  It
+// returns the number of bytes written.  (Write is guaranteed to return
 // only after writing all bytes from buf or after encountering an
-// error, so `n` can be safely ignored.
+// error, so `n` can be safely ignored.)
 func (s *Stream) Write(buf []byte) (n int, err error) {
 	n = len(buf)
 	// if RootNode is null, then call db.PutBlob and db.PutNode
 	if s.RootNode == nil {
+
+		// set up chunker
+		db := s.Db
+		s.chunker, err = Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
+		if err != nil {
+			return
+		}
+
+		// XXX stuff missing here, and the rest of this function is
+		// probably wrong still
+
 		key, err := s.Db.PutBlob(s.Algo, &buf)
 		if err != nil {
 			return n, err
