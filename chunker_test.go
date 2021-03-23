@@ -124,7 +124,9 @@ func TestChunkerWrite(t *testing.T) {
 
 	// start the chunker goroutine
 	buf := make([]byte, 9*miB) // XXX try other buffer sizes
-	chunkchan := chunker.Run(buf, src)
+	// XXX the following is better, but probably needs to be combined
+	// with Init()
+	writer, chunkchan := chunker.Open(buf)
 
 	// read chunks from channel
 	for chunk := range chunkchan {

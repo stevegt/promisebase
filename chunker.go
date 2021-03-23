@@ -49,7 +49,8 @@ type CopyRes struct {
 	err error
 }
 
-func (c *Rabin) Run(buf []byte, src io.Writer) (chunks chan *Chunk) {
+// XXX combine this with Init()
+func (c *Rabin) Run(buf []byte) (src io.Writer, chunks chan *Chunk) {
 	var copyres chan CopyRes
 	dst, pipeWriter := io.Pipe()
 	go func() {
