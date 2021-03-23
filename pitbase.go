@@ -331,10 +331,7 @@ func (blob *Blob) AppendBlob(algo string, newblob *[]byte) (node *Node, err erro
 }
 */
 
-// XXX this needs to be replaced with an OpenStream() or Stream.Init()
-// that returns an io.Writer interface
-// PutStream reads blobs from stream, creates a merkle tree with those
-// blobs as leaf nodes, and returns the root node of the new tree.
+/*
 func (db *Db) PutStream(algo string, instream io.Reader) (rootnode *Node, err error) {
 	outstream := Stream{Db: db, Algo: algo}.Init()
 	_, err = io.Copy(outstream, instream)
@@ -342,6 +339,57 @@ func (db *Db) PutStream(algo string, instream io.Reader) (rootnode *Node, err er
 		return
 	}
 	rootnode = outstream.RootNode
+}
+*/
+
+// PutStream reads blobs from stream, creates a merkle tree with those
+// blobs as leaf nodes, and returns the root node of the new tree.
+func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err error) {
+	// setup
+	chunker, err := Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
+	if err != nil {
+		return
+	}
+
+	// chunk it
+	chunker.Start(stream)
+
+	// XXX hardcoded buffer size of 1 MB, might want to make this configurable
+	// XXX buffer size really only needs to be slightly larger than the max chunk size,
+	// XXX which we should be able to get out of the rabin struct
+	buf := make([]byte, chunker.MaxSize+1) // this might be wrong
+	var oldnode *Node
+	for {
+		chunk, err := chunker.Next(buf)
+		if errors.Cause(err) == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		key, err := db.PutBlob(algo, &chunk.Data)
+		if err != nil {
+			return nil, err
+		}
+		newblobnode := &Node{Db: db, Key: key, Label: ""}
+
+		if oldnode == nil {
+			// we're just starting the tree
+			rootnode, err = db.PutNode(algo, newblobnode)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// add the next node
+			rootnode, err = db.PutNode(algo, oldnode, newblobnode)
+			if err != nil {
+				return nil, err
+			}
+		}
+		oldnode = rootnode
+	}
+
 	return
 }
 
@@ -850,6 +898,7 @@ func canstat(path string) bool {
 	return false
 }
 
+/*
 // Stream is an ordered set of bytes of arbitrary (but not infinite)
 // length.  It implements the io.ReadWriteCloser interface so a
 // Stream acts like a file from the perspective of a caller.
@@ -939,24 +988,24 @@ func (s Stream) XXX() (rootnode *Node, err error) {
 // Write writes up to len(buf) bytes from buf to the database.  It
 // returns the number of bytes written.  (Write is guaranteed to return
 // only after writing all bytes from buf or after encountering an
-// error, so `n` can be safely ignored.)
+// error, so `n` can be safely ignored.
 func (s *Stream) Write(buf []byte) (n int, err error) {
 	n = len(buf)
 	// if RootNode is null, then call db.PutBlob and db.PutNode
 	if s.RootNode == nil {
 
-		// set up chunker
-		db := s.Db
-		s.chunker, err = Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
-		if err != nil {
-			return
-		}
-
-		// XXX stuff missing here, and the rest of this function is
-		// probably wrong still
-		if true {
-			return 0, io.EOF
-		}
+//		// set up chunker
+//		db := s.Db
+//		s.chunker, err = Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
+//		if err != nil {
+//			return
+//		}
+//
+//		// XXX stuff missing here, and the rest of this function is
+//		// probably wrong still
+//		if true {
+//			return 0, io.EOF
+//		}
 
 		key, err := s.Db.PutBlob(s.Algo, &buf)
 		if err != nil {
@@ -996,3 +1045,4 @@ func (s *Stream) Close() (err error) {
 
 	return
 }
+*/

@@ -27,8 +27,6 @@ type Rabin struct {
 	MaxSize uint
 }
 
-// XXX need to maybe wrap or replace this with our own Chunk so we can
-// add the Err field
 type Chunk resticRabin.Chunk
 
 func (c Rabin) Init() (res *Rabin, err error) {
@@ -44,6 +42,7 @@ func (c Rabin) Init() (res *Rabin, err error) {
 	return &c, err
 }
 
+/*
 type CopyRes struct {
 	n   int64
 	err error
@@ -73,6 +72,7 @@ func (c *Rabin) Run(buf []byte) (src io.Writer, chunks chan *Chunk) {
 
 	return
 }
+*/
 
 func (c *Rabin) Start(rd io.Reader) {
 	c.C = resticRabin.NewWithBoundaries(rd, c.Poly, c.MinSize, c.MaxSize)

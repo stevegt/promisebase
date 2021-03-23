@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/hlubek/readercomp"
 	"github.com/pkg/errors"
 )
 
@@ -107,6 +106,7 @@ func testPutStream(t *testing.T, db *Db, stream *testStream) {
 
 }
 
+/*
 func TestChunkerWrite(t *testing.T) {
 	// setup
 	// polynomial was randomly generated from a call to chunker.Init()
@@ -144,3 +144,4 @@ func TestChunkerWrite(t *testing.T) {
 	tassert(t, ok, "stream mismatch")
 
 }
+*/
