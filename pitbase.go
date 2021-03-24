@@ -314,29 +314,41 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 }
 
 // Seek moves the cursor position `b.pos` to `n`, following the same
-// semantics for `whence` as in the seek() or lseek() system call.
-// Supports the io.Seeker interface.
+// semantics as os.File.Seek():  Seek sets the offset for the next Read
+// or Write on file to offset, interpreted according to `whence`: 0
+// means relative to the origin of the file, 1 means relative to the
+// current offset, and 2 means relative to the end.  It returns the
+// new offset and an error, if any.  Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
-	// XXX handle whence
-	if whence == 0 {
-		nout = n
+	switch whence {
+	case 0:
+		if n < 0 {
+			panic("not implemented") // XXX
+		}
+		if n > b.Size {
+			panic("not implemented") // XXX
+		}
 		b.pos = n
-	} else if whence == 1 {
+	case 1:
+		if b.pos+n < 0 {
+			panic("not implemented") // XXX
+		}
+		if b.pos+n > b.Size {
+			panic("not implemented") // XXX
+		}
 		b.pos += int64(n)
-		nout = b.pos
-	} else if whence == 2 {
-		b.pos = 0 // how do we find the size of the buf?
-	} else {
-		// throw error, whence can't be bigger than 2
+	case 2:
+		if b.pos-n < 0 {
+			panic("not implemented") // XXX
+		}
+		if b.pos-n > b.Size {
+			panic("not implemented") // XXX
+		}
+		b.pos = b.Size - n
+	default:
+		panic("not implemented") // XXX
 	}
-	// XXX handle n < 0
-	if n < 0 {
-		// throw error?
-	}
-	// XXX handle n > file size
-	if n > b.Size {
-		// throw error
-	}
+	nout = b.pos
 	return
 }
 
