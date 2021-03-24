@@ -260,6 +260,13 @@ func (b Blob) Init() *Blob {
 // written using multiple Write() calls.  Supports the io.Writer
 // interface.
 func (b *Blob) Write(data []byte) (n int, err error) {
+	file, err := os.Open(b.Path)
+	if err != nil {
+		return
+	}
+	writer := bufio.NewWriter(file)
+	n, err = writer.Write(data)
+	b.pos = n // should require nil error to run this line?
 	return
 }
 
@@ -270,6 +277,13 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 // already been returned by previous Read() calls.  Supports the
 // io.Reader interface.
 func (b *Blob) Read(buf []byte) (n int, err error) {
+	file, err := os.Open(b.Path)
+	if err != nil {
+		return
+	}
+	reader := bufio.NewReader(file)
+	n, err = reader.Read(buf)
+	b.pos = n
 	return
 }
 
