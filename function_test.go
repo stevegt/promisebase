@@ -178,7 +178,7 @@ func TestBlob(t *testing.T) {
 	buf := make([]byte, 100)
 	nread, err := b.Read(buf)
 	tassert(t, err == nil, "b.Read err %v", err)
-	tassert(t, nread == len(data), "b.Read len expected %v, got %v", len(data), nread)
+	tassert(t, nread == 6, "b.Read len expected %v, got %v", 6, nread)
 	expect := *(mkblob("medata"))
 	got := buf[:nread]
 	tassert(t, bytes.Compare(expect, got) == 0, "b.Read expected %v, got %v", expect, got)
