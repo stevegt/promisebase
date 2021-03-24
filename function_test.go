@@ -149,21 +149,29 @@ func TestBlob(t *testing.T) {
 	b := Blob{}.Init()
 
 	// put something in the blob
-	data := mkblob("somedata")
-	n, err := b.Write(data)
+	data := *(mkblob("somedata"))
+	nwrite, err := b.Write(data)
 	tassert(t, err == nil, "b.Write err %v", err)
-	tassert(t, n == len(data), "b.Write len expected %v, got %v", len(data), n)
+	tassert(t, nwrite == len(data), "b.Write len expected %v, got %v", len(data), nwrite)
 
 	// seek to a location
-	n, err := b.Seek(2, 0)
+	nseek, err := b.Seek(2, 0)
 	tassert(t, err == nil, "b.Seek err %v", err)
-	tassert(t, n == int64(len(data)), "b.Seek expected %v, got %v", len(data), n)
+	tassert(t, nseek == int64(len(data)), "b.Seek expected %v, got %v", len(data), nseek)
+
+	// check our current location
+	ntell, err := b.Tell()
+	tassert(t, err == nil, "b.Tell err %v", err)
+	tassert(t, ntell == 2, "b.Tell expected %v, got %v", 2, ntell)
 
 	// read from that location
 	buf := make([]byte, 100)
-	n, err = b.Read(buf)
+	nread, err := b.Read(buf)
 	tassert(t, err == nil, "b.Read err %v", err)
-	tassert(t, n == len(data), "b.Read len expected %v, got %v", len(data), n)
+	tassert(t, nread == len(data), "b.Read len expected %v, got %v", len(data), nread)
+	expect := *(mkblob("medata"))
+	got := buf[:nread]
+	tassert(t, bytes.Compare(expect, got) == 0, "b.Read expected %v, got %v", expect, got)
 }
 
 func TestPut(t *testing.T) {

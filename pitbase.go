@@ -245,6 +245,48 @@ func (db *Db) put(key *Key, val *[]byte) (err error) {
 	return
 }
 
+type Blob struct {
+	Path string // relative path from db root dir
+	Size int64  // file size
+	pos  int64  // position where next Read() should start
+}
+
+func (b Blob) Init() *Blob {
+	return &b
+}
+
+// Write takes data from `data` and puts it into the file named
+// b.Path.  Updates pos after each write.  Large blobs might be
+// written using multiple Write() calls.  Supports the io.Writer
+// interface.
+func (b *Blob) Write(data []byte) (n int, err error) {
+	return
+}
+
+// Read reads from the file named b.Path and puts the data into `buf`,
+// returning n as the number of bytes read.  If `buf` is too small to
+// fit all of the data, we update b.pos so the next Read() can
+// continue where we left off.  Returns io.EOF err when all data has
+// already been returned by previous Read() calls.  Supports the
+// io.Reader interface.
+func (b *Blob) Read(buf []byte) (n int, err error) {
+	return
+}
+
+// Seek moves the cursor position `b.pos` to `n`, following the same
+// semantics for `whence` as in the seek() or lseek() system call.
+// Supports the io.Seeker interface.
+func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
+	return
+}
+
+// Tell returns the current seek position (the current value of
+// `b.pos`) in the file.
+func (b *Blob) Tell() (n int64, err error) {
+	// we do this by calling b.Seek(0, 1)
+	return b.Seek(0, io.SeekCurrent)
+}
+
 // GetBlob retrieves the blob of a key by reading its file contents.
 func (db *Db) GetBlob(key *Key) (blob *[]byte, err error) {
 	buf, err := ioutil.ReadFile(db.Path(key))
