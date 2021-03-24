@@ -146,7 +146,8 @@ func TestHash(t *testing.T) {
 }
 
 func TestBlob(t *testing.T) {
-	b := Blob{}.Init()
+	db := setup(t)
+	b := Blob{Db: db, Path: "foo/bar/baz"}.Init()
 
 	// put something in the blob
 	data := *(mkblob("somedata"))
