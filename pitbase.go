@@ -301,7 +301,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 func (b *Blob) Read(buf []byte) (n int, err error) {
 	// XXX Open() probably needs to be moved to Init() or even a
 	// separate open function, and then we store the file handle in
-	// the Blob struct
+	// Blob{fh}
 	file, err := os.Open(b.Path)
 	if err != nil {
 		return
@@ -320,6 +320,9 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 // current offset, and 2 means relative to the end.  It returns the
 // new offset and an error, if any.  Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
+	// XXX it's likely that this entire function can be simplified
+	// by just keeping the open file handle in Blob{fh} and calling
+	// fh.Seek() instead of replicating all of the functionality here.
 	switch whence {
 	case 0:
 		if n < 0 {
