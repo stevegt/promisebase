@@ -244,14 +244,65 @@ func (db *Db) put(key *Key, val *[]byte) (err error) {
 }
 
 type Blob struct {
-	Db   *Db
-	Path string // relative path from db root dir
-	Size int64  // file size
-	pos  int64  // position where next Read() should start
+	Db       *Db
+	Path     string // relative path from db root dir
+	Size     int64  // file size // XXX deprecate, replace with db.BlobSize()
+	fh       *os.File
+	pos      int64 // position where next Read() should start // XXX deprecate
+	Readonly bool
+	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
-func (b Blob) Init() *Blob {
-	return &b
+func (db *Db) BlobStat(path string) (info *os.FileInfo, err error) {
+	// XXX passthrough to os.Stat()
+	return
+}
+
+func (db *Db) BlobSize(path string) (info *os.FileInfo, err error) {
+	// XXX call BlobStat()
+	return
+}
+
+func (db *Db) OpenBlob(path string) (b *Blob, err error) {
+	fullpath := filepath.Join(db.Dir, path)
+	b = &Blob{Db: db, Path: path}
+	if exists(fullpath) {
+		// open existing file
+		b.fh, err = os.Open(fullpath)
+		if err != nil {
+			return
+		}
+		b.Readonly = true
+	} else {
+		// open temporary file
+		b.inode, err = db.tmpFile()
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (b *Blob) Close() (err error) {
+	defer b.inode.Close()
+
+	db := b.Db
+	path := filepath.Join(db.Dir, b.Path)
+
+	// mkdir
+	dir, _ := filepath.Split(path)
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return
+	}
+
+	// rename temp file to permanent blob file
+	err = os.Rename(b.inode.path, path)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 // Write takes data from `data` and puts it into the file named
@@ -265,26 +316,8 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 	// might need a b.Close() function to do the Rename when we're done
 	// writing
 
-	db := b.Db
-	path := filepath.Join(db.Dir, b.Path)
-
-	// get temporary file
-	inode, err := db.tmpFile()
-	defer inode.Close()
-
 	// write to temp file
-	n, err = inode.fh.Write(data)
-	if err != nil {
-		return
-	}
-
-	dir, _ := filepath.Split(path)
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return
-	}
-	// rename temp file to key file
-	err = os.Rename(inode.path, path)
+	n, err = b.inode.fh.Write(data)
 	if err != nil {
 		return
 	}
@@ -694,16 +727,13 @@ func (node *Node) traverse(all bool) (nodes []*Node, err error) {
 	return
 }
 
-/*
-func exists(parts ...string) (found bool) {
-	path := filepath.Join(parts...)
+func exists(path string) (found bool) {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return false
 	}
 	return true
 }
-*/
 
 // Key is a unique identifier for an object. An object is a Merkle tree inner or leaf node (blob), world, or
 // ref.

@@ -147,13 +147,22 @@ func TestHash(t *testing.T) {
 
 func TestBlob(t *testing.T) {
 	db := setup(t)
-	b := Blob{Db: db, Path: "foo/bar/baz"}.Init()
+	b, err := db.OpenBlob("foo/bar/baz")
+	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// put something in the blob
 	data := *(mkblob("somedata"))
 	nwrite, err := b.Write(data)
 	tassert(t, err == nil, "b.Write err %v", err)
 	tassert(t, nwrite == len(data), "b.Write len expected %v, got %v", len(data), nwrite)
+
+	// close writeable
+	err = b.Close()
+	tassert(t, err == nil, "b.Close() err %v", err)
+
+	// re-open readable
+	b, err = db.OpenBlob("foo/bar/baz")
+	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// seek to a location
 	nseek, err := b.Seek(2, 0)
@@ -173,6 +182,11 @@ func TestBlob(t *testing.T) {
 	expect := *(mkblob("medata"))
 	got := buf[:nread]
 	tassert(t, bytes.Compare(expect, got) == 0, "b.Read expected %v, got %v", expect, got)
+
+	// ensure we can't write to a read-only blob
+	_, err = b.Write(data)
+	tassert(t, err != nil, "b.Write to a read-only file should throw error")
+
 }
 
 func TestPut(t *testing.T) {
