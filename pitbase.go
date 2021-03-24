@@ -318,7 +318,8 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 // Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
 	// XXX handle whence
-	// XXX handle case where n < 0 or n > file size
+	// XXX handle n < 0
+	// XXX handle n > file size
 	nout = b.pos // XXX is this right?  we return the old pos?
 	b.pos = n
 	return
