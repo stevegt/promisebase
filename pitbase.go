@@ -301,6 +301,17 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 // already been returned by previous Read() calls.  Supports the
 // io.Reader interface.
 func (b *Blob) Read(buf []byte) (n int, err error) {
+	// XXX Open() probably needs to be moved to Init() or even a
+	// separate open function, and then we store the file handle in
+	// the Blob struct
+	file, err := os.Open(b.Path)
+	if err != nil {
+		return
+	}
+	reader := bufio.NewReader(file)
+	// XXX we want to make sure that we're reading from b.pos
+	n, err = reader.Read(buf)
+	b.pos += n
 	return
 }
 
