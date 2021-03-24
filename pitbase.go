@@ -246,9 +246,7 @@ func (db *Db) put(key *Key, val *[]byte) (err error) {
 type Blob struct {
 	Db       *Db
 	Path     string // relative path from db root dir
-	Size     int64  // file size // XXX deprecate, replace with db.BlobSize()
 	fh       *os.File
-	pos      int64 // position where next Read() should start // XXX deprecate
 	Readonly bool
 	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
@@ -332,60 +330,17 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 // already been returned by previous Read() calls.  Supports the
 // io.Reader interface.
 func (b *Blob) Read(buf []byte) (n int, err error) {
-	// XXX Open() probably needs to be moved to Init() or even a
-	// separate open function, and then we store the file handle in
-	// Blob{fh}
-	file, err := os.Open(b.Path)
-	if err != nil {
-		return
-	}
-	reader := bufio.NewReader(file)
-	// XXX we want to make sure that we're reading from b.pos
-	n, err = reader.Read(buf)
-	b.pos += int64(n)
-	return
+	return b.fh.Read(buf)
 }
 
-// Seek moves the cursor position `b.pos` to `n`, following the same
-// semantics as os.File.Seek():  Seek sets the offset for the next Read
+// Seek moves the cursor position `b.pos` to `n`, using
+// os.File.Seek():  Seek sets the offset for the next Read
 // or Write on file to offset, interpreted according to `whence`: 0
 // means relative to the origin of the file, 1 means relative to the
 // current offset, and 2 means relative to the end.  It returns the
 // new offset and an error, if any.  Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
-	// XXX it's likely that this entire function can be simplified
-	// by just keeping the open file handle in Blob{fh} and calling
-	// fh.Seek() instead of replicating all of the functionality here.
-	switch whence {
-	case 0:
-		if n < 0 {
-			panic("not implemented") // XXX
-		}
-		if n > b.Size {
-			panic("not implemented") // XXX
-		}
-		b.pos = n
-	case 1:
-		if b.pos+n < 0 {
-			panic("not implemented") // XXX
-		}
-		if b.pos+n > b.Size {
-			panic("not implemented") // XXX
-		}
-		b.pos += int64(n)
-	case 2:
-		if b.pos-n < 0 {
-			panic("not implemented") // XXX
-		}
-		if b.pos-n > b.Size {
-			panic("not implemented") // XXX
-		}
-		b.pos = b.Size - n
-	default:
-		panic("not implemented") // XXX
-	}
-	nout = b.pos
-	return
+	return b.fh.Seek(n, whence)
 }
 
 // Tell returns the current seek position (the current value of
