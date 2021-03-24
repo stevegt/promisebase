@@ -309,7 +309,7 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 	reader := bufio.NewReader(file)
 	// XXX we want to make sure that we're reading from b.pos
 	n, err = reader.Read(buf)
-	b.pos += n
+	b.pos += int64(n)
 	return
 }
 
@@ -317,6 +317,10 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 // semantics for `whence` as in the seek() or lseek() system call.
 // Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
+	// XXX handle whence
+	// XXX handle case where n < 0 or n > file size
+	nout = b.pos // XXX is this right?  we return the old pos?
+	b.pos = n
 	return
 }
 
