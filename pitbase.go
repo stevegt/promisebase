@@ -246,6 +246,7 @@ func (db *Db) put(key *Key, val *[]byte) (err error) {
 }
 
 type Blob struct {
+	Db   *Db
 	Path string // relative path from db root dir
 	Size int64  // file size
 	pos  int64  // position where next Read() should start
@@ -259,7 +260,37 @@ func (b Blob) Init() *Blob {
 // b.Path.  Updates pos after each write.  Large blobs might be
 // written using multiple Write() calls.  Supports the io.Writer
 // interface.
+
 func (b *Blob) Write(data []byte) (n int, err error) {
+	// XXX this works for a file that fits in a single write; for
+	// larger blobs we need to do the tmpFile() stuff in Init() and we
+	// might need a b.Close() function to do the Rename when we're done
+	// writing
+
+	db := b.Db
+	path := filepath.Join(db.Dir, b.Path)
+
+	// get temporary file
+	inode, err := db.tmpFile()
+	defer inode.Close()
+
+	// write to temp file
+	n, err = inode.fh.Write(data)
+	if err != nil {
+		return
+	}
+
+	dir, _ := filepath.Split(path)
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return
+	}
+	// rename temp file to key file
+	err = os.Rename(inode.path, path)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
