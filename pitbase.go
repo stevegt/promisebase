@@ -260,13 +260,21 @@ func (b Blob) Init() *Blob {
 // written using multiple Write() calls.  Supports the io.Writer
 // interface.
 func (b *Blob) Write(data []byte) (n int, err error) {
-	file, err := os.Open(b.Path)
-	if err != nil {
+	var file *os.File
+	_, err = os.Stat(b.Path)
+	if os.IsNotExist(err) {
+		file, err = os.Create(b.Path)
+	} else if err != nil {
+		return
+	} else {
+		file, err = os.Open(b.Path)
+	}
+	if err != nil && !os.IsNotExist(err) {
 		return
 	}
 	writer := bufio.NewWriter(file)
 	n, err = writer.Write(data)
-	b.pos = n // should require nil error to run this line?
+	b.pos = int64(n) // should require nil error to run this line?
 	return
 }
 
@@ -277,13 +285,14 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 // already been returned by previous Read() calls.  Supports the
 // io.Reader interface.
 func (b *Blob) Read(buf []byte) (n int, err error) {
+	fmt.Println(b.Path)
 	file, err := os.Open(b.Path)
 	if err != nil {
 		return
 	}
 	reader := bufio.NewReader(file)
 	n, err = reader.Read(buf)
-	b.pos = n
+	b.pos = int64(n)
 	return
 }
 
@@ -291,6 +300,8 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 // semantics for `whence` as in the seek() or lseek() system call.
 // Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
+	nout = b.pos
+	b.pos = n
 	return
 }
 
