@@ -260,18 +260,7 @@ func (b Blob) Init() *Blob {
 // written using multiple Write() calls.  Supports the io.Writer
 // interface.
 func (b *Blob) Write(data []byte) (n int, err error) {
-	var file *os.File
-	_, err = os.Stat(b.Path)
-	if os.IsNotExist(err) {
-		file, err = os.Create(b.Path)
-	} else if err != nil {
-		return
-	} else {
-		file, err = os.Open(b.Path)
-	}
-	if err != nil && !os.IsNotExist(err) {
-		return
-	}
+	file, err := os.Create(b.Path)
 	writer := bufio.NewWriter(file)
 	n, err = writer.Write(data)
 	b.pos = int64(n) // should require nil error to run this line?
