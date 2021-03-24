@@ -318,10 +318,25 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 // Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
 	// XXX handle whence
+	if whence == 0 {
+		nout = n
+		b.pos = n
+	} else if whence == 1 {
+		b.pos += int64(n)
+		nout = b.pos
+	} else if whence == 2 {
+		b.pos = 0 // how do we find the size of the buf?
+	} else {
+		// throw error, whence can't be bigger than 2
+	}
 	// XXX handle n < 0
+	if n < 0 {
+		// throw error?
+	}
 	// XXX handle n > file size
-	nout = b.pos // XXX is this right?  we return the old pos?
-	b.pos = n
+	if n > b.Size {
+		// throw error
+	}
 	return
 }
 
