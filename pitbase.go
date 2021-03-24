@@ -117,7 +117,6 @@ func (db Db) Create() (out *Db, err error) {
 		return
 	}
 
-	// XXX use filepath.Join() for any Sprintf that's doing something like this
 	// The blob dir is where we store hashed blobs
 	err = mkdir(filepath.Join(dir, "blob"))
 	if err != nil {
@@ -149,7 +148,6 @@ func (db Db) Create() (out *Db, err error) {
 		}
 	}
 
-	// XXX save db as json into db.Dir/config.json
 	buf, err := json.Marshal(db)
 	if err != nil {
 		return
