@@ -158,7 +158,7 @@ func TestBlob(t *testing.T) {
 	// seek to a location
 	nseek, err := b.Seek(2, 0)
 	tassert(t, err == nil, "b.Seek err %v", err)
-	tassert(t, nseek == int64(2), "b.Seek expected %v, got %v", int64(2), nseek)
+	tassert(t, nseek == int64(2), "b.Seek expected %v, got %v", 2, nseek)
 
 	// check our current location
 	ntell, err := b.Tell()
