@@ -253,7 +253,7 @@ type Blob struct {
 
 func (db *Db) BlobStat(path string) (info os.FileInfo, err error) {
 	// XXX passthrough to os.Stat()
-	blob, err := OpenBlob(path)
+	blob, err := db.OpenBlob(path)
 	if err != nil {
 		return
 	}
@@ -264,7 +264,7 @@ func (db *Db) BlobStat(path string) (info os.FileInfo, err error) {
 func (db *Db) BlobSize(path string) (size int64, err error) {
 	// XXX call BlobStat()
 	info, err := db.BlobStat(path)
-	size := info.Size()
+	size = info.Size()
 	return
 }
 
