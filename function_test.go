@@ -145,6 +145,13 @@ func TestHash(t *testing.T) {
 	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
 }
 
+func TestObject(t *testing.T) {
+	var x Object
+	// the following line will fail to compile if Blob is missing any
+	// of the methods that would make it match the Object{} interface
+	x = Blob{}
+}
+
 func TestBlob(t *testing.T) {
 	db := setup(t)
 	b, err := db.OpenBlob("foo/bar/baz")
