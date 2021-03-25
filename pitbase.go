@@ -356,6 +356,7 @@ func (b *Blob) Tell() (n int64, err error) {
 
 // GetBlob retrieves the blob of a key by reading its file contents.
 func (db *Db) GetBlob(key *Key) (blob *[]byte, err error) {
+	// XXX call OpenBlob(), b.Read(), and b.Close()
 	buf, err := ioutil.ReadFile(db.Path(key))
 	if err != nil {
 		return
@@ -520,6 +521,7 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 		// fmt.Println("Exists:", key.String(), string(content))
 	} else if os.IsNotExist(err) {
 		// store it
+		// XXX call OpenBlob(), b.Write(), and b.Close() instead of put()
 		err = db.put(key, blob)
 	}
 	return
