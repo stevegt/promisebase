@@ -190,8 +190,8 @@ func TestBlob(t *testing.T) {
 	// test stat and size
 	info, err := db.BlobStat("foo/bar/baz")
 	tassert(t, err == nil, "BlobStat err %v", err)
-	gotname := info.Name()
-	tassert(t, gotname == "foo/bar/baz", "BlobStat name mismatch %v", gotname)
+	isdir := info.IsDir()
+	tassert(t, isdir == false, "BlobStat isdir %v", isdir)
 	size, err := db.BlobSize("foo/bar/baz")
 	tassert(t, err == nil, "BlobSize err %v", err)
 	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
