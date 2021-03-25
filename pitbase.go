@@ -525,6 +525,7 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
+// XXX refactor to use OpenBlob() and Write()
 func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 	key, err = db.KeyFromBlob(algo, blob)
 	if err != nil {
@@ -776,6 +777,7 @@ func (k Key) Canon() string {
 
 // KeyFromPath takes either a canonical path or a path relative to db
 // root dir and returns a populated Key object
+// XXX replace with ObjectFromCanPath()
 func (db *Db) KeyFromPath(path string) (key *Key) {
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
@@ -813,12 +815,14 @@ func hex2bin (hexkey string) (binhash []byte) {
 */
 
 // KeyFromString returns a key pointer corresponding to the given algo and string
+// XXX move to function_test.go as a helper
 func (db *Db) KeyFromString(algo string, s string) (key *Key, err error) {
 	blob := []byte(s)
 	return db.KeyFromBlob(algo, &blob)
 }
 
 // KeyFromBlob takes a class, algo, and blob and returns a populated Key object
+// XXX deprecate in favor of Blob.Write(), Close(), then Hash()
 func (db *Db) KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
 	binhash, err := Hash(algo, blob)
 	if err != nil {
