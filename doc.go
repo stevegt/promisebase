@@ -7,7 +7,7 @@ Vocabulary:
 
 - abspath: absolute path on hard disk, including subdirs
 - relpath: path relative to db.Dir, including subdirs
-- canpath: canonical path, without subdirs
+- canpath: canonical path; relpath without subdirs
 - hash: cryptographic hash of a blob or node
 - algo: name (string) describing hash algorithm
 - subdir: three-character hexadecimal segment of hash
