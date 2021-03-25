@@ -520,9 +520,21 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 		// }
 		// fmt.Println("Exists:", key.String(), string(content))
 	} else if os.IsNotExist(err) {
+		err = nil
 		// store it
-		// XXX call OpenBlob(), b.Write(), and b.Close() instead of put()
-		err = db.put(key, blob)
+		b, err := db.OpenBlob(key.Path())
+		if err != nil {
+			return key, err
+		}
+		_, err = b.Write(*blob)
+		if err != nil {
+			return key, err
+		}
+		err = b.Close()
+		if err != nil {
+			return key, err
+		}
+
 	}
 	return
 }
