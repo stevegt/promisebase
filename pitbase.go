@@ -251,7 +251,7 @@ type Blob struct {
 	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
-func (db *Db) BlobStat(path string) (info *os.FileInfo, err error) {
+func (db *Db) BlobStat(path string) (info os.FileInfo, err error) {
 	// XXX passthrough to os.Stat()
 	blob, err := OpenBlob(path)
 	if err != nil {
@@ -261,7 +261,7 @@ func (db *Db) BlobStat(path string) (info *os.FileInfo, err error) {
 	return
 }
 
-func (db *Db) BlobSize(path string) (info *os.FileInfo, err error) {
+func (db *Db) BlobSize(path string) (size int64, err error) {
 	// XXX call BlobStat()
 	info, err := db.BlobStat(path)
 	size := info.Size()
