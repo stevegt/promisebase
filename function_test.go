@@ -187,6 +187,14 @@ func TestBlob(t *testing.T) {
 	_, err = b.Write(data)
 	tassert(t, err != nil, "b.Write to a read-only file should throw error")
 
+	// test stat and size
+	info, err := db.BlobStat("foo/bar/baz")
+	tassert(t, err == nil, "BlobStat err %v", err)
+	gotname := info.Name()
+	tassert(t, gotname == "foo/bar/baz", "BlobStat name mismatch %v", gotname)
+	size, err := db.BlobSize("foo/bar/baz")
+	tassert(t, err == nil, "BlobSize err %v", err)
+	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
 }
 
 func TestPut(t *testing.T) {
