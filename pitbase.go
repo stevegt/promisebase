@@ -257,7 +257,8 @@ func (db *Db) BlobStat(path string) (info os.FileInfo, err error) {
 }
 
 func (db *Db) BlobSize(path string) (size int64, err error) {
-	info, err := db.BlobStat(path)
+	fullpath := filepath.Join(db.Dir, path)
+	info, err := db.BlobStat(fullpath)
 	if err != nil {
 		return
 	}
