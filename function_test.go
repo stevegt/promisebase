@@ -188,11 +188,11 @@ func TestBlob(t *testing.T) {
 	tassert(t, err != nil, "b.Write to a read-only file should throw error")
 
 	// test stat and size
-	info, err := db.BlobStat("foo/bar/baz")
+	info, err := db.Stat("foo/bar/baz")
 	tassert(t, err == nil, "BlobStat err %v", err)
 	isdir := info.IsDir()
 	tassert(t, isdir == false, "BlobStat isdir %v", isdir)
-	size, err := db.BlobSize("foo/bar/baz")
+	size, err := db.Size("foo/bar/baz")
 	tassert(t, err == nil, "BlobSize err %v", err)
 	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
 }

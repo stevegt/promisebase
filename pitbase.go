@@ -22,31 +22,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Db is a key-value database. Dir is the base directory. Depth is the
-// number of subdirectory levels in the blob and node trees.  We use
-// three-character hexadecimal names for the subdirectories, giving us
-// a maximum of 4096 subdirs in a parent dir -- that's a sweet spot.
-// Two-character names (such as what git uses under .git/objects) only
-// allow for 256 subdirs, which is unnecessarily small.
-// Four-character names would give us 65,536 subdirs, which would
-// cause performance issues on e.g. ext4.
-type Db struct {
-	Dir     string          // base of tree
-	Depth   int             // number of subdir levels in blob and node trees
-	Poly    resticRabin.Pol // rabin polynomial for chunking
-	MinSize uint            // minimum chunk size
-	MaxSize uint            // maximum chunk size
-}
-
-// Inode contains various file-related items such as file descriptor,
-// file handle, maybe some methods, etc.
-type Inode struct {
-	fd   uintptr
-	fh   *os.File
-	path string
-	key  *Key
-}
-
 func init() {
 	var debug string
 	debug = os.Getenv("DEBUG")
@@ -72,6 +47,50 @@ func caller() func(*runtime.Frame) (function string, file string) {
 		p, _ := os.Getwd()
 		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, GetGID())
 	}
+}
+
+// Db is a key-value database. Dir is the base directory. Depth is the
+// number of subdirectory levels in the blob and node trees.  We use
+// three-character hexadecimal names for the subdirectories, giving us
+// a maximum of 4096 subdirs in a parent dir -- that's a sweet spot.
+// Two-character names (such as what git uses under .git/objects) only
+// allow for 256 subdirs, which is unnecessarily small.
+// Four-character names would give us 65,536 subdirs, which would
+// cause performance issues on e.g. ext4.
+type Db struct {
+	Dir     string          // base of tree
+	Depth   int             // number of subdir levels in blob and node trees
+	Poly    resticRabin.Pol // rabin polynomial for chunking
+	MinSize uint            // minimum chunk size
+	MaxSize uint            // maximum chunk size
+}
+
+// Object is a data item stored in a Db; includes blob, node, and
+// stream.
+type Object interface {
+	Read(buf []byte) (n int, err error)
+	Write(data []byte) (n int, err error)
+	Seek(n int64, whence int) (nout int64, err error)
+	Tell() (n int64, err error)
+	Close() (err error)
+	Size() (n int64, err error)
+	// XXX deprecate Key and Inode by implementing the following
+	Class() (name string)
+	Algo() (name string)
+	Hash() (hex string)
+	AbsPath() (path string)
+	RelPath() (path string)
+	CanPath() (path string)
+}
+
+// Inode contains various file-related items such as file descriptor,
+// file handle, maybe some methods, etc.
+// XXX deprecate in favor of Object
+type Inode struct {
+	fd   uintptr
+	fh   *os.File
+	path string
+	key  *Key
 }
 
 func mkdir(dir string) (err error) {
@@ -214,6 +233,7 @@ func tmpFile(dir string) (inode Inode, err error) {
 }
 
 // Put creates a temporary file for a key and then atomically renames to the permanent path.
+// XXX deprecate
 func (db *Db) put(key *Key, val *[]byte) (err error) {
 
 	// get temporary file
@@ -251,13 +271,13 @@ type Blob struct {
 	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
-func (db *Db) BlobStat(path string) (info os.FileInfo, err error) {
+func (db *Db) Stat(path string) (info os.FileInfo, err error) {
 	fullpath := filepath.Join(db.Dir, path)
 	return os.Stat(fullpath)
 }
 
-func (db *Db) BlobSize(path string) (size int64, err error) {
-	info, err := db.BlobStat(path)
+func (db *Db) Size(path string) (size int64, err error) {
+	info, err := db.Stat(path)
 	if err != nil {
 		return
 	}
@@ -708,14 +728,15 @@ func exists(path string) (found bool) {
 	return true
 }
 
-// Key is a unique identifier for an object. An object is a Merkle tree inner or leaf node (blob), world, or
-// ref.
+// Key is a unique identifier for an object. An object is a Merkle
+// tree inner or leaf node (blob), world, or ref.
+// XXX deprecate in favor of Object
 type Key struct {
 	Db    *Db
 	Class string
-	World string
-	Algo  string
-	Hash  string
+	// World string
+	Algo string
+	Hash string
 }
 
 // Path returns the filesystem path of a key.  We use the nesting depth

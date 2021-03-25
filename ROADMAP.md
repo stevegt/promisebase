@@ -12,6 +12,7 @@ x implement `pb exec` and a language prototype
   - maybe call them both Object
     - maybe Object interface
   - maybe merge in Key as well
+  - rename blob to block or chunk?
 - split into multiple files or packages
     - db, node, world, and util
     - World may be a good candidate for a separate package
