@@ -525,11 +525,33 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
 func (db *Db) PutBlob(algo string, buf *[]byte) (b *Blob, err error) {
+
+	key, err := db.KeyFromBuf(algo, buf)
+	relpath := key.Path()
+
+	b, err = db.OpenBlob(relpath)
+	if err != nil {
+		return
+	}
+	n, err := b.Write(buf)
+	if err != nil {
+		return
+	}
+	if n != len(buf) {
+		panic("short write")
+	}
+	tassert(t, nwrite == len(data), "b.Write len expected %v, got %v", len(data), nwrite)
+
+	// close writeable
+	err = b.Close()
+	tassert(t, err == nil, "b.Close() err %v", err)
+
 	key, err = db.KeyFromBuf(algo, buf)
 	if err != nil {
 		return
 	}
 	path := db.Path(key)
+
 	// check if it's already stored
 	_, err = os.Stat(path)
 	if err == nil {
@@ -816,12 +838,12 @@ func hex2bin (hexkey string) (binhash []byte) {
 // XXX move to function_test.go as a helper
 func (db *Db) KeyFromString(algo string, s string) (key *Key, err error) {
 	blob := []byte(s)
-	return db.KeyFromBlob(algo, &blob)
+	return db.KeyFromBuf(algo, &blob)
 }
 
-// KeyFromBlob takes a class, algo, and blob and returns a populated Key object
+// KeyFromBuf takes a class, algo, and byte slice and returns a populated Key object
 // XXX deprecate in favor of Blob.Write(), Close(), then Hash()
-func (db *Db) KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
+func (db *Db) KeyFromBuf(algo string, blob *[]byte) (key *Key, err error) {
 	binhash, err := Hash(algo, blob)
 	if err != nil {
 		return
