@@ -271,7 +271,6 @@ type Blob struct {
 	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
-// XXX put stuff in here
 func (b *Blob) AbsPath() (path string) {
 	return
 }
@@ -281,14 +280,12 @@ func (b *Blob) CanPath() (path string) {
 func (b *Blob) Class() (name string) {
 	return
 }
-func (b *Blob) Hash() (hex string) {
-	return
-}
 func (b *Blob) RelPath() (path string) {
 	return
 }
 func (b *Blob) Size() (n int64, err error) {
-	return
+	info := os.Stat(fh)
+	return info.Size()
 }
 
 func (db *Db) Stat(path string) (info os.FileInfo, err error) {
@@ -327,6 +324,11 @@ func (db *Db) OpenBlob(path string) (b *Blob, err error) {
 
 func (b *Blob) Algo() (name string) {
 	return strings.Split(b.relPath, "/")[1] // grabs algo from blob path
+}
+
+func (b *Blob) Hash() (hex string) {
+	s := strings.Split(b.Path, "/") // split path by "/"
+	return s[len(s)-1]              // grabs the hash, which is always the final element
 }
 
 func (b *Blob) Close() (err error) {
