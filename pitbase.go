@@ -528,48 +528,26 @@ func (db *Db) PutBlob(algo string, buf *[]byte) (b *Blob, err error) {
 
 	key, err := db.KeyFromBuf(algo, buf)
 	relpath := key.Path()
-
-	b, err = db.OpenBlob(relpath)
-	if err != nil {
-		return
-	}
-	n, err := b.Write(buf)
-	if err != nil {
-		return
-	}
-	if n != len(buf) {
-		panic("short write")
-	}
-	tassert(t, nwrite == len(data), "b.Write len expected %v, got %v", len(data), nwrite)
-
-	// close writeable
-	err = b.Close()
-	tassert(t, err == nil, "b.Close() err %v", err)
-
-	key, err = db.KeyFromBuf(algo, buf)
-	if err != nil {
-		return
-	}
-	path := db.Path(key)
+	abspath := db.Path(key)
 
 	// check if it's already stored
-	_, err = os.Stat(path)
+	_, err = os.Stat(abspath)
 	if err == nil {
-		// content, err2 := ioutil.ReadFile(path)
-		// if err2 != nil {
-		// 	return nil, err2
-		// }
-		// fmt.Println("Exists:", key.String(), string(content))
+		// noop
 	} else if os.IsNotExist(err) {
-		err = nil
 		// store it
-		b, err := db.OpenBlob(key.Path())
+		err = nil // clear IsNotExist err
+		b, err := db.OpenBlob(relpath)
 		if err != nil {
 			return b, err
 		}
-		_, err = b.Write(*buf)
+		n, err = b.Write(*buf)
 		if err != nil {
 			return b, err
+		}
+		if n != len(buf) {
+			// XXX
+			panic("short write")
 		}
 		err = b.Close()
 		if err != nil {
