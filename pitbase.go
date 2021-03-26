@@ -497,11 +497,10 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 			return nil, err
 		}
 
-		key, err := db.PutBlob(algo, &chunk.Data)
+		newblobnode, err := db.PutBlob(algo, &chunk.Data)
 		if err != nil {
 			return nil, err
 		}
-		newblobnode := &Node{Db: db, Key: key, Label: ""}
 
 		if oldnode == nil {
 			// we're just starting the tree
@@ -537,6 +536,7 @@ func (db *Db) PutBlob(algo string, buf *[]byte) (b *Blob, err error) {
 	} else if os.IsNotExist(err) {
 		// store it
 		err = nil // clear IsNotExist err
+		var n int
 		b, err := db.OpenBlob(relpath)
 		if err != nil {
 			return b, err
@@ -545,7 +545,7 @@ func (db *Db) PutBlob(algo string, buf *[]byte) (b *Blob, err error) {
 		if err != nil {
 			return b, err
 		}
-		if n != len(buf) {
+		if n != len(*buf) {
 			// XXX
 			panic("short write")
 		}
@@ -867,7 +867,7 @@ func GetGID() uint64 {
 // NodeEntry stores the metadata of a Merkle tree inner or leaf node.
 type NodeEntry struct {
 	CanonPath string
-	Label     string
+	// Label     string
 }
 
 // String combines the node's path and label into one string.
@@ -970,8 +970,8 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// populate the entries field
 	var entries []NodeEntry
 	for _, child := range children {
-		canon := child.Key.Canon()
-		label := child.Label
+		canon := child.CanPath()
+		// label := child.Label
 		entry := NodeEntry{CanonPath: canon, Label: label}
 		entries = append(entries, entry)
 	}
