@@ -907,6 +907,43 @@ type Node struct {
 	entries []NodeEntry
 }
 
+func (node *Node) Read(buf []byte) (n int, err error) {
+	return
+}
+func (node *Node) Write(data []byte) (n int, err error) {
+	return
+}
+func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
+	return
+}
+func (node *Node) Tell() (n int64, err error) {
+	return
+}
+func (node *Node) Close() (err error) {
+	return
+}
+func (node *Node) Size() (n int64, err error) {
+	return
+}
+func (node *Node) Class() (name string) {
+	return
+}
+func (node *Node) Algo() (name string) {
+	return
+}
+func (node *Node) Hash() (hex string) {
+	return
+}
+func (node *Node) AbsPath() (path string) {
+	return
+}
+func (node *Node) RelPath() (path string) {
+	return
+}
+func (node *Node) CanPath() (path string) {
+	return
+}
+
 // String returns the concatenated node entries
 func (node *Node) String() (out string) {
 	for _, entry := range node.entries {
