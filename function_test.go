@@ -145,12 +145,14 @@ func TestHash(t *testing.T) {
 	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
 }
 
+/*
 func TestObject(t *testing.T) {
 	var x Object
 	// the following line will fail to compile if Blob is missing any
 	// of the methods that would make it match the Object{} interface
 	x = Blob{}
 }
+*/
 
 func TestBlob(t *testing.T) {
 	db := setup(t)
@@ -202,6 +204,16 @@ func TestBlob(t *testing.T) {
 	size, err := db.Size("foo/bar/baz")
 	tassert(t, err == nil, "BlobSize err %v", err)
 	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
+
+	// test Object
+	objectExample(b)
+
+}
+
+// XXX this is just temporarily here as an example of how an Object
+// might be used
+func objectExample(o Object) {
+	fmt.Printf("object %s is %d bytes", o.CanPath(), o.Size())
 }
 
 func TestPut(t *testing.T) {
