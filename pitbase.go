@@ -283,12 +283,11 @@ func (b *Blob) Size() (n int64, err error) {
 func (b *Blob) AbsPath() (path string) {
 	return filepath.Join(b.Db.Dir, b.relPath)
 }
+
 func (b *Blob) CanPath() (path string) {
-	return
+	return filepath.Join(b.Class(), b.Algo(), b.Hash())
 }
-func (b *Blob) Class() (name string) {
-	return
-}
+
 func (b *Blob) RelPath() (path string) {
 	return b.relPath
 }
@@ -307,12 +306,12 @@ func (db *Db) Size(path string) (size int64, err error) {
 	return
 }
 
-func (db *Db) OpenBlob(path string) (b *Blob, err error) {
-	fullpath := filepath.Join(db.Dir, path)
-	b = &Blob{Db: db, relPath: path}
-	if exists(fullpath) {
+func (db *Db) OpenBlob(relpath string) (b *Blob, err error) {
+	abspath := filepath.Join(db.Dir, relpath)
+	b = &Blob{Db: db, relPath: relpath}
+	if exists(abspath) {
 		// open existing file
-		b.fh, err = os.Open(fullpath)
+		b.fh, err = os.Open(abspath)
 		if err != nil {
 			return
 		}
@@ -327,13 +326,19 @@ func (db *Db) OpenBlob(path string) (b *Blob, err error) {
 	return
 }
 
+const pathsep = string(os.PathSeparator)
+
+func (b *Blob) Class() (name string) {
+	return strings.Split(b.relPath, pathsep)[0]
+}
+
 func (b *Blob) Algo() (name string) {
-	return strings.Split(b.relPath, "/")[1] // grabs algo from blob path
+	return strings.Split(b.relPath, pathsep)[1] // grabs algo from blob path
 }
 
 func (b *Blob) Hash() (hex string) {
-	s := strings.Split(b.relPath, "/") // split path by "/"
-	return s[len(s)-1]                 // grabs the hash, which is always the final element
+	s := strings.Split(b.relPath, pathsep) // split path by "/"
+	return s[len(s)-1]                     // grabs the hash, which is always the final element
 }
 
 func (b *Blob) Close() (err error) {

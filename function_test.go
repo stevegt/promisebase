@@ -145,18 +145,13 @@ func TestHash(t *testing.T) {
 	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
 }
 
-/*
-func TestObject(t *testing.T) {
-	var x Object
-	// the following line will fail to compile if Blob is missing any
-	// of the methods that would make it match the Object{} interface
-	x = &Blob{}
-}
-*/
-
 func TestBlob(t *testing.T) {
+	relpath := "blob/sha256/87d/149/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+
 	db := setup(t)
-	b, err := db.OpenBlob("foo/bar/baz")
+	b, err := db.OpenBlob(relpath)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// put something in the blob
@@ -170,7 +165,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "b.Close() err %v", err)
 
 	// re-open readable
-	b, err = db.OpenBlob("foo/bar/baz")
+	b, err = db.OpenBlob(relpath)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// seek to a location
@@ -196,25 +191,50 @@ func TestBlob(t *testing.T) {
 	_, err = b.Write(data)
 	tassert(t, err != nil, "b.Write to a read-only file should throw error")
 
-	// test stat and size
-	info, err := db.Stat("foo/bar/baz")
+	// test db methods for stat and size
+	info, err := db.Stat(relpath)
 	tassert(t, err == nil, "BlobStat err %v", err)
 	isdir := info.IsDir()
 	tassert(t, isdir == false, "BlobStat isdir %v", isdir)
-	size, err := db.Size("foo/bar/baz")
+	size, err := db.Size(relpath)
 	tassert(t, err == nil, "BlobSize err %v", err)
 	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
 
-	// test Object
+	// test Object methods
 	objectExample(t, b)
+
+	abspath := b.AbsPath()
+	tassert(t, len(abspath) > 11, "path len %v", len(abspath))
+	fmt.Printf("object path %s\n", abspath)
+
+	gotrelpath := b.RelPath()
+	tassert(t, relpath == gotrelpath, "relpath '%v'", gotrelpath)
+
+	class := b.Class()
+	tassert(t, class == "blob", "class '%v'", class)
+
+	algo := b.Algo()
+	tassert(t, algo == "sha256", "algo '%v'", algo)
+
+	gothash := b.Hash()
+	tassert(t, gothash == hash, "hash '%v'", gothash)
+
+	gotcanpath := b.CanPath()
+	tassert(t, canpath == gotcanpath, "canpath '%v'", gotcanpath)
+
+	size, err = b.Size()
+	tassert(t, err == nil, "Blob.Size() err %v", err)
+	fmt.Printf("object %s is %d bytes\n", b.CanPath(), size)
 
 }
 
 // an example of how an Object might be used
 func objectExample(t *testing.T, o Object) {
+
 	abspath := o.AbsPath()
 	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
-	fmt.Printf("object path %s\n", o.AbsPath())
+	fmt.Printf("object path %s\n", abspath)
+
 	size, err := o.Size()
 	tassert(t, err == nil, "Blob.Size() err %v", err)
 	fmt.Printf("object %s is %d bytes\n", o.CanPath(), size)
