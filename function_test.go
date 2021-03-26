@@ -213,7 +213,8 @@ func TestBlob(t *testing.T) {
 // XXX this is just temporarily here as an example of how an Object
 // might be used
 func objectExample(o Object) {
-	fmt.Printf("object %s is %d bytes", o.CanPath(), o.Size())
+	size, err := o.Size()
+	fmt.Printf("object %s is %d bytes", o.CanPath(), size)
 }
 
 func TestPut(t *testing.T) {
