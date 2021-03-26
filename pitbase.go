@@ -864,25 +864,28 @@ func GetGID() uint64 {
 	return n
 }
 
+/*
+XXX replace all of this with strings.TrimSpace(object.CanPath()) + "\n"
+
 // NodeEntry stores the metadata of a Merkle tree inner or leaf node.
 type NodeEntry struct {
 	CanonPath string
 	// Label     string
 }
 
-// String combines the node's path and label into one string.
+// String formats a node entry
 func (ne *NodeEntry) String() (out string) {
-	out = strings.Join([]string{ne.CanonPath, ne.Label}, " ")
-	out = strings.TrimSpace(out) + "\n"
+	out = strings.TrimSpace(ne.CanPath()) + "\n"
 	return
 }
+*/
 
 // Node is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Node struct {
 	Key     *Key
 	Db      *Db
 	Label   string
-	entries []NodeEntry
+	entries []Object
 }
 
 func (node *Node) Read(buf []byte) (n int, err error) {
@@ -925,7 +928,7 @@ func (node *Node) CanPath() (path string) {
 // String returns the concatenated node entries
 func (node *Node) String() (out string) {
 	for _, entry := range node.entries {
-		out += entry.String()
+		out += strings.TrimSpace(entry.CanPath()) + "\n"
 	}
 	return
 }
@@ -935,7 +938,7 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	for _, entry := range node.entries {
-		key := node.Db.KeyFromPath(entry.CanonPath)
+		key := node.Db.KeyFromPath(entry.CanPath())
 		var child *Node
 		switch key.Class {
 		case "blob":
@@ -949,7 +952,6 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 				return nil, err
 			}
 		}
-		child.Label = entry.Label
 		nodes = append(nodes, child)
 	}
 	return
@@ -968,14 +970,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	node = &Node{Db: db}
 
 	// populate the entries field
-	var entries []NodeEntry
-	for _, child := range children {
-		canon := child.CanPath()
-		// label := child.Label
-		entry := NodeEntry{CanonPath: canon, Label: label}
-		entries = append(entries, entry)
-	}
-	node.entries = entries
+	node.entries = children
 
 	// concatenate all keys together (include the full key string with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
@@ -1018,18 +1013,14 @@ func (db *Db) getNode(key *Key, verify bool) (node *Node, err error) {
 	node = &Node{Db: db, Key: key}
 	scanner := bufio.NewScanner(file)
 	var content []byte
-	var entries []NodeEntry
+	var entries []Object
 	for scanner.Scan() {
 		buf := scanner.Bytes()
 		line := string(buf)
 
 		parts := strings.Split(line, " ")
 		canon := parts[0]
-		var label string
-		if len(parts) >= 2 {
-			label = parts[1]
-		}
-		entry := NodeEntry{CanonPath: canon, Label: label}
+		entry := db.ObjectFromCanPath(canon)
 		entries = append(entries, entry)
 
 		content = append(content, buf...)
