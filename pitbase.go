@@ -265,10 +265,33 @@ func (db *Db) put(key *Key, val *[]byte) (err error) {
 
 type Blob struct {
 	Db       *Db
-	Path     string // relative path from db root dir
+	relPath  string
 	fh       *os.File
 	Readonly bool
 	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
+}
+
+// XXX put stuff in here
+func (b *Blob) AbsPath() (path string) {
+	return
+}
+func (b *Blob) Algo() (name string) {
+	return
+}
+func (b *Blob) CanPath() (path string) {
+	return
+}
+func (b *Blob) Class() (name string) {
+	return
+}
+func (b *Blob) Hash() (hex string) {
+	return
+}
+func (b *Blob) RelPath() (path string) {
+	return
+}
+func (b *Blob) Size() (n int64, err error) {
+	return
 }
 
 func (db *Db) Stat(path string) (info os.FileInfo, err error) {
@@ -287,7 +310,7 @@ func (db *Db) Size(path string) (size int64, err error) {
 
 func (db *Db) OpenBlob(path string) (b *Blob, err error) {
 	fullpath := filepath.Join(db.Dir, path)
-	b = &Blob{Db: db, Path: path}
+	b = &Blob{Db: db, relPath: path}
 	if exists(fullpath) {
 		// open existing file
 		b.fh, err = os.Open(fullpath)
@@ -309,7 +332,7 @@ func (b *Blob) Close() (err error) {
 	defer b.inode.Close()
 
 	db := b.Db
-	path := filepath.Join(db.Dir, b.Path)
+	path := filepath.Join(db.Dir, b.relPath)
 
 	// mkdir
 	dir, _ := filepath.Split(path)

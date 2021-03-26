@@ -149,7 +149,7 @@ func TestObject(t *testing.T) {
 	var x Object
 	// the following line will fail to compile if Blob is missing any
 	// of the methods that would make it match the Object{} interface
-	x = Blob{}
+	x = &Blob{}
 }
 
 func TestBlob(t *testing.T) {
