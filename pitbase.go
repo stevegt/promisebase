@@ -286,6 +286,7 @@ func (b *Blob) Hash() (hex string) {
 func (b *Blob) RelPath() (path string) {
 	return
 }
+
 func (b *Blob) Size() (n int64, err error) {
 	info := os.Stat(fh)
 	return info.Size()
