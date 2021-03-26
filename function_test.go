@@ -145,18 +145,13 @@ func TestHash(t *testing.T) {
 	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
 }
 
-/*
-func TestObject(t *testing.T) {
-	var x Object
-	// the following line will fail to compile if Blob is missing any
-	// of the methods that would make it match the Object{} interface
-	x = &Blob{}
-}
-*/
-
 func TestBlob(t *testing.T) {
+	relpath := "blob/sha256/87d/149/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+
 	db := setup(t)
-	b, err := db.OpenBlob("foo/bar/baz")
+	b, err := db.OpenBlob(relpath)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// put something in the blob
@@ -170,7 +165,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "b.Close() err %v", err)
 
 	// re-open readable
-	b, err = db.OpenBlob("foo/bar/baz")
+	b, err = db.OpenBlob(relpath)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// seek to a location
@@ -196,25 +191,53 @@ func TestBlob(t *testing.T) {
 	_, err = b.Write(data)
 	tassert(t, err != nil, "b.Write to a read-only file should throw error")
 
-	// test stat and size
-	info, err := db.Stat("foo/bar/baz")
+	// test db methods for stat and size
+	info, err := db.Stat(relpath)
 	tassert(t, err == nil, "BlobStat err %v", err)
 	isdir := info.IsDir()
 	tassert(t, isdir == false, "BlobStat isdir %v", isdir)
-	size, err := db.Size("foo/bar/baz")
+	size, err := db.Size(relpath)
 	tassert(t, err == nil, "BlobSize err %v", err)
 	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
 
-	// test Object
-	objectExample(b)
+	// test Object methods
+	objectExample(t, b)
+
+	abspath := b.AbsPath()
+	tassert(t, len(abspath) > 11, "path len %v", len(abspath))
+	fmt.Printf("object path %s\n", abspath)
+
+	gotrelpath := b.RelPath()
+	tassert(t, relpath == gotrelpath, "relpath '%v'", gotrelpath)
+
+	class := b.Class()
+	tassert(t, class == "blob", "class '%v'", class)
+
+	algo := b.Algo()
+	tassert(t, algo == "sha256", "algo '%v'", algo)
+
+	gothash := b.Hash()
+	tassert(t, gothash == hash, "hash '%v'", gothash)
+
+	gotcanpath := b.CanPath()
+	tassert(t, canpath == gotcanpath, "canpath '%v'", gotcanpath)
+
+	size, err = b.Size()
+	tassert(t, err == nil, "Blob.Size() err %v", err)
+	fmt.Printf("object %s is %d bytes\n", b.CanPath(), size)
 
 }
 
-// XXX this is just temporarily here as an example of how an Object
-// might be used
-func objectExample(o Object) {
-	size, _ := o.Size()
-	fmt.Printf("object %s is %d bytes", o.CanPath(), size)
+// an example of how an Object might be used
+func objectExample(t *testing.T, o Object) {
+
+	abspath := o.AbsPath()
+	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
+	fmt.Printf("object path %s\n", abspath)
+
+	size, err := o.Size()
+	tassert(t, err == nil, "Blob.Size() err %v", err)
+	fmt.Printf("object %s is %d bytes\n", o.CanPath(), size)
 }
 
 func TestPut(t *testing.T) {
@@ -409,19 +432,16 @@ func TestVerify(t *testing.T) {
 func TestNode(t *testing.T) {
 	db := setup(t)
 	// setup
-	blob1 := mkblob("blob1value")
-	key1, err := db.PutBlob("sha256", blob1)
+	buf1 := mkblob("blob1value")
+	child1, err := db.PutBlob("sha256", buf1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child1 := &Node{Db: db, Key: key1, Label: ""}
-	blob2 := mkblob("blob2value")
-	key2, err := db.PutBlob("sha256", blob2)
+	buf2 := mkblob("blob2value")
+	child2, err := db.PutBlob("sha256", buf2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child2 := &Node{Db: db, Key: key2, Label: ""}
-	// fmt.Println(child1.Key.String(), child2.Key.String())
 
 	// put
 	node, err := db.PutNode("sha256", child1, child2)
@@ -431,12 +451,16 @@ func TestNode(t *testing.T) {
 	if node == nil {
 		t.Fatal("node is nil")
 	}
-	nodekey := db.KeyFromPath("node/sha256/cb4/678/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
-	if nodekey == nil {
-		t.Fatal("nodekey is nil")
-	}
-	// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
-	tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
+
+	/*
+		nodekey := db.KeyFromPath("node/sha256/cb4/678/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
+		if nodekey == nil {
+			t.Fatal("nodekey is nil")
+		}
+		// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
+		tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
+	*/
+
 	ok, err := node.Verify()
 	if err != nil {
 		t.Fatal(err)
@@ -444,7 +468,7 @@ func TestNode(t *testing.T) {
 	tassert(t, ok, "node verify failed: %v", node)
 
 	// get
-	gotnode, err := db.GetNode(node.Key)
+	gotnode, err := db.GetNode(node.CanPath())
 	if err != nil {
 		t.Fatal(err)
 	}

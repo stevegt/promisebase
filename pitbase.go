@@ -272,20 +272,22 @@ type Blob struct {
 }
 
 func (b *Blob) Size() (n int64, err error) {
-	info, err := os.Stat(b.relPath)
+	info, err := os.Stat(b.AbsPath())
+	if err != nil {
+		return
+	}
 	n = info.Size()
 	return
 }
 
 func (b *Blob) AbsPath() (path string) {
-	return
+	return filepath.Join(b.Db.Dir, b.relPath)
 }
+
 func (b *Blob) CanPath() (path string) {
-	return
+	return filepath.Join(b.Class(), b.Algo(), b.Hash())
 }
-func (b *Blob) Class() (name string) {
-	return
-}
+
 func (b *Blob) RelPath() (path string) {
 	return b.relPath
 }
@@ -304,12 +306,12 @@ func (db *Db) Size(path string) (size int64, err error) {
 	return
 }
 
-func (db *Db) OpenBlob(path string) (b *Blob, err error) {
-	fullpath := filepath.Join(db.Dir, path)
-	b = &Blob{Db: db, relPath: path}
-	if exists(fullpath) {
+func (db *Db) OpenBlob(relpath string) (b *Blob, err error) {
+	abspath := filepath.Join(db.Dir, relpath)
+	b = &Blob{Db: db, relPath: relpath}
+	if exists(abspath) {
 		// open existing file
-		b.fh, err = os.Open(fullpath)
+		b.fh, err = os.Open(abspath)
 		if err != nil {
 			return
 		}
@@ -324,13 +326,19 @@ func (db *Db) OpenBlob(path string) (b *Blob, err error) {
 	return
 }
 
+const pathsep = string(os.PathSeparator)
+
+func (b *Blob) Class() (name string) {
+	return strings.Split(b.relPath, pathsep)[0]
+}
+
 func (b *Blob) Algo() (name string) {
-	return strings.Split(b.relPath, "/")[1] // grabs algo from blob path
+	return strings.Split(b.relPath, pathsep)[1] // grabs algo from blob path
 }
 
 func (b *Blob) Hash() (hex string) {
-	s := strings.Split(b.relPath, "/") // split path by "/"
-	return s[len(s)-1]                 // grabs the hash, which is always the final element
+	s := strings.Split(b.relPath, pathsep) // split path by "/"
+	return s[len(s)-1]                     // grabs the hash, which is always the final element
 }
 
 func (b *Blob) Close() (err error) {
@@ -420,14 +428,6 @@ func (db *Db) Rm(key *Key) (err error) {
 	return
 }
 
-// PutBlob performs db.PutBlob on world.Db
-// XXX can't do this, 'cause then it's no longer the same world
-/*
-func (world *World) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
-	return world.Db.PutBlob(algo, blob)
-}
-*/
-
 // AppendBlob puts a blob in the database, appends it to the world's
 // Merkle tree as a new leaf node, and then rewrites the world's symlink
 // to point at the new tree root.  This function can be used to append
@@ -457,46 +457,19 @@ func (world *World) AppendBlob(algo string, blob *[]byte) (newworld *World, err 
 // This function can be used to append new records or blocks to journals
 // or files in accounting, trading, version control, blockchain, and file
 // storage applications.
-func (node *Node) AppendBlob(algo string, blob *[]byte) (newrootnode *Node, err error) {
+func (node *Node) AppendBlob(algo string, buf *[]byte) (newrootnode *Node, err error) {
 	oldrootnode := node
 
 	// put blob
-	key, err := node.Db.PutBlob(algo, blob)
-	newblobnode := &Node{Db: node.Db, Key: key, Label: ""}
+	blob, err := node.Db.PutBlob(algo, buf)
 
 	// put node for new root of merkle tree
-	newrootnode, err = node.Db.PutNode(algo, oldrootnode, newblobnode)
+	newrootnode, err = node.Db.PutNode(algo, oldrootnode, blob)
 	if err != nil {
 		return
 	}
 	return
 }
-
-/*
-func (blob *Blob) AppendBlob(algo string, newblob *[]byte) (node *Node, err error) {
-
-	// put blob
-	key, err := node.Db.PutBlob(algo, newblob)
-
-	// put node to start new merkle tree
-	node, err = node.Db.PutNode(algo, oldrootnode, newblobnode)
-	if err != nil {
-		return
-	}
-	return
-}
-*/
-
-/*
-func (db *Db) PutStream(algo string, instream io.Reader) (rootnode *Node, err error) {
-	outstream := Stream{Db: db, Algo: algo}.Init()
-	_, err = io.Copy(outstream, instream)
-	if err != nil {
-		return
-	}
-	rootnode = outstream.RootNode
-}
-*/
 
 // PutStream reads blobs from stream, creates a merkle tree with those
 // blobs as leaf nodes, and returns the root node of the new tree.
@@ -551,9 +524,8 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
-// XXX refactor to use OpenBlob() and Write()
-func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
-	key, err = db.KeyFromBlob(algo, blob)
+func (db *Db) PutBlob(algo string, buf *[]byte) (b *Blob, err error) {
+	key, err = db.KeyFromBuf(algo, buf)
 	if err != nil {
 		return
 	}
@@ -571,15 +543,15 @@ func (db *Db) PutBlob(algo string, blob *[]byte) (key *Key, err error) {
 		// store it
 		b, err := db.OpenBlob(key.Path())
 		if err != nil {
-			return key, err
+			return b, err
 		}
-		_, err = b.Write(*blob)
+		_, err = b.Write(*buf)
 		if err != nil {
-			return key, err
+			return b, err
 		}
 		err = b.Close()
 		if err != nil {
-			return key, err
+			return b, err
 		}
 
 	}
@@ -954,7 +926,7 @@ func bin2hex(bin *[]byte) (hex string) {
 
 // PutNode takes one or more child nodes, stores their keys and labels in a file under node/,
 // and returns a pointer to a Node object.
-func (db *Db) PutNode(algo string, children ...*Node) (node *Node, err error) {
+func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 
 	node = &Node{Db: db}
 
