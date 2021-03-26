@@ -290,11 +290,6 @@ func (b *Blob) RelPath() (path string) {
 	return b.relPath
 }
 
-func (b *Blob) Size() (n int64, err error) {
-	info := os.Stat(fh)
-	return info.Size()
-}
-
 func (db *Db) Stat(path string) (info os.FileInfo, err error) {
 	fullpath := filepath.Join(db.Dir, path)
 	return os.Stat(fullpath)
