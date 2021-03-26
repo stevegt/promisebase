@@ -432,19 +432,16 @@ func TestVerify(t *testing.T) {
 func TestNode(t *testing.T) {
 	db := setup(t)
 	// setup
-	blob1 := mkblob("blob1value")
-	key1, err := db.PutBlob("sha256", blob1)
+	buf1 := mkblob("blob1value")
+	child1, err := db.PutBlob("sha256", buf1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child1 := &Node{Db: db, Key: key1, Label: ""}
-	blob2 := mkblob("blob2value")
-	key2, err := db.PutBlob("sha256", blob2)
+	buf2 := mkblob("blob2value")
+	child2, err := db.PutBlob("sha256", buf2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child2 := &Node{Db: db, Key: key2, Label: ""}
-	// fmt.Println(child1.Key.String(), child2.Key.String())
 
 	// put
 	node, err := db.PutNode("sha256", child1, child2)
@@ -454,12 +451,16 @@ func TestNode(t *testing.T) {
 	if node == nil {
 		t.Fatal("node is nil")
 	}
-	nodekey := db.KeyFromPath("node/sha256/cb4/678/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
-	if nodekey == nil {
-		t.Fatal("nodekey is nil")
-	}
-	// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
-	tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
+
+	/*
+		nodekey := db.KeyFromPath("node/sha256/cb4/678/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
+		if nodekey == nil {
+			t.Fatal("nodekey is nil")
+		}
+		// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
+		tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
+	*/
+
 	ok, err := node.Verify()
 	if err != nil {
 		t.Fatal(err)
@@ -467,7 +468,7 @@ func TestNode(t *testing.T) {
 	tassert(t, ok, "node verify failed: %v", node)
 
 	// get
-	gotnode, err := db.GetNode(node.Key)
+	gotnode, err := db.GetNode(node.CanPath())
 	if err != nil {
 		t.Fatal(err)
 	}
