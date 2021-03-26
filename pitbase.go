@@ -275,9 +275,6 @@ type Blob struct {
 func (b *Blob) AbsPath() (path string) {
 	return
 }
-func (b *Blob) Algo() (name string) {
-	return
-}
 func (b *Blob) CanPath() (path string) {
 	return
 }
@@ -329,7 +326,7 @@ func (db *Db) OpenBlob(path string) (b *Blob, err error) {
 }
 
 func (b *Blob) Algo() (name string) {
-	return strings.Split(b.Path, "/")[1] // grabs algo from blob path
+	return strings.Split(b.relPath, "/")[1] // grabs algo from blob path
 }
 
 func (b *Blob) Close() (err error) {
