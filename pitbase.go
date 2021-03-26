@@ -497,11 +497,10 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 			return nil, err
 		}
 
-		key, err := db.PutBlob(algo, &chunk.Data)
+		newblobnode, err := db.PutBlob(algo, &chunk.Data)
 		if err != nil {
 			return nil, err
 		}
-		newblobnode := &Node{Db: db, Key: key, Label: ""}
 
 		if oldnode == nil {
 			// we're just starting the tree
