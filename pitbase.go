@@ -277,7 +277,6 @@ func (b *Blob) Size() (n int64, err error) {
 	return
 }
 
-// XXX put stuff in here
 func (b *Blob) AbsPath() (path string) {
 	return
 }
