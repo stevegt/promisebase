@@ -328,12 +328,14 @@ func (db *Db) OpenBlob(path string) (b *Blob, err error) {
 	return
 }
 
+func (b *Blob) Algo() (name string) {
+	return strings.Split(b.Path, "/")[1] // grabs algo from blob path
+}
+
 func (b *Blob) Close() (err error) {
 	defer b.inode.Close()
-
 	db := b.Db
 	path := filepath.Join(db.Dir, b.relPath)
-
 	// mkdir
 	dir, _ := filepath.Split(path)
 	err = os.MkdirAll(dir, 0755)
