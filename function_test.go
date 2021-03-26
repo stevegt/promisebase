@@ -206,15 +206,18 @@ func TestBlob(t *testing.T) {
 	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
 
 	// test Object
-	objectExample(b)
+	objectExample(t, b)
 
 }
 
-// XXX this is just temporarily here as an example of how an Object
-// might be used
-func objectExample(o Object) {
-	size, _ := o.Size()
-	fmt.Printf("object %s is %d bytes", o.CanPath(), size)
+// an example of how an Object might be used
+func objectExample(t *testing.T, o Object) {
+	abspath := o.AbsPath()
+	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
+	fmt.Printf("object path %s\n", o.AbsPath())
+	size, err := o.Size()
+	tassert(t, err == nil, "Blob.Size() err %v", err)
+	fmt.Printf("object %s is %d bytes\n", o.CanPath(), size)
 }
 
 func TestPut(t *testing.T) {

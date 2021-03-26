@@ -272,13 +272,16 @@ type Blob struct {
 }
 
 func (b *Blob) Size() (n int64, err error) {
-	info, err := os.Stat(b.relPath)
+	info, err := os.Stat(b.AbsPath())
+	if err != nil {
+		return
+	}
 	n = info.Size()
 	return
 }
 
 func (b *Blob) AbsPath() (path string) {
-	return
+	return filepath.Join(b.Db.Dir, b.relPath)
 }
 func (b *Blob) CanPath() (path string) {
 	return
