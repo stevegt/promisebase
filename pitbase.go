@@ -272,8 +272,9 @@ type Blob struct {
 }
 
 func (b *Blob) Size() (n int64, err error) {
-	info := os.Stat(fh)
-	return info.Size()
+	info, err := os.Stat(b.relPath)
+	n = info.Size()
+	return
 }
 
 // XXX put stuff in here
@@ -286,11 +287,8 @@ func (b *Blob) CanPath() (path string) {
 func (b *Blob) Class() (name string) {
 	return
 }
-func (b *Blob) Hash() (hex string) {
-	return
-}
 func (b *Blob) RelPath() (path string) {
-	return
+	return b.relPath
 }
 
 func (db *Db) Stat(path string) (info os.FileInfo, err error) {
@@ -332,8 +330,8 @@ func (b *Blob) Algo() (name string) {
 }
 
 func (b *Blob) Hash() (hex string) {
-	s := strings.Split(b.Path, "/") // split path by "/"
-	return s[len(s)-1]              // grabs the hash, which is always the final element
+	s := strings.Split(b.relPath, "/") // split path by "/"
+	return s[len(s)-1]                 // grabs the hash, which is always the final element
 }
 
 func (b *Blob) Close() (err error) {
