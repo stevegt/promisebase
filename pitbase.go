@@ -896,19 +896,11 @@ type Node struct {
 }
 
 func (node *Node) Read(buf []byte) (n int, err error) {
-	path = node.AbsPath()
-	fh := os.Open(path)
-	n, err = fh.Read(buf)
-	// XXX repeated use of lines 890 and 891. Should the node file be a part of the node?
-	// or maybe a node.fh() function?
-	return
+	return node.fh.Read(buf)
 }
 
 func (node *Node) Write(data []byte) (n int, err error) {
-	path = node.AbsPath()
-	fh := os.Open(path)
-	n, err = fh.Write(data)
-	return
+	return node.fh.Write(data)
 }
 
 func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
@@ -916,7 +908,7 @@ func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
 }
 
 func (node *Node) Tell() (n int64, err error) {
-
+	return
 }
 
 func (node *Node) Close() (err error) {
@@ -933,17 +925,17 @@ func (node *Node) Class() (name string) {
 }
 
 func (node *Node) Algo() (name string) {
-	// XXX we're going to deprecate Key, so use the logic in Blob.* methods
-	return node.Key.Algo
+	return strings.Split(node.RelPath(), pathsep)[1]
 }
 
 func (node *Node) Hash() (hex string) {
 	// old Hash function receives an algo and byte slice
-	// should this get the node content using Node.Read()?
+	// XXX should this get the node content using Node.Read()?
 	// should it be similar to the old Hash func?
 	// hex = Hash(node.Key.Algo,
 	return
 }
+
 func (node *Node) AbsPath() (path string) {
 	path = filepath.Join(node.Db.Dir, node.Key.path(true))
 	fmt.Println(path)
