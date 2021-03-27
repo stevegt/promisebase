@@ -1030,14 +1030,17 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	return
 }
 
-// GetNode takes a node key and returns a Node struct
-func (db *Db) GetNode(key *Key) (node *Node, err error) {
-	return db.getNode(key, true)
+// GetNode takes a node canpath and returns a Node struct
+func (db *Db) GetNode(canpath string) (node *Node, err error) {
+	return db.getNode(canpath, true)
 }
 
-func (db *Db) getNode(key *Key, verify bool) (node *Node, err error) {
-	fn := filepath.Join(db.Dir, key.Path())
-	file, err := os.Open(fn)
+func (db *Db) getNode(canpath string, verify bool) (node *Node, err error) {
+
+	// XXX refactor to use Object methods
+
+	abspath := db.AbsFromCanPath(canpath)
+	file, err := os.Open(abspath)
 	if err != nil {
 		return
 	}
