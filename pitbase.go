@@ -841,7 +841,7 @@ func (db *Db) KeyFromBuf(algo string, blob *[]byte) (key *Key, err error) {
 }
 
 // Hash returns the hash of a blob using a given algorithm
-// XXX depricated?
+// XXX rework to support streaming
 func Hash(algo string, blob *[]byte) (hash *[]byte, err error) {
 	var binhash []byte
 	switch algo {
@@ -892,6 +892,7 @@ type Node struct {
 	Db      *Db
 	Label   string
 	entries []Object
+	fh      *os.File
 }
 
 func (node *Node) Read(buf []byte) (n int, err error) {
@@ -917,12 +918,7 @@ func (node *Node) Write(data []byte) (n int, err error) {
 }
 
 func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
-	abspath := node.AbsPath()
-	fh, err := os.Open(abspath)
-	if err != nil {
-		return
-	}
-	return fh.Seek(n, whence)
+	return node.fh.Seek(n, whence)
 }
 
 func (node *Node) Tell() (n int64, err error) {
@@ -943,6 +939,7 @@ func (node *Node) Class() (name string) {
 }
 
 func (node *Node) Algo() (name string) {
+	// XXX we're going to deprecate Key, so use the logic in Blob.* methods
 	return node.Key.Algo
 }
 
