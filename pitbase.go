@@ -83,6 +83,11 @@ type Object interface {
 	CanPath() (path string)
 }
 
+func (db Db) ObjectFromCanPath(canpath string) (obj *Object) {
+	panic("not implemented")
+	return
+}
+
 // Inode contains various file-related items such as file descriptor,
 // file handle, maybe some methods, etc.
 // XXX deprecate in favor of Object
