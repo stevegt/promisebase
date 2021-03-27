@@ -441,7 +441,7 @@ func (db *Db) Rm(key *Key) (err error) {
 func (world *World) AppendBlob(algo string, blob *[]byte) (newworld *World, err error) {
 	// get node for root of merkle tree
 	oldkey := world.Db.KeyFromPath(world.Src)
-	oldrootnode, err := world.Db.GetNode(oldkey)
+	oldrootnode, err := world.Db.GetNode(oldkey.Canon())
 	if err != nil {
 		log.Debugf("oldkey: %v, oldrootnode: %v", oldkey, oldrootnode)
 		return
@@ -613,7 +613,7 @@ func (world *World) Ls(all bool) (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	key := world.Db.KeyFromPath(world.Src)
-	rootnode, err := world.Db.GetNode(key)
+	rootnode, err := world.Db.GetNode(key.Canon())
 	if err != nil {
 		return
 	}
@@ -625,7 +625,7 @@ func (world *World) Ls(all bool) (nodes []*Node, err error) {
 // it as a pointer to a byte slice.
 func (world *World) Cat() (buf *[]byte, err error) {
 	key := world.Db.KeyFromPath(world.Src)
-	rootnode, err := world.Db.GetNode(key)
+	rootnode, err := world.Db.GetNode(key.Canon())
 	if err != nil {
 		return
 	}
@@ -685,7 +685,7 @@ func (node *Node) Verify() (ok bool, err error) {
 				return false, fmt.Errorf("expected %v, calculated %v", key.Hash, hex)
 			}
 		case "node":
-			_, err := node.Db.getNode(key, true)
+			_, err := node.Db.getNode(key.Canon(), true)
 			if err != nil {
 				return false, err
 			}
@@ -979,7 +979,7 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 			// XXX we should probably finish merging blobs and nodes into one object
 			child = &Node{Key: key, Db: node.Db}
 		case "node":
-			child, err = node.Db.GetNode(key)
+			child, err = node.Db.GetNode(key.Canon())
 			if err != nil {
 				log.Errorf("unreachable key %#v err %#v", key, err)
 				return nil, err
