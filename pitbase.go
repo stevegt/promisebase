@@ -841,6 +841,7 @@ func (db *Db) KeyFromBuf(algo string, blob *[]byte) (key *Key, err error) {
 }
 
 // Hash returns the hash of a blob using a given algorithm
+// XXX depricated?
 func Hash(algo string, blob *[]byte) (hash *[]byte, err error) {
 	var binhash []byte
 	switch algo {
@@ -894,39 +895,67 @@ type Node struct {
 }
 
 func (node *Node) Read(buf []byte) (n int, err error) {
+	path = node.AbsPath()
+	fh := os.Open(path)
+	n, err = fh.Read(buf)
+	// XXX repeated use of lines 890 and 891. Should the node file be a part of the node?
+	// or maybe a node.fh() function?
 	return
 }
+
 func (node *Node) Write(data []byte) (n int, err error) {
+	path = node.AbsPath()
+	fh := os.Open(path)
+	n, err = fh.Write(data)
 	return
 }
+
 func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
-	return
+	path = node.AbsPath()
+	fh := os.Open(path)
+	return fh.Seek(n, whence)
 }
+
 func (node *Node) Tell() (n int64, err error) {
-	return
+
 }
+
 func (node *Node) Close() (err error) {
 	return
 }
+
 func (node *Node) Size() (n int64, err error) {
+	// should this return size of node file or size of all distant child blobs?
 	return
 }
+
 func (node *Node) Class() (name string) {
-	return
+	return strings.Split(node.RelPath(), pathsep)[0]
 }
+
 func (node *Node) Algo() (name string) {
-	return
+	return node.Key.Algo
 }
+
 func (node *Node) Hash() (hex string) {
+	// old Hash function receives an algo and byte slice
+	// should this get the node content using Node.Read()?
+	// should it be similar to the old Hash func?
+	// hex = Hash(node.Key.Algo,
 	return
 }
 func (node *Node) AbsPath() (path string) {
+	path = filepath.Join(node.Db.Dir, node.Key.path(true))
+	fmt.Println(path)
 	return
 }
 func (node *Node) RelPath() (path string) {
+	path = node.Key.path(false)
 	return
 }
 func (node *Node) CanPath() (path string) {
+	path = filepath.Join(node.Db.Dir, node.Key.path(false))
+	fmt.Println(path)
 	return
 }
 
