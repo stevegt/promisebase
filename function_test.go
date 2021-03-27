@@ -299,12 +299,12 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotkey, err := db.PutBlob("sha256", val)
+	gotblob, err := db.PutBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key.Canon() != gotkey.Canon() {
-		t.Fatalf("expected key %s, got %s", key.Canon(), gotkey.Canon())
+	if key.Canon() != gotblob.CanPath() {
+		t.Fatalf("expected key %s, got %s", key.Canon(), gotblob.CanPath())
 	}
 	got, err := ioutil.ReadFile(db.Path(key))
 	if err != nil {
@@ -322,12 +322,12 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotkey, err := db.PutBlob("sha256", val)
+	gotblob, err := db.PutBlob("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key.Canon() != gotkey.Canon() {
-		t.Fatalf("expected key %s, got %s", key.Canon(), gotkey.Canon())
+	if key.Canon() != gotblob.CanPath() {
+		t.Fatalf("expected key %s, got %s", key.Canon(), gotblob.CanPath())
 	}
 	got, err := db.GetBlob(key)
 	if err != nil {

@@ -83,7 +83,7 @@ type Object interface {
 	CanPath() (path string)
 }
 
-func (db Db) ObjectFromCanPath(canpath string) (obj *Object) {
+func (db Db) ObjectFromCanPath(canpath string) (obj Object) {
 	panic("not implemented")
 	return
 }
@@ -895,18 +895,27 @@ type Node struct {
 	fh      *os.File
 }
 
+func (db *Db) OpenNode(relpath string) (node *Node, err error) {
+	// XXX see OpenBlob
+	return
+}
+
 func (node *Node) Read(buf []byte) (n int, err error) {
-	path = node.AbsPath()
-	fh := os.Open(path)
+	path := node.AbsPath()
+	// XXX Open would happen during OpenNode
+	fh, err := os.Open(path)
+	// XXX ck err
 	n, err = fh.Read(buf)
+	// XXX ck err
 	// XXX repeated use of lines 890 and 891. Should the node file be a part of the node?
 	// or maybe a node.fh() function?
 	return
 }
 
 func (node *Node) Write(data []byte) (n int, err error) {
-	path = node.AbsPath()
-	fh := os.Open(path)
+	path := node.AbsPath()
+	// XXX Open would happen during OpenNode
+	fh, err := os.Open(path)
 	n, err = fh.Write(data)
 	return
 }
@@ -916,10 +925,11 @@ func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
 }
 
 func (node *Node) Tell() (n int64, err error) {
-
+	return
 }
 
 func (node *Node) Close() (err error) {
+	// XXX see Blob.Close
 	return
 }
 
