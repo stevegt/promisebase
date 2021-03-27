@@ -83,6 +83,11 @@ type Object interface {
 	CanPath() (path string)
 }
 
+func (db Db) ObjectFromCanPath(canpath string) (obj *Object) {
+	panic("not implemented")
+	return
+}
+
 // Inode contains various file-related items such as file descriptor,
 // file handle, maybe some methods, etc.
 // XXX deprecate in favor of Object
@@ -497,11 +502,10 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 			return nil, err
 		}
 
-		key, err := db.PutBlob(algo, &chunk.Data)
+		newblobnode, err := db.PutBlob(algo, &chunk.Data)
 		if err != nil {
 			return nil, err
 		}
-		newblobnode := &Node{Db: db, Key: key, Label: ""}
 
 		if oldnode == nil {
 			// we're just starting the tree
@@ -525,29 +529,30 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the hash.
 func (db *Db) PutBlob(algo string, buf *[]byte) (b *Blob, err error) {
-	key, err = db.KeyFromBuf(algo, buf)
-	if err != nil {
-		return
-	}
-	path := db.Path(key)
+
+	key, err := db.KeyFromBuf(algo, buf)
+	relpath := key.Path()
+	abspath := db.Path(key)
+
 	// check if it's already stored
-	_, err = os.Stat(path)
+	_, err = os.Stat(abspath)
 	if err == nil {
-		// content, err2 := ioutil.ReadFile(path)
-		// if err2 != nil {
-		// 	return nil, err2
-		// }
-		// fmt.Println("Exists:", key.String(), string(content))
+		// noop
 	} else if os.IsNotExist(err) {
-		err = nil
 		// store it
-		b, err := db.OpenBlob(key.Path())
+		err = nil // clear IsNotExist err
+		var n int
+		b, err := db.OpenBlob(relpath)
 		if err != nil {
 			return b, err
 		}
-		_, err = b.Write(*buf)
+		n, err = b.Write(*buf)
 		if err != nil {
 			return b, err
+		}
+		if n != len(*buf) {
+			// XXX
+			panic("short write")
 		}
 		err = b.Close()
 		if err != nil {
@@ -816,12 +821,12 @@ func hex2bin (hexkey string) (binhash []byte) {
 // XXX move to function_test.go as a helper
 func (db *Db) KeyFromString(algo string, s string) (key *Key, err error) {
 	blob := []byte(s)
-	return db.KeyFromBlob(algo, &blob)
+	return db.KeyFromBuf(algo, &blob)
 }
 
-// KeyFromBlob takes a class, algo, and blob and returns a populated Key object
+// KeyFromBuf takes a class, algo, and byte slice and returns a populated Key object
 // XXX deprecate in favor of Blob.Write(), Close(), then Hash()
-func (db *Db) KeyFromBlob(algo string, blob *[]byte) (key *Key, err error) {
+func (db *Db) KeyFromBuf(algo string, blob *[]byte) (key *Key, err error) {
 	binhash, err := Hash(algo, blob)
 	if err != nil {
 		return
@@ -865,25 +870,28 @@ func GetGID() uint64 {
 	return n
 }
 
+/*
+XXX replace all of this with strings.TrimSpace(object.CanPath()) + "\n"
+
 // NodeEntry stores the metadata of a Merkle tree inner or leaf node.
 type NodeEntry struct {
 	CanonPath string
-	Label     string
+	// Label     string
 }
 
-// String combines the node's path and label into one string.
+// String formats a node entry
 func (ne *NodeEntry) String() (out string) {
-	out = strings.Join([]string{ne.CanonPath, ne.Label}, " ")
-	out = strings.TrimSpace(out) + "\n"
+	out = strings.TrimSpace(ne.CanPath()) + "\n"
 	return
 }
+*/
 
 // Node is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Node struct {
 	Key     *Key
 	Db      *Db
 	Label   string
-	entries []NodeEntry
+	entries []Object
 }
 
 func (node *Node) Read(buf []byte) (n int, err error) {
@@ -954,7 +962,7 @@ func (node *Node) CanPath() (path string) {
 // String returns the concatenated node entries
 func (node *Node) String() (out string) {
 	for _, entry := range node.entries {
-		out += entry.String()
+		out += strings.TrimSpace(entry.CanPath()) + "\n"
 	}
 	return
 }
@@ -964,7 +972,7 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	for _, entry := range node.entries {
-		key := node.Db.KeyFromPath(entry.CanonPath)
+		key := node.Db.KeyFromPath(entry.CanPath())
 		var child *Node
 		switch key.Class {
 		case "blob":
@@ -978,7 +986,6 @@ func (node *Node) ChildNodes() (nodes []*Node, err error) {
 				return nil, err
 			}
 		}
-		child.Label = entry.Label
 		nodes = append(nodes, child)
 	}
 	return
@@ -997,14 +1004,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	node = &Node{Db: db}
 
 	// populate the entries field
-	var entries []NodeEntry
-	for _, child := range children {
-		canon := child.Key.Canon()
-		label := child.Label
-		entry := NodeEntry{CanonPath: canon, Label: label}
-		entries = append(entries, entry)
-	}
-	node.entries = entries
+	node.entries = children
 
 	// concatenate all keys together (include the full key string with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
@@ -1047,18 +1047,14 @@ func (db *Db) getNode(key *Key, verify bool) (node *Node, err error) {
 	node = &Node{Db: db, Key: key}
 	scanner := bufio.NewScanner(file)
 	var content []byte
-	var entries []NodeEntry
+	var entries []Object
 	for scanner.Scan() {
 		buf := scanner.Bytes()
 		line := string(buf)
 
 		parts := strings.Split(line, " ")
 		canon := parts[0]
-		var label string
-		if len(parts) >= 2 {
-			label = parts[1]
-		}
-		entry := NodeEntry{CanonPath: canon, Label: label}
+		entry := db.ObjectFromCanPath(canon)
 		entries = append(entries, entry)
 
 		content = append(content, buf...)

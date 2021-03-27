@@ -295,7 +295,7 @@ func TestRm(t *testing.T) {
 func TestPutBlob(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := db.KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBuf("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +318,7 @@ func TestPutBlob(t *testing.T) {
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := db.KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBuf("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,7 +351,7 @@ func deepEqual(a, b interface{}) bool {
 func TestPath(t *testing.T) {
 	db := setup(t)
 	val := mkblob("somevalue")
-	key, err := db.KeyFromBlob("sha256", val)
+	key, err := db.KeyFromBuf("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,7 +379,7 @@ func TestKey(t *testing.T) {
 	bin := make([]byte, len(d))
 	copy(bin[:], d[0:len(d)])
 	hex := fmt.Sprintf("%x", bin)
-	key, err := db.KeyFromBlob(algo, val)
+	key, err := db.KeyFromBuf(algo, val)
 	if err != nil {
 		t.Fatal(err)
 	}
