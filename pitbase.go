@@ -895,8 +895,11 @@ type Node struct {
 }
 
 func (node *Node) Read(buf []byte) (n int, err error) {
-	path = node.AbsPath()
-	fh := os.Open(path)
+	abspath := node.AbsPath()
+	fh, err := os.Open(abspath)
+	if err != nil {
+		return
+	}
 	n, err = fh.Read(buf)
 	// XXX repeated use of lines 890 and 891. Should the node file be a part of the node?
 	// or maybe a node.fh() function?
@@ -904,20 +907,26 @@ func (node *Node) Read(buf []byte) (n int, err error) {
 }
 
 func (node *Node) Write(data []byte) (n int, err error) {
-	path = node.AbsPath()
-	fh := os.Open(path)
+	abspath := node.AbsPath()
+	fh, err := os.Open(abspath)
+	if err != nil {
+		return
+	}
 	n, err = fh.Write(data)
 	return
 }
 
 func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
-	path = node.AbsPath()
-	fh := os.Open(path)
+	abspath := node.AbsPath()
+	fh, err := os.Open(abspath)
+	if err != nil {
+		return
+	}
 	return fh.Seek(n, whence)
 }
 
 func (node *Node) Tell() (n int64, err error) {
-
+	return
 }
 
 func (node *Node) Close() (err error) {
