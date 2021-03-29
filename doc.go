@@ -22,8 +22,7 @@ Vocabulary:
 - label: human-readable name of a stream;
   stored as the name of the symlink pointing at rootnode canpath
 - object: blob, node, or stream; addressed by canpath
-- key: in-memory representation of a blob or node location; provides
-  methods for generating abspath, relpath, canpath, or hash XXX deprecate?
+- key: a user-visible path, always points to a node; canpath without leading "node/"
 
 */
 
