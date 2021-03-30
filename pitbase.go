@@ -71,6 +71,7 @@ type Db struct {
 // stream.
 type Object interface {
 	Read(buf []byte) (n int, err error)
+	ReadAll() (buf []byte, err error)
 	Write(data []byte) (n int, err error)
 	Seek(n int64, whence int) (nout int64, err error)
 	Tell() (n int64, err error)
@@ -603,7 +604,7 @@ func (stream *Stream) CanPath() (canpath string) {
 
 // Ls lists all of the leaf nodes in a stream and optionally both
 // leaf and inner
-func (stream *Stream) Ls(all bool) (nodes []*Node, err error) {
+func (stream *Stream) Ls(all bool) (objects []*Object, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	return stream.RootNode.traverse(all)
@@ -620,18 +621,19 @@ func (stream *Stream) Cat() (buf []byte, err error) {
 // XXX replace with node.Read()
 func (node *Node) Cat() (buf []byte, err error) {
 
+	db := node.Db
+
 	// get leaf nodes
-	rootnode := node
-	nodes, err := rootnode.traverse(false)
+	objects, err := node.traverse(false)
 	if err != nil {
 		return
 	}
 
 	// append leaf node content to buf
 	buf = []byte{}
-	for _, child := range nodes {
+	for _, obj := range objects {
 		var content []byte
-		content, err = child.Db.GetBlob(child.Path)
+		content, err = obj.ReadAll()
 		if err != nil {
 			return
 		}
@@ -643,11 +645,11 @@ func (node *Node) Cat() (buf []byte, err error) {
 // Verify hashes the node content and compares it to its key
 // XXX refactor to take advantage of streaming
 func (node *Node) Verify() (ok bool, err error) {
-	nodes, err := node.traverse(true)
+	objects, err := node.traverse(true)
 	if err != nil {
 		return
 	}
-	for _, child := range nodes {
+	for _, child := range objects {
 		path := child.Path
 		switch path.Class() {
 		case "blob":
@@ -681,15 +683,15 @@ func (node *Node) Verify() (ok bool, err error) {
 }
 
 // traverse recurses down the tree of nodes returning leaves or optionally all nodes
-func (node *Node) traverse(all bool) (nodes []*Node, err error) {
+func (node *Node) traverse(all bool) (objects []*Object, err error) {
 
 	if all {
 		nodes = append(nodes, node)
 		return
 	}
 
-	switch obj := node.(type) {
-	case Blob:
+	switch node.Path.Class() {
+	case "blob":
 		nodes = append(nodes, node)
 	case Node:
 		for _, child := range obj.entries {
