@@ -987,7 +987,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	return
 }
 
-// GetNode takes a node key and returns a Node struct
+// GetNode takes a node path and returns a Node struct
 func (db *Db) GetNode(path *Path) (node *Node, err error) {
 	return db.getNode(path, true)
 }
