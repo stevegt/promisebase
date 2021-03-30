@@ -109,8 +109,8 @@ func mkblob(s string) *[]byte {
 	return &tmp
 }
 
-func mkkey(t *testing.T, db *Db, s string) (key *Key) {
-	key, err := db.KeyFromString("sha256", s)
+func mkpath(t *testing.T, db *Db, s string) (path *Path) {
+	path, err := db.PathFromString("sha256", s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,8 +338,8 @@ func TestGetBlob(t *testing.T) {
 	}
 }
 
-func keyEqual(a, b *Key) bool {
-	return a.Path() == b.Path() && a.Canon() == b.Canon()
+func pathEqual(a, b *Path) bool {
+	return a.Rel() == b.Rel() && a.Canon() == b.Canon()
 }
 
 // XXX should use reflect.DeepEqual()
