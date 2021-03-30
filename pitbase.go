@@ -783,12 +783,12 @@ func (path *Path) Parts() (class, algo, hash string) {
 	// split into parts
 	// XXX detect and handle malformed path
 	parts := strings.Split(anypath, pathsep)
-	class := parts[0]
-	algo := parts[1]
+	class = parts[0]
+	algo = parts[1]
 	// the last part of the path should always be the full hash,
 	// regardless of whether we were given the full or canonical
 	// path
-	hash := parts[len(parts)-1]
+	hash = parts[len(parts)-1]
 
 	return
 }
