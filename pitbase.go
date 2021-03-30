@@ -755,8 +755,8 @@ func (path *Path) Canon() string {
 func (path *Path) Rel() string {
 	class, algo, hash := path.Parts()
 	var subpath string
-	for i := 0; i < k.Db.Depth; i++ {
-		subdir := k.Hash[(3 * i):((3 * i) + 3)]
+	for i := 0; i < path.Db.Depth; i++ {
+		subdir := hash[(3 * i):((3 * i) + 3)]
 		subpath = filepath.Join(subpath, subdir)
 	}
 	return filepath.Join(class, algo, subpath, hash)
