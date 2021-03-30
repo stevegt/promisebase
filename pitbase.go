@@ -414,6 +414,9 @@ func (b *Blob) Tell() (n int64, err error) {
 }
 
 // GetBlob retrieves the blob of a key by reading its file contents.
+// XXX is this func outdated?
+// should it return a byte slice buf or a blob pointer?
+// Is the key struct going to be phased out?
 func (db *Db) GetBlob(key *Key) (blob *[]byte, err error) {
 	// XXX call OpenBlob(), b.Read(), and b.Close()
 	buf, err := ioutil.ReadFile(db.Path(key))
@@ -918,6 +921,22 @@ func (node *Node) Tell() (n int64, err error) {
 
 func (node *Node) Close() (err error) {
 	// XXX see Blob.Close
+	defer node.fh.Close()
+	db := node.Db
+	path := filepath.Join(db.Dir, node.RelPath())
+	// mkdir
+	dir, _ := filepath.Split(path)
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return
+	}
+
+	// rename temp file to permanent blob file
+	// XXX what are we renaming?
+	// err = os.Rename(XXX, path)
+	if err != nil {
+		return
+	}
 	return
 }
 
