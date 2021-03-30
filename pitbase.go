@@ -76,11 +76,19 @@ type Object interface {
 	Tell() (n int64, err error)
 	Close() (err error)
 	Size() (n int64, err error)
+	GetPath() (path *Path)
 }
 
-func (db Db) ObjectFromCanPath(canpath string) (obj Object) {
-	panic("not implemented")
-	return
+func (db Db) ObjectFromPath(path *Path) (obj Object) {
+	class := path.Class()
+	switch class {
+	case "Blob":
+		return db.MkBlob(path)
+	case "Node":
+		return db.MkNode(path)
+	default:
+		panic(fmt.Sprintf("unhandled class %s", class))
+	}
 }
 
 // Inode contains various file-related items such as file descriptor,
@@ -267,6 +275,10 @@ type Blob struct {
 	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
+func (blob *Blob) GetPath() *Path {
+	return blob.Path
+}
+
 func (b *Blob) Size() (n int64, err error) {
 	info, err := os.Stat(b.Path.Abs())
 	if err != nil {
@@ -290,8 +302,12 @@ func (db *Db) Size(path string) (size int64, err error) {
 	return
 }
 
+func (db *Db) MkBlob(path *Path) (b *Blob) {
+	return &Blob{Db: db, Path: path}
+}
+
 func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
-	b = &Blob{Db: db, Path: path}
+	b = db.MkBlob(path)
 	if exists(path.Abs()) {
 		// open existing file
 		b.fh, err = os.Open(path.Abs())
@@ -407,9 +423,9 @@ func (db *Db) Rm(path *Path) (err error) {
 // AppendBlob puts a blob in the database, appends it to the Merkle
 // tree as a new leaf node, and then rewrites the stream label's symlink
 // to point at the new tree root.
-func (stream *Stream) AppendBlob(algo string, buf []byte) (newrootnode *Node, err error) {
+func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, err error) {
 	oldrootnode := stream.RootNode
-	newrootnode, err = oldrootnode.AppendBlob(algo, buf)
+	newrootnode, err := oldrootnode.AppendBlob(algo, buf)
 	if err != nil {
 		return
 	}
@@ -420,6 +436,7 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newrootnode *Node, er
 	if err != nil {
 		return
 	}
+	newstream = stream.Db.NewStream(stream.Label, newrootnode)
 	return
 
 }
@@ -533,16 +550,6 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 }
 
 /*
-// Path takes a key containing arbitrary 8-bit bytes and returns a safe
-// hex-encoded pathname.
-func (db *Db) XXXPath(key *Key) (path string) {
-	log.Debugf("db: %v, key: %v", db, key)
-	path = filepath.Join(db.Dir, key.Path())
-	return
-}
-*/
-
-/*
 // World is a reference to a timeline
 type World struct {
 	Db   *Db
@@ -558,15 +565,18 @@ func (world *World) String() (path string) {
 }
 */
 
-// LabelStream makes a symlink named label pointing at node, and returns a stream
-func (db *Db) LabelStream(node *Node, label string) (stream *Stream, err error) {
-	world = &World{Db: db, Label: label}
+// MkStream makes a symlink named label pointing at node, and returns
+// the resulting stream object.
+// XXX do we need this?  creating the stream with rootnode == nil is risky
+func (node *Node) MkStream(label string) (stream *Stream, err error) {
+	stream = node.Db.NewStream(label, nil)
 	src := filepath.Join("..", node.Path.Rel())
-	err = renameio.Symlink(src, world.String())
+	// XXX sanitize label
+	linkabspath := filepath.Join(node.Db.Dir, "stream", label)
+	err = renameio.Symlink(src, linkabspath)
 	if err != nil {
 		return
 	}
-	world.Key = key
 	return
 }
 
@@ -575,7 +585,6 @@ func (db *Db) LabelStream(node *Node, label string) (stream *Stream, err error) 
 // Stream acts like a file from the perspective of a caller.
 type Stream struct {
 	Db          *Db
-	Algo        string
 	RootNode    *Node
 	Label       string
 	Path        *Path
@@ -584,22 +593,31 @@ type Stream struct {
 	posInBlob   int64
 }
 
-// GetStream returns a Stream object given a label
+func (db *Db) NewStream(label string, rootnode *Node) (stream *Stream) {
+	stream = &Stream{Db: db, Label: label, RootNode: rootnode}
+	linkrelpath := filepath.Join("stream", label)
+	stream.Path = db.NewPath(linkrelpath)
+	return
+}
+
+// OpenStream returns an existing Stream object given a label
+// XXX figure out how to collapse OpenStream, MkStream, and NewStream
+// into one function, probably by deferring any disk I/O in OpenStream
+// until we hit a Read() or Write().
+// XXX likewise for MkBlob and MkNode
 func (db *Db) OpenStream(label string) (stream *Stream, err error) {
-	stream = &Stream{Db: db, Label: label}
-	// XXX deal with non-'/' path seperators
+	// XXX sanitize label
 	linkabspath := filepath.Join(db.Dir, "stream", label)
 	noderelpath, err := os.Readlink(linkabspath)
 	if err != nil {
 		return
 	}
-	nodepath := &Path{db, noderelpath}
-	stream.Algo = nodepath.Algo()
-	stream.RootNode, err = db.GetNode(nodepath)
+	nodepath := db.NewPath(noderelpath)
+	rootnode, err := db.GetNode(nodepath)
 	if err != nil {
 		return
 	}
-
+	stream = db.NewStream(label, rootnode)
 	return
 }
 
@@ -658,11 +676,11 @@ func (node *Node) Verify() (ok bool, err error) {
 	if err != nil {
 		return
 	}
-	for _, child := range objects {
-		path := child.Path
-		switch path.Class() {
-		case "blob":
+	for _, obj := range objects {
+		switch child := obj.(type) {
+		case *Blob:
 			// XXX add a verify flag to GetBlob and do this there
+			path := child.Path
 			content, err := child.Db.GetBlob(path)
 			if err != nil {
 				return false, err
@@ -678,41 +696,40 @@ func (node *Node) Verify() (ok bool, err error) {
 				log.Debugf("node %v path %v content '%s'", node, path, content)
 				return false, fmt.Errorf("expected %v, calculated %v", path.Hash(), hex)
 			}
-		case "node":
-			_, err := node.Db.getNode(path.Canon(), true)
+		case *Node:
+			path := child.Path
+			_, err := node.Db.getNode(path, true)
 			if err != nil {
 				return false, err
 			}
 		default:
-			err = fmt.Errorf("invalid path.Class %v", path.Class())
-			return false, err
+			panic(fmt.Sprintf("unhandled type %T", child))
 		}
 	}
 	return true, nil
 }
 
 // traverse recurses down the tree of nodes returning leaves or optionally all nodes
+// XXX we might not need err
 func (node *Node) traverse(all bool) (objects []Object, err error) {
 
 	if all {
-		nodes = append(nodes, node)
-		return
+		objects = append(objects, node)
 	}
 
-	switch node.Path.Class() {
-	case "blob":
-		nodes = append(nodes, node)
-	case Node:
-		for _, child := range obj.entries {
-			var childnodes []*Node
-			childnodes, err = obj.traverse(all)
+	for _, obj := range node.entries {
+		switch child := obj.(type) {
+		case *Blob:
+			objects = append(objects, obj)
+		case *Node:
+			childobjs, err := child.traverse(all)
 			if err != nil {
 				return nil, err
 			}
-			nodes = append(nodes, childnodes...)
+			objects = append(objects, childobjs...)
+		default:
+			panic(fmt.Sprintf("unhandled type %T", child))
 		}
-	default:
-		panic("unhandled Object type in traverse()")
 	}
 
 	return
@@ -746,9 +763,13 @@ type Path struct {
 	Any string
 }
 
+func (db *Db) NewPath(anypath string) (path *Path) {
+	return &Path{Db: db, Any: anypath}
+}
+
 // Abs returns the absolute path given any type of path as input.
 func (path *Path) Abs() string {
-	relpath := path.Rel(path.Any)
+	relpath := path.Rel()
 	return filepath.Join(path.Db.Dir, relpath)
 }
 
@@ -773,8 +794,9 @@ func (path *Path) Rel() string {
 	return filepath.Join(class, algo, subpath, hash)
 }
 
+// Addr returns a universally-unique address for the data stored at path.
 func (path *Path) Addr() (addr string) {
-	class, algo, hash := path.Parts()
+	_, algo, hash := path.Parts()
 	// an addr always uses forward slashes, so filepath.Join() would be
 	// the wrong thing here
 	return algo + "/" + hash
@@ -786,7 +808,7 @@ func (path *Path) Parts() (class, algo, hash string) {
 	index := strings.Index(anypath, path.Db.Dir)
 	if index == 0 {
 		// remove db.Dir
-		anypath = strings.Replace(anypath, db.Dir, "", 1)
+		anypath = strings.Replace(anypath, path.Db.Dir, "", 1)
 	}
 
 	// split into parts
@@ -870,7 +892,7 @@ func hex2bin (hexkey string) (binhash []byte) {
 
 func (db *Db) PathFromString(algo string, s string) (path *Path, err error) {
 	buf := []byte(s)
-	return db.PathFromBuf(algo, &buf)
+	return db.PathFromBuf(algo, buf)
 }
 
 // XXX deprecate in favor of Blob.Write(), Close(), then Hash()
@@ -880,7 +902,7 @@ func (db *Db) PathFromBuf(algo string, buf []byte) (path *Path, err error) {
 		return
 	}
 	hash := bin2hex(binhash)
-	path := &Path{Db: db, Any: filepath.Join("blob", algo, hash)}
+	path = db.NewPath(filepath.Join("blob", algo, hash))
 	return
 }
 
@@ -901,7 +923,7 @@ func Hash(algo string, buf []byte) (hash []byte, err error) {
 		err = fmt.Errorf("not implemented: %s", algo)
 		return
 	}
-	return &binhash, nil
+	return binhash, nil
 }
 
 // GetGID returns the goroutine ID of its calling function, for logging purposes.
@@ -922,9 +944,18 @@ type Node struct {
 	fh      *os.File
 }
 
-func (db *Db) OpenNode(relpath string) (node *Node, err error) {
+func (db *Db) MkNode(path *Path) (node *Node) {
+	return &Node{Db: db, Path: path}
+}
+
+func (db *Db) OpenNode(path *Path) (node *Node, err error) {
+	node = db.MkNode(path)
 	// XXX see OpenBlob
 	return
+}
+
+func (node *Node) GetPath() *Path {
+	return node.Path
 }
 
 func (node *Node) Read(buf []byte) (n int, err error) {
@@ -945,6 +976,22 @@ func (node *Node) Tell() (n int64, err error) {
 
 func (node *Node) Close() (err error) {
 	// XXX see Blob.Close
+	defer node.fh.Close()
+	db := node.Db
+	path := filepath.Join(db.Dir, node.Path.Rel())
+	// mkdir
+	dir, _ := filepath.Split(path)
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return
+	}
+
+	// rename temp file to permanent blob file
+	// XXX what are we renaming?
+	// err = os.Rename(XXX, path)
+	if err != nil {
+		return
+	}
 	return
 }
 
@@ -956,7 +1003,7 @@ func (node *Node) Size() (n int64, err error) {
 // String returns the concatenated node entries
 func (node *Node) String() (out string) {
 	for _, entry := range node.entries {
-		out += strings.TrimSpace(entry.CanPath()) + "\n"
+		out += strings.TrimSpace(entry.GetPath().Canon()) + "\n"
 	}
 	return
 }
@@ -981,14 +1028,15 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// attacks)
 	content := []byte(node.String())
 
-	binhash, err := Hash(algo, &content)
+	binhash, err := Hash(algo, content)
 	if err != nil {
 		return
 	}
 	hash := bin2hex(binhash)
 	relpath := filepath.Join("node", algo, hash)
+	path := db.NewPath(relpath)
 
-	err = db.put(relpath, &content)
+	err = db.put(path, content)
 	if err != nil {
 		return
 	}
@@ -1001,9 +1049,8 @@ func (db *Db) GetNode(path *Path) (node *Node, err error) {
 	return db.getNode(path, true)
 }
 
-func (db *Db) getNode(path string, verify bool) (node *Node, err error) {
-
-	// XXX refactor to use Object methods
+// XXX do we ever take advantage of verify == false?  where should we?
+func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 
 	abspath := path.Abs()
 	file, err := os.Open(abspath)
@@ -1019,10 +1066,9 @@ func (db *Db) getNode(path string, verify bool) (node *Node, err error) {
 	for scanner.Scan() {
 		buf := scanner.Bytes()
 		line := string(buf)
-
-		parts := strings.Split(line, " ")
-		canon := parts[0]
-		entry := db.ObjectFromCanPath(canon)
+		line = strings.TrimSpace(line)
+		path := db.NewPath(line)
+		entry := db.ObjectFromPath(path)
 		entries = append(entries, entry)
 
 		content = append(content, buf...)
@@ -1036,7 +1082,7 @@ func (db *Db) getNode(path string, verify bool) (node *Node, err error) {
 
 	if verify {
 		// hash content
-		binhash, err := Hash(path.Algo(), &content)
+		binhash, err := Hash(path.Algo(), content)
 		if err != nil {
 			return node, err
 		}

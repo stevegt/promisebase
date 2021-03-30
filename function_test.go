@@ -2,7 +2,6 @@ package pitbase
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -104,9 +103,9 @@ func nonMissingErr(err error) error {
 	return err
 }
 
-func mkbuf(s string) *[]byte {
+func mkbuf(s string) []byte {
 	tmp := []byte(s)
-	return &tmp
+	return tmp
 }
 
 func mkpath(t *testing.T, db *Db, s string) (path *Path) {
@@ -118,7 +117,7 @@ func mkpath(t *testing.T, db *Db, s string) (path *Path) {
 }
 
 func TestHash(t *testing.T) {
-	val := mkblob("somevalue")
+	val := mkbuf("somevalue")
 	binhash, err := Hash("sha256", val)
 	if err != nil {
 		t.Fatal(err)
@@ -146,16 +145,18 @@ func TestHash(t *testing.T) {
 }
 
 func TestBlob(t *testing.T) {
+	db := setup(t)
+
 	relpath := "blob/sha256/87d/149/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+	path := db.NewPath(canpath)
 
-	db := setup(t)
-	b, err := db.OpenBlob(relpath)
+	b, err := db.OpenBlob(path)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// put something in the blob
-	data := *(mkblob("somedata"))
+	data := mkbuf("somedata")
 	nwrite, err := b.Write(data)
 	tassert(t, err == nil, "b.Write err %v", err)
 	tassert(t, nwrite == len(data), "b.Write len expected %v, got %v", len(data), nwrite)
@@ -165,7 +166,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "b.Close() err %v", err)
 
 	// re-open readable
-	b, err = db.OpenBlob(relpath)
+	b, err = db.OpenBlob(path)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// seek to a location
@@ -183,7 +184,7 @@ func TestBlob(t *testing.T) {
 	nread, err := b.Read(buf)
 	tassert(t, err == nil, "b.Read err %v", err)
 	tassert(t, nread == 6, "b.Read len expected %v, got %v", 6, nread)
-	expect := *(mkblob("medata"))
+	expect := mkbuf("medata")
 	got := buf[:nread]
 	tassert(t, bytes.Compare(expect, got) == 0, "b.Read expected %v, got %v", expect, got)
 
@@ -203,99 +204,99 @@ func TestBlob(t *testing.T) {
 	// test Object methods
 	objectExample(t, b)
 
-	abspath := b.AbsPath()
+	abspath := b.Path.Abs()
 	tassert(t, len(abspath) > 11, "path len %v", len(abspath))
 	fmt.Printf("object path %s\n", abspath)
 
-	gotrelpath := b.RelPath()
+	gotrelpath := b.Path.Rel()
 	tassert(t, relpath == gotrelpath, "relpath '%v'", gotrelpath)
 
-	class := b.Class()
+	class := b.Path.Class()
 	tassert(t, class == "blob", "class '%v'", class)
 
-	algo := b.Algo()
+	algo := b.Path.Algo()
 	tassert(t, algo == "sha256", "algo '%v'", algo)
 
-	gothash := b.Hash()
+	gothash := b.Path.Hash()
 	tassert(t, gothash == hash, "hash '%v'", gothash)
 
-	gotcanpath := b.CanPath()
+	gotcanpath := b.Path.Canon()
 	tassert(t, canpath == gotcanpath, "canpath '%v'", gotcanpath)
 
 	size, err = b.Size()
 	tassert(t, err == nil, "Blob.Size() err %v", err)
-	fmt.Printf("object %s is %d bytes\n", b.CanPath(), size)
+	fmt.Printf("object %s is %d bytes\n", b.Path.Canon(), size)
 
 }
 
 // an example of how an Object might be used
 func objectExample(t *testing.T, o Object) {
 
-	abspath := o.AbsPath()
+	abspath := o.GetPath().Abs()
 	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
 	fmt.Printf("object path %s\n", abspath)
 
 	size, err := o.Size()
 	tassert(t, err == nil, "Blob.Size() err %v", err)
-	fmt.Printf("object %s is %d bytes\n", o.CanPath(), size)
+	fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon(), size)
 }
 
 func TestPut(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, db, "somekey")
-	val := mkblob("somevalue")
-	err := db.put(key, val)
+	path := mkpath(t, db, "somekey")
+	val := mkbuf("somevalue")
+	err := db.put(path, val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadFile(db.Path(key))
+	got, err := ioutil.ReadFile(path.Abs())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(*val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(*val), string(got))
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
 	}
 }
 
 func TestGet(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, db, "somekey")
-	val := mkblob("somevalue")
-	err := db.put(key, val)
+	path := mkpath(t, db, "somekey")
+	val := mkbuf("somevalue")
+	err := db.put(path, val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := db.GetBlob(key)
+	got, err := db.GetBlob(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(*val, *got) != 0 {
-		t.Fatalf("expected %s, got %s", string(*val), string(*got))
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
 	}
 }
 
 func TestRm(t *testing.T) {
 	db := setup(t)
-	key := mkkey(t, db, "somekey")
-	val := mkblob("somevalue")
-	err := db.put(key, val)
+	path := mkpath(t, db, "somekey")
+	val := mkbuf("somevalue")
+	err := db.put(path, val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.Rm(key)
+	err = db.Rm(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.GetBlob(key)
+	_, err = db.GetBlob(path)
 	if err == nil {
-		t.Fatalf("key not deleted: %s", key.Path())
+		t.Fatalf("path not deleted: %s", path.Abs())
 	}
 }
 
 func TestPutBlob(t *testing.T) {
 	db := setup(t)
-	val := mkblob("somevalue")
-	key, err := db.KeyFromBuf("sha256", val)
+	val := mkbuf("somevalue")
+	path, err := db.PathFromBuf("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,22 +304,22 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key.Canon() != gotblob.CanPath() {
-		t.Fatalf("expected key %s, got %s", key.Canon(), gotblob.CanPath())
+	if path.Canon() != gotblob.Path.Canon() {
+		t.Fatalf("expected path %s, got %s", path.Canon(), gotblob.Path.Canon())
 	}
-	got, err := ioutil.ReadFile(db.Path(key))
+	got, err := ioutil.ReadFile(path.Abs())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(*val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(*val), string(got))
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
 	}
 }
 
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
-	val := mkblob("somevalue")
-	key, err := db.KeyFromBuf("sha256", val)
+	val := mkbuf("somevalue")
+	path, err := db.PathFromBuf("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,15 +327,15 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key.Canon() != gotblob.CanPath() {
-		t.Fatalf("expected key %s, got %s", key.Canon(), gotblob.CanPath())
+	if path.Canon() != gotblob.Path.Canon() {
+		t.Fatalf("expected path %s, got %s", path.Canon(), gotblob.Path.Canon())
 	}
-	got, err := db.GetBlob(key)
+	got, err := db.GetBlob(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(*val, *got) != 0 {
-		t.Fatalf("expected %s, got %s", string(*val), string(*got))
+	if bytes.Compare(val, got) != 0 {
+		t.Fatalf("expected %s, got %s", string(val), string(got))
 	}
 }
 
@@ -350,45 +351,15 @@ func deepEqual(a, b interface{}) bool {
 
 func TestPath(t *testing.T) {
 	db := setup(t)
-	val := mkblob("somevalue")
-	key, err := db.KeyFromBuf("sha256", val)
+	val := mkbuf("somevalue")
+	path, err := db.PathFromBuf("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(db.Dir, "blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342")
-	gotpath := db.Path(key)
-	if path != gotpath {
-		t.Fatalf("expected %s, got %s", path, gotpath)
-	}
-}
-
-// XXX test db.GetRef
-
-// XXX redefine "key" to mean the path to a blob, tree, or ref
-// XXX change ref format accordingly
-// XXX change key struct accordingly
-
-// TestKey makes sure we have a Key struct and that the KeyFromPath
-// function works.
-func TestKey(t *testing.T) {
-	db := setup(t)
-	var key *Key
-	val := mkblob("somevalue")
-	algo := "sha256"
-	d := sha256.Sum256(*val)
-	bin := make([]byte, len(d))
-	copy(bin[:], d[0:len(d)])
-	hex := fmt.Sprintf("%x", bin)
-	key, err := db.KeyFromBuf(algo, val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if algo != key.Algo {
-		t.Fatalf("expected %s, got %s", algo, key.Algo)
-	}
-	expect := filepath.Join("blob/sha256", hex[0:3], hex[3:6], hex)
-	if expect != key.Path() {
-		t.Fatalf("expected %s, got %s", expect, key.Path())
+	expectabs := filepath.Join(db.Dir, "blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342")
+	gotabs := path.Abs()
+	if expectabs != gotabs {
+		t.Fatalf("expected %s, got %s", path.Abs(), gotabs)
 	}
 }
 
@@ -404,22 +375,18 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode(mkpath("node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
+	node, err := db.GetNode(mkpath(t, db, "node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	children, err := node.ChildNodes()
-	if err != nil {
-		return
-	}
-	for i, child := range children {
+	for i, child := range node.entries {
 		switch i {
 		case 0:
 			expect := "node/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
-			tassert(t, expect == child.Key.Path(), "expected %v got %v", expect, child.Key.Path())
+			tassert(t, expect == child.GetPath().Rel(), "expected %v got %v", expect, child.GetPath().Rel())
 		case 1:
 			expect := "blob/sha256/534/d05/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
-			tassert(t, expect == child.Key.Path(), "expected %q got %q", expect, child.Key.Path())
+			tassert(t, expect == child.GetPath().Rel(), "expected %q got %q", expect, child.GetPath().Rel())
 		}
 	}
 	ok, err := node.Verify()
@@ -432,12 +399,12 @@ func TestVerify(t *testing.T) {
 func TestNode(t *testing.T) {
 	db := setup(t)
 	// setup
-	buf1 := mkblob("blob1value")
+	buf1 := mkbuf("blob1value")
 	child1, err := db.PutBlob("sha256", buf1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	buf2 := mkblob("blob2value")
+	buf2 := mkbuf("blob2value")
 	child2, err := db.PutBlob("sha256", buf2)
 	if err != nil {
 		t.Fatal(err)
@@ -468,7 +435,7 @@ func TestNode(t *testing.T) {
 	tassert(t, ok, "node verify failed: %v", node)
 
 	// get
-	gotnode, err := db.GetNode(node.CanPath())
+	gotnode, err := db.GetNode(node.Path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -485,8 +452,6 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// How are the blobs are supposed to be organized in the world?
-	// Is this TestWorld func obsolete now?
 	buf2 := mkbuf("blob2value")
 	blob2, err := db.PutBlob("sha256", buf2)
 	if err != nil {
@@ -514,56 +479,56 @@ func TestTree(t *testing.T) {
 		t.Fatal("node2 is nil")
 	}
 
-	stream1, err := db.LabelStream(node2, "stream1")
+	stream1, err := node2.MkStream("stream1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	gotstream, err := db.GetStream("stream1")
+	gotstream, err := db.OpenStream("stream1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	tassert(t, reflect.DeepEqual(stream1, gotstream), "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
 
-	// list leaf nodes
-	nodes, err := world1.Ls(false)
+	// list leaf objs
+	objects, err := stream1.Ls(false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
-	gotnodes := nodes2str(nodes)
-	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
+	gotobjs := objs2str(objects)
+	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
 
-	// list all nodes
-	nodes, err = world1.Ls(true)
+	// list all objs
+	objects, err = stream1.Ls(true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "node/sha256/fc489024469b5e9acfa85e4c117e9bef69552720ef5154edaaa6123bad98ec56 world1\nnode/sha256/9ae11d65603f394a9dcb6a54166dde24ebdd9479c480ad8b8e5b700f3a1cde4b node1label\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect = "node/sha256/fc489024469b5e9acfa85e4c117e9bef69552720ef5154edaaa6123bad98ec56 stream1\nnode/sha256/9ae11d65603f394a9dcb6a54166dde24ebdd9479c480ad8b8e5b700f3a1cde4b node1label\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
 
-	gotnodes = nodes2str(nodes)
-	tassert(t, expect == gotnodes, "expected %v got %v", expect, gotnodes)
+	gotobjs = objs2str(objects)
+	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
 
-	// catworld
-	gotbuf, err := world1.Cat()
+	// catstream
+	gotbuf, err := stream1.Cat()
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectbuf := mkblob("blob1valueblob2valueblob3value")
-	tassert(t, bytes.Compare(*expectbuf, *gotbuf) == 0, "expected %v got %v", string(*expectbuf), string(*gotbuf))
+	expectbuf := mkbuf("blob1valueblob2valueblob3value")
+	tassert(t, bytes.Compare(expectbuf, gotbuf) == 0, "expected %v got %v", string(expectbuf), string(gotbuf))
 
 	// append
-	blob4 := mkblob("blob4value")
-	world1, err = world1.AppendBlob("sha256", blob4)
+	blob4 := mkbuf("blob4value")
+	stream1, err = stream1.AppendBlob("sha256", blob4)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotbuf, err = world1.Cat()
+	gotbuf, err = stream1.Cat()
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectbuf = mkblob("blob1valueblob2valueblob3valueblob4value")
-	tassert(t, bytes.Compare(*expectbuf, *gotbuf) == 0, "expected %v got %v", string(*expectbuf), string(*gotbuf))
+	expectbuf = mkbuf("blob1valueblob2valueblob3valueblob4value")
+	tassert(t, bytes.Compare(expectbuf, gotbuf) == 0, "expected %v got %v", string(expectbuf), string(gotbuf))
 
 }
 
@@ -583,7 +548,7 @@ func Benchmark0PutBlob(b *testing.B) {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		val := mkblob(asString(n))
+		val := mkbuf(asString(n))
 		_, err = db.PutBlob("sha256", val)
 		if err != nil {
 			b.Fatal(err)
@@ -605,11 +570,11 @@ func Benchmark2GetBlob(b *testing.B) {
 	}
 	// fmt.Println("bench size:", benchSize)
 	for n := 0; n <= benchSize; n++ {
-		key, err := db.KeyFromString("sha256", asString(n))
+		path, err := db.PathFromString("sha256", asString(n))
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = db.GetBlob(key)
+		_, err = db.GetBlob(path)
 		if err != nil {
 			fmt.Printf("n: %d\n", n)
 			b.Fatal(err)
@@ -622,10 +587,10 @@ func XXXBenchmarkPutBlobSame(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	val := mkblob("foo")
+	val := mkbuf("foo")
 	for n := 0; n < b.N; n++ {
-		gotkey, err := db.PutBlob("sha256", val)
-		_ = gotkey
+		gotpath, err := db.PutBlob("sha256", val)
+		_ = gotpath
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -638,12 +603,12 @@ func BenchmarkPutGetBlob(b *testing.B) {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		val := mkblob(asString(n))
-		key, err := db.PutBlob("sha256", val)
+		val := mkbuf(asString(n))
+		blob, err := db.PutBlob("sha256", val)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = db.GetBlob(key)
+		_, err = db.GetBlob(blob.Path)
 		if err != nil {
 			//	fmt.Printf("n: %d\n", n)
 			b.Fatal(err)
@@ -651,9 +616,9 @@ func BenchmarkPutGetBlob(b *testing.B) {
 	}
 }
 
-func nodes2str(nodes []*Node) (out string) {
-	for _, node := range nodes {
-		line := strings.Join([]string{node.Key.Canon(), node.Label}, " ")
+func objs2str(objects []Object) (out string) {
+	for _, obj := range objects {
+		line := string(obj.GetPath().Canon())
 		line = strings.TrimSpace(line) + "\n"
 		out += line
 	}
