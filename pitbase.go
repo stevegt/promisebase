@@ -71,7 +71,6 @@ type Db struct {
 // stream.
 type Object interface {
 	Read(buf []byte) (n int, err error)
-	ReadAll() (buf []byte, err error)
 	Write(data []byte) (n int, err error)
 	Seek(n int64, whence int) (nout int64, err error)
 	Tell() (n int64, err error)
@@ -359,6 +358,14 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 	return b.fh.Read(buf)
 }
 
+func (b *Blob) ReadAll() (buf []byte, err error) {
+	buf, err = ioutil.ReadFile(b.Path.Abs())
+	if err != nil {
+		return
+	}
+	return
+}
+
 // Seek moves the cursor position `b.pos` to `n`, using
 // os.File.Seek():  Seek sets the offset for the next Read
 // or Write on file to offset, interpreted according to `whence`: 0
@@ -604,7 +611,7 @@ func (stream *Stream) CanPath() (canpath string) {
 
 // Ls lists all of the leaf nodes in a stream and optionally both
 // leaf and inner
-func (stream *Stream) Ls(all bool) (objects []*Object, err error) {
+func (stream *Stream) Ls(all bool) (objects []Object, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
 	return stream.RootNode.traverse(all)
@@ -621,7 +628,7 @@ func (stream *Stream) Cat() (buf []byte, err error) {
 // XXX replace with node.Read()
 func (node *Node) Cat() (buf []byte, err error) {
 
-	db := node.Db
+	// db := node.Db
 
 	// get leaf nodes
 	objects, err := node.traverse(false)
@@ -633,7 +640,11 @@ func (node *Node) Cat() (buf []byte, err error) {
 	buf = []byte{}
 	for _, obj := range objects {
 		var content []byte
-		content, err = obj.ReadAll()
+		blob, ok := obj.(*Blob)
+		if !ok {
+			panic("assertion failure: blob type")
+		}
+		content, err = blob.ReadAll()
 		if err != nil {
 			return
 		}
@@ -642,7 +653,7 @@ func (node *Node) Cat() (buf []byte, err error) {
 	return
 }
 
-// Verify hashes the node content and compares it to its key
+// Verify hashes the node content and compares it to its address
 // XXX refactor to take advantage of streaming
 func (node *Node) Verify() (ok bool, err error) {
 	objects, err := node.traverse(true)
@@ -663,7 +674,7 @@ func (node *Node) Verify() (ok bool, err error) {
 			if err != nil {
 				return false, err
 			}
-			// compare hash with key.Hash
+			// compare hash with path.Hash
 			hex := bin2hex(binhash)
 			if path.Hash() != hex {
 				log.Debugf("node %v path %v content '%s'", node, path, content)
@@ -683,7 +694,7 @@ func (node *Node) Verify() (ok bool, err error) {
 }
 
 // traverse recurses down the tree of nodes returning leaves or optionally all nodes
-func (node *Node) traverse(all bool) (objects []*Object, err error) {
+func (node *Node) traverse(all bool) (objects []Object, err error) {
 
 	if all {
 		nodes = append(nodes, node)
@@ -764,9 +775,9 @@ func (path *Path) Rel() string {
 	return filepath.Join(class, algo, subpath, hash)
 }
 
-func (path *Path) Key() (key string) {
+func (path *Path) Addr() (addr string) {
 	class, algo, hash := path.Parts()
-	// a key always uses forward slashes, so filepath.Join() would be
+	// an addr always uses forward slashes, so filepath.Join() would be
 	// the wrong thing here
 	return algo + "/" + hash
 }
@@ -983,7 +994,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// populate the entries field
 	node.entries = children
 
-	// concatenate all relpaths together (include the full key string with
+	// concatenate all relpaths together (include the full canpath with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
 	content := []byte(node.String())
@@ -1003,23 +1014,23 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	return
 }
 
-// GetNode takes a node key and returns a Node struct
+// GetNode takes a node path and returns a Node struct
 func (db *Db) GetNode(path *Path) (node *Node, err error) {
 	return db.getNode(path, true)
 }
 
-func (db *Db) getNode(key string, verify bool) (node *Node, err error) {
+func (db *Db) getNode(path string, verify bool) (node *Node, err error) {
 
 	// XXX refactor to use Object methods
 
-	abspath := db.AbsPath("node/" + key)
+	abspath := path.Abs()
 	file, err := os.Open(abspath)
 	if err != nil {
 		return
 	}
 	defer file.Close()
 
-	node = &Node{Db: db, Key: key}
+	node = &Node{Db: db, Path: path}
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -1043,15 +1054,15 @@ func (db *Db) getNode(key string, verify bool) (node *Node, err error) {
 
 	if verify {
 		// hash content
-		binhash, err := Hash(key.Algo, &content)
+		binhash, err := Hash(path.Algo(), &content)
 		if err != nil {
 			return node, err
 		}
-		// compare hash with key.Hash
+		// compare hash with path.Hash()
 		hex := bin2hex(binhash)
-		if key.Hash != hex {
-			log.Debugf("node %v key %v content '%s'", node, key, content)
-			err = fmt.Errorf("expected %v, calculated %v", key.Hash, hex)
+		if path.Hash() != hex {
+			log.Debugf("node %v path %v content '%s'", node, path, content)
+			err = fmt.Errorf("expected %v, calculated %v", path.Hash(), hex)
 			return node, err
 		}
 	}

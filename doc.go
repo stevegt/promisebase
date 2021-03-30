@@ -21,8 +21,8 @@ Vocabulary:
   pointing at rootnode canpath
 - label: human-readable name of a stream;
   stored as the name of the symlink pointing at rootnode canpath
-- object: blob, node, or stream; addressed by canpath
-- key: a user-visible path, always points to a node; canpath without leading "node/"
+- object: blob, node, or stream
+- address: a user-visible path, always points to a node; canpath without leading "node/"
 
 */
 
