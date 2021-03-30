@@ -104,7 +104,7 @@ func nonMissingErr(err error) error {
 	return err
 }
 
-func mkblob(s string) *[]byte {
+func mkbuf(s string) *[]byte {
 	tmp := []byte(s)
 	return &tmp
 }
@@ -404,7 +404,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode("node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2")
+	node, err := db.GetNode(mkpath("node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -476,43 +476,37 @@ func TestNode(t *testing.T) {
 	tassert(t, reflect.DeepEqual(node, gotnode), "node mismatch: expect %v got %v", node, gotnode)
 }
 
-func TestWorld(t *testing.T) {
+func TestTree(t *testing.T) {
 	db := setup(t)
 
 	// setup
-	buf1 := mkblob("blob1value")
+	buf1 := mkbuf("blob1value")
 	blob1, err := db.PutBlob("sha256", buf1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// XXX previous 5 lines conform to new format
-	// Not sure how to proceed.
 	// How are the blobs are supposed to be organized in the world?
 	// Is this TestWorld func obsolete now?
-	child1 := &Node{Db: db, Key: key1, Label: "blob1label"}
-	blob2 := mkblob("blob2value")
-	key2, err := db.PutBlob("sha256", blob2)
+	buf2 := mkbuf("blob2value")
+	blob2, err := db.PutBlob("sha256", buf2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child2 := &Node{Db: db, Key: key2, Label: "blob2label"}
-	blob3 := mkblob("blob3value")
-	key3, err := db.PutBlob("sha256", blob3)
+	buf3 := mkbuf("blob3value")
+	blob3, err := db.PutBlob("sha256", buf3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	child3 := &Node{Db: db, Key: key3, Label: "blob3label"}
 
 	// put
-	node1, err := db.PutNode("sha256", child1, child2)
+	node1, err := db.PutNode("sha256", blob1, blob2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if node1 == nil {
 		t.Fatal("node1 is nil")
 	}
-	node1.Label = "node1label"
-	node2, err := db.PutNode("sha256", node1, child3)
+	node2, err := db.PutNode("sha256", node1, blob3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,16 +514,16 @@ func TestWorld(t *testing.T) {
 		t.Fatal("node2 is nil")
 	}
 
-	world1, err := db.PutWorld(node2.Key, "world1")
+	stream1, err := db.LabelStream(node2, "stream1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	gotworld, err := db.GetWorld("world1")
+	gotstream, err := db.GetStream("stream1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tassert(t, reflect.DeepEqual(world1, gotworld), "world mismatch: expect %v got %v", pretty(world1), pretty(gotworld))
+	tassert(t, reflect.DeepEqual(stream1, gotstream), "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
 
 	// list leaf nodes
 	nodes, err := world1.Ls(false)
