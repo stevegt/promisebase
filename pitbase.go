@@ -558,11 +558,10 @@ func (world *World) String() (path string) {
 }
 */
 
-/*
-// PutWorld takes a key and a name and creates a world with that name
-func (db *Db) PutWorld(key string, name string) (world *World, err error) {
-	world = &World{Db: db, Name: name}
-	src := filepath.Join("..", db.RelPath(key))
+// LabelStream makes a symlink named label pointing at node, and returns a stream
+func (db *Db) LabelStream(node *Node, label string) (stream *Stream, err error) {
+	world = &World{Db: db, Label: label}
+	src := filepath.Join("..", node.Path.Rel())
 	err = renameio.Symlink(src, world.String())
 	if err != nil {
 		return
@@ -570,7 +569,6 @@ func (db *Db) PutWorld(key string, name string) (world *World, err error) {
 	world.Key = key
 	return
 }
-*/
 
 // Stream is an ordered set of bytes of arbitrary (but not infinite)
 // length.  It implements the io.ReadWriteCloser interface so a
