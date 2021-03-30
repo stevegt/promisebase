@@ -376,21 +376,11 @@ func (b *Blob) Tell() (n int64, err error) {
 	return b.Seek(0, io.SeekCurrent)
 }
 
-<<<<<<< HEAD
-// GetBlob retrieves the blob of a key by reading its file contents.
-// XXX is this func outdated?
-// should it return a byte slice buf or a blob pointer?
-// Is the key struct going to be phased out?
-func (db *Db) GetBlob(key *Key) (blob *[]byte, err error) {
-	// XXX call OpenBlob(), b.Read(), and b.Close()
-	buf, err := ioutil.ReadFile(db.Path(key))
-=======
 // GetBlob retrieves a blob by reading its file contents.
 // XXX deprecate
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
 	// XXX streaming: call OpenBlob(), b.Read(), and b.Close()
 	buf, err = ioutil.ReadFile(path.Abs())
->>>>>>> remotes/origin/angela/streaming
 	if err != nil {
 		return
 	}
