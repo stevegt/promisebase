@@ -404,7 +404,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode("node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2")
+	node, err := db.GetNode(db.KeyFromPath("node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,15 +480,11 @@ func TestWorld(t *testing.T) {
 	db := setup(t)
 
 	// setup
-	buf1 := mkblob("blob1value")
-	blob1, err := db.PutBlob("sha256", buf1)
+	blob1 := mkblob("blob1value")
+	key1, err := db.PutBlob("sha256", blob1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// XXX previous 5 lines conform to new format
-	// Not sure how to proceed.
-	// How are the blobs are supposed to be organized in the world?
-	// Is this TestWorld func obsolete now?
 	child1 := &Node{Db: db, Key: key1, Label: "blob1label"}
 	blob2 := mkblob("blob2value")
 	key2, err := db.PutBlob("sha256", blob2)

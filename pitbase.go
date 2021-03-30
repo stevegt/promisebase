@@ -936,22 +936,6 @@ func (node *Node) Tell() (n int64, err error) {
 
 func (node *Node) Close() (err error) {
 	// XXX see Blob.Close
-	defer node.fh.Close()
-	db := node.Db
-	path := filepath.Join(db.Dir, node.RelPath())
-	// mkdir
-	dir, _ := filepath.Split(path)
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return
-	}
-
-	// rename temp file to permanent blob file
-	// XXX what are we renaming?
-	// err = os.Rename(XXX, path)
-	if err != nil {
-		return
-	}
 	return
 }
 
