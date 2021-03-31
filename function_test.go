@@ -150,7 +150,7 @@ func TestBlob(t *testing.T) {
 	relpath := "blob/sha256/87d/149/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
-	path := db.NewPath(canpath)
+	path := db.MkPath(canpath)
 
 	b, err := db.OpenBlob(path)
 	tassert(t, err == nil, "OpenBlob err %v", err)

@@ -3,6 +3,8 @@
 Pitbase is a content-addressable deduplicating database able to store
 data streams of arbitrary size.
 
+XXX move to an RFC
+
 Vocabulary:
 
 - abspath: absolute path on hard disk, including subdirs
@@ -23,6 +25,12 @@ Vocabulary:
   stored as the name of the symlink pointing at rootnode canpath
 - object: blob, node, or stream
 - address: a user-visible path, always points to a node; canpath without leading "node/"
+	- XXX Node-only addresses preclude being able to ship blobs around
+		between machines, and we may need to either include "blob" or
+		"node" in addr, or collapse the node/ and blob/ trees on disk.  If
+		we do collapse the node/ and blob/ trees into e.g. object/, then
+		we'll also need to change the node file format to avoid preimage
+		attacks.
 
 */
 
