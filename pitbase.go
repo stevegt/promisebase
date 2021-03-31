@@ -611,6 +611,7 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	if rootnode == nil {
 		panic("rootnode is nil")
 	}
+	log.Debugf("OpenStream rootnode %#v", rootnode)
 	stream = db.NewStream(label, rootnode)
 	return
 }
@@ -709,7 +710,9 @@ func (node *Node) traverse(all bool) (objects []Object, err error) {
 		objects = append(objects, node)
 	}
 
+	log.Debugf("traverse node %#v", node)
 	for _, obj := range node.entries {
+		log.Debugf("traverse obj %#v", obj)
 		switch child := obj.(type) {
 		case *Node:
 			childobjs, err := child.traverse(all)
@@ -785,6 +788,11 @@ func (path *Path) Canon() string {
 // the way git truncates the leading subdir parts of the hash).
 func (path *Path) Rel() string {
 	class, algo, hash := path.Parts()
+	if class == "stream" {
+		// hash is stream name
+		// XXX doesn't support slashes in stream name
+		return filepath.Join(class, hash)
+	}
 	var subpath string
 	for i := 0; i < path.Db.Depth; i++ {
 		subdir := hash[(3 * i):((3 * i) + 3)]
