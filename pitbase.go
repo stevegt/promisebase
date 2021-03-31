@@ -552,10 +552,11 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 		// store it
 		err = nil // clear IsNotExist err
 		var n int
-		b, err := db.CreateBlob(algo)
+		b, err = db.CreateBlob(algo)
 		if err != nil {
 			return b, err
 		}
+		log.Debugf("CreateBlob returned %#v", b)
 		n, err = b.Write(buf)
 		if err != nil {
 			return b, err
