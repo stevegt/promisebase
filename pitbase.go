@@ -498,7 +498,7 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
 // and returns the hash.
 func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
-	path, err := db.PathFromBuf(algo, buf)
+	path, err := db.PathFromBuf("blob", algo, buf)
 	if err != nil {
 		return
 	}
@@ -536,22 +536,6 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	}
 	return
 }
-
-/*
-// World is a reference to a timeline
-type World struct {
-	Db   *Db
-	Name string
-	Key  string
-}
-*/
-
-/*
-// String returns the path for a world
-func (world *World) String() (path string) {
-	return filepath.Join(world.Db.Dir, "world", world.Name)
-}
-*/
 
 // LinkStream makes a symlink named label pointing at node, and returns
 // the resulting stream object.
@@ -894,19 +878,19 @@ func hex2bin (hexkey string) (binhash []byte) {
 }
 */
 
-func (db *Db) PathFromString(algo string, s string) (path *Path, err error) {
+func (db *Db) PathFromString(class, algo, s string) (path *Path, err error) {
 	buf := []byte(s)
-	return db.PathFromBuf(algo, buf)
+	return db.PathFromBuf(class, algo, buf)
 }
 
 // XXX deprecate in favor of Blob.Write(), Close(), then Hash()
-func (db *Db) PathFromBuf(algo string, buf []byte) (path *Path, err error) {
+func (db *Db) PathFromBuf(class string, algo string, buf []byte) (path *Path, err error) {
 	binhash, err := Hash(algo, buf)
 	if err != nil {
 		return
 	}
 	hash := bin2hex(binhash)
-	path = db.MkPath(filepath.Join("blob", algo, hash))
+	path = db.MkPath(filepath.Join(class, algo, hash))
 	return
 }
 
@@ -963,6 +947,21 @@ func (db *Db) OpenNode(path *Path) (node *Node, err error) {
 	if err != nil {
 		return
 	}
+	return
+}
+
+// XXX compare with CreateBlob and call a common File.Create or CreateFile
+func (db *Db) CreateNode(algo string) (node *Node, err error) {
+	node = db.MkNode(nil)
+	node.algo = algo
+	// open temporary file
+	node.fh, err = db.tmpFile()
+	if err != nil {
+		return
+	}
+	// XXX handle other algos
+	node.hash = sha256.New()
+
 	return
 }
 
@@ -1048,27 +1047,51 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
 	// XXX refactor for streaming
-	content := []byte(node.String())
+	buf := []byte(node.String())
 
-	binhash, err := Hash(algo, content)
+	path, err := db.PathFromBuf("node", algo, buf)
 	if err != nil {
 		return
 	}
-	hash := bin2hex(binhash)
-	relpath := filepath.Join("node", algo, hash)
-	node.Path = db.MkPath(relpath)
+	node.Path = path
 
-	err = db.put(node.Path, content)
-	if err != nil {
-		return
+	// XXX compare with PutBlob; call a common File.Put or PutFile
+
+	// check if it's already stored
+	_, err = os.Stat(path.Abs())
+	if err == nil {
+		node, err = db.OpenNode(path)
+		if err != nil {
+			return
+		}
+	} else if os.IsNotExist(err) {
+		// store it
+		err = nil // clear IsNotExist err
+		var n int
+		node, err = db.CreateNode(algo)
+		if err != nil {
+			return node, err
+		}
+		n, err = node.Write(buf)
+		if err != nil {
+			return node, err
+		}
+		if n != len(buf) {
+			// XXX
+			panic("short write")
+		}
+		err = node.Close()
+		if err != nil {
+			return node, err
+		}
+
 	}
-
 	return
 }
 
 // Put creates a temporary file for a buf and then atomically renames to the permanent path.
 // XXX refactor for streaming
-func (db *Db) put(path *Path, buf []byte) (err error) {
+func (db *Db) XXXput(path *Path, buf []byte) (err error) {
 
 	// get temporary file
 	fh, err := db.tmpFile()

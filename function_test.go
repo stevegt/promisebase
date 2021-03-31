@@ -107,8 +107,8 @@ func mkbuf(s string) []byte {
 	return tmp
 }
 
-func mkpath(t *testing.T, db *Db, s string) (path *Path) {
-	path, err := db.PathFromString("sha256", s)
+func mkpath(t *testing.T, db *Db, class, s string) (path *Path) {
+	path, err := db.PathFromString(class, "sha256", s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,62 +242,27 @@ func objectExample(t *testing.T, o Object) {
 	fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon(), size)
 }
 
-func TestPut(t *testing.T) {
-	db := setup(t)
-	path := mkpath(t, db, "somekey")
-	val := mkbuf("somevalue")
-	err := db.put(path, val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ioutil.ReadFile(path.Abs())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
-	}
-}
-
-func TestGet(t *testing.T) {
-	db := setup(t)
-	path := mkpath(t, db, "somekey")
-	val := mkbuf("somevalue")
-	err := db.put(path, val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := db.GetBlob(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
-	}
-}
-
 func TestRm(t *testing.T) {
 	db := setup(t)
-	path := mkpath(t, db, "somekey")
-	val := mkbuf("somevalue")
-	err := db.put(path, val)
+	buf := mkbuf("somevalue")
+	blob, err := db.PutBlob("sha256", buf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.Rm(path)
+	err = db.Rm(blob.Path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.GetBlob(path)
+	_, err = db.GetBlob(blob.Path)
 	if err == nil {
-		t.Fatalf("path not deleted: %s", path.Abs())
+		t.Fatalf("path not deleted: %s", blob.Path.Abs())
 	}
 }
 
 func TestPutBlob(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.PathFromBuf("sha256", val)
+	path, err := db.PathFromBuf("blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +286,7 @@ func TestPutBlob(t *testing.T) {
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.PathFromBuf("sha256", val)
+	path, err := db.PathFromBuf("blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -354,7 +319,7 @@ func deepEqual(a, b interface{}) bool {
 func TestPath(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.PathFromBuf("sha256", val)
+	path, err := db.PathFromBuf("blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +538,7 @@ func Benchmark2GetBlob(b *testing.B) {
 	}
 	// fmt.Println("bench size:", benchSize)
 	for n := 0; n <= benchSize; n++ {
-		path, err := db.PathFromString("sha256", asString(n))
+		path, err := db.PathFromString("blob", "sha256", asString(n))
 		if err != nil {
 			b.Fatal(err)
 		}
