@@ -92,22 +92,6 @@ func (db Db) ObjectFromPath(path *Path) (obj Object) {
 	}
 }
 
-/*
-// Inode contains various file-related items such as file descriptor,
-// file handle, maybe some methods, etc.
-// XXX deprecate in favor of Object
-type Inode struct {
-	fd      uintptr
-	fh      *os.File
-	abspath string
-}
-
-// Close closes an inode
-func (inode *Inode) Close() (err error) {
-	return inode.fh.Close()
-}
-*/
-
 func mkdir(dir string) (err error) {
 	if _, err = os.Stat(dir); os.IsNotExist(err) {
 		err = os.MkdirAll(dir, 0755) // XXX perms too open?
@@ -236,34 +220,6 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 	}
 	// inode.abspath = inode.fh.Name()
 	// inode.fd = inode.fh.Fd()
-	return
-}
-
-// Put creates a temporary file for a buf and then atomically renames to the permanent path.
-// XXX refactor for streaming
-func (db *Db) put(path *Path, buf []byte) (err error) {
-
-	// get temporary file
-	fh, err := db.tmpFile()
-	defer fh.Close()
-
-	// write to temp file
-	_, err = fh.Write(buf)
-	if err != nil {
-		return err
-	}
-
-	dir, _ := filepath.Split(path.Abs())
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return
-	}
-	// rename temp file to permanent file
-	err = os.Rename(fh.Name(), path.Abs())
-	if err != nil {
-		return
-	}
-
 	return
 }
 
@@ -986,10 +942,13 @@ func GetGID() uint64 {
 
 // Node is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Node struct {
-	Db      *Db
-	entries []Object
-	Path    *Path
-	fh      *os.File
+	Db       *Db
+	Readonly bool
+	entries  []Object
+	Path     *Path
+	fh       *os.File
+	hash     hash.Hash
+	algo     string
 }
 
 func (db *Db) MkNode(path *Path) (node *Node) {
@@ -998,7 +957,12 @@ func (db *Db) MkNode(path *Path) (node *Node) {
 
 func (db *Db) OpenNode(path *Path) (node *Node, err error) {
 	node = db.MkNode(path)
-	// XXX see OpenBlob
+	node.Readonly = true
+	// open existing file
+	node.fh, err = os.Open(path.Abs())
+	if err != nil {
+		return
+	}
 	return
 }
 
@@ -1019,24 +983,33 @@ func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
 }
 
 func (node *Node) Tell() (n int64, err error) {
-	return
+	return node.Seek(0, io.SeekCurrent)
 }
 
+// XXX probably merge this with Blob.Close() and Stream.Close(), call it File.Close()
+// XXX likewise for other methods
 func (node *Node) Close() (err error) {
-	// XXX see Blob.Close
-	defer node.fh.Close()
-	db := node.Db
-	path := filepath.Join(db.Dir, node.Path.Rel())
+	if node.Readonly {
+		err = node.fh.Close()
+		return
+	}
+
+	// move tmpfile to perm
+	node.fh.Close()
+	binhash := node.hash.Sum(nil)
+	hexhash := bin2hex(binhash)
+	node.Path = node.Db.MkPath(fmt.Sprintf("node/%s/%s", node.algo, hexhash))
+	abspath := node.Path.Abs()
+
 	// mkdir
-	dir, _ := filepath.Split(path)
+	dir, _ := filepath.Split(abspath)
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return
 	}
 
 	// rename temp file to permanent blob file
-	// XXX what are we renaming?
-	// err = os.Rename(XXX, path)
+	err = os.Rename(node.fh.Name(), abspath)
 	if err != nil {
 		return
 	}
@@ -1074,6 +1047,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// concatenate all relpaths together (include the full canpath with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
+	// XXX refactor for streaming
 	content := []byte(node.String())
 
 	binhash, err := Hash(algo, content)
@@ -1085,6 +1059,34 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	node.Path = db.MkPath(relpath)
 
 	err = db.put(node.Path, content)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// Put creates a temporary file for a buf and then atomically renames to the permanent path.
+// XXX refactor for streaming
+func (db *Db) put(path *Path, buf []byte) (err error) {
+
+	// get temporary file
+	fh, err := db.tmpFile()
+	defer fh.Close()
+
+	// write to temp file
+	_, err = fh.Write(buf)
+	if err != nil {
+		return err
+	}
+
+	dir, _ := filepath.Split(path.Abs())
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return
+	}
+	// rename temp file to permanent file
+	err = os.Rename(fh.Name(), path.Abs())
 	if err != nil {
 		return
 	}
