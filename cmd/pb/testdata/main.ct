@@ -62,12 +62,12 @@ node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 
 # get it
 $ pb getnode node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
-node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431
+node/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
 # make a stream from that parent node
 # - this just makes a symlink in var/stream and shows the result
-$ pb putstream node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14 stream1
+$ pb linkstream node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14 stream1
 stream/stream1 -> node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 
 # get a stream
@@ -87,7 +87,7 @@ blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 # list all of the nodes in a stream, both leaf and inner, depth first
 $ pb lsstream -a stream1
 node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
-node/sha256/72da79f509f1ab3ca8ebdad9af8ba9f4c9ce35448c207c8c10a1c3661c7a1431
+node/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908

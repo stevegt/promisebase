@@ -483,16 +483,19 @@ func (node *Node) AppendBlob(algo string, buf []byte) (newrootnode *Node, err er
 
 // PutStream reads blobs from stream, creates a merkle tree with those
 // blobs as leaf nodes, and returns the root node of the new tree.
-func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err error) {
-	// setup
+// XXX needs to accept label arg
+func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
+	// set chunker parameters
 	chunker, err := Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
 	if err != nil {
 		return
 	}
 
-	// chunk it
-	chunker.Start(stream)
+	// create a chunker
+	// XXX should be called e.g. New()
+	chunker.Start(rd)
 
+	// feed rd into chunker until rd hits EOF
 	// XXX hardcoded buffer size of 1 MB, might want to make this configurable
 	// XXX buffer size really only needs to be slightly larger than the max chunk size,
 	// XXX which we should be able to get out of the rabin struct
@@ -501,6 +504,7 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 	for {
 		chunk, err := chunker.Next(buf)
 		if errors.Cause(err) == io.EOF {
+			log.Debugf("EOF")
 			break
 		}
 		if err != nil {
@@ -526,8 +530,10 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 				return nil, err
 			}
 		}
+		log.Debugf("rootnode %v", rootnode)
 		oldnode = rootnode
 	}
+	log.Debugf("oldnode %v", oldnode)
 
 	return
 }
@@ -648,6 +654,9 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	rootnode, err := db.GetNode(nodepath)
 	if err != nil {
 		return
+	}
+	if rootnode == nil {
+		panic("rootnode is nil")
 	}
 	stream = db.NewStream(label, rootnode)
 	return

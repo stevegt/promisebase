@@ -97,7 +97,7 @@ Usage:
   pb getblob <canpath>
   pb putnode <algo> <canpaths>... 
   pb getnode <canpath>
-  pb Linkstream <canpath> <name>
+  pb linkstream <canpath> <name>
   pb getstream <name>
   pb lsstream [-a] <name>
   pb catstream <name> [-o <filename>] 
@@ -190,12 +190,12 @@ Options:
 		}
 		fmt.Println(stream.RootNode.Path.Canon())
 	case opts.Lsstream:
-		leafs, err := lsStream(opts.Name, opts.All)
+		canpaths, err := lsStream(opts.Name, opts.All)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(strings.Join(leafs, ""))
+		fmt.Println(strings.Join(canpaths, "\n"))
 	case opts.Catstream:
 		buf, err := catStream(opts.Name)
 		if err != nil {
@@ -414,6 +414,7 @@ func lsStream(name string, all bool) (canpaths []string, err error) {
 	}
 	objs, err := stream.Ls(all)
 	for _, obj := range objs {
+		// fmt.Printf("obj %#v\n", obj)
 		canpath := obj.GetPath().Canon()
 		canpaths = append(canpaths, canpath)
 	}
