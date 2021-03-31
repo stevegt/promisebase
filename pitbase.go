@@ -83,9 +83,9 @@ type Object interface {
 func (db Db) ObjectFromPath(path *Path) (obj Object) {
 	class := path.Class()
 	switch class {
-	case "Blob":
+	case "blob":
 		return db.MkBlob(path)
-	case "Node":
+	case "node":
 		return db.MkNode(path)
 	default:
 		panic(fmt.Sprintf("unhandled class %s", class))
@@ -724,6 +724,7 @@ func (node *Node) Verify() (ok bool, err error) {
 			}
 		case *Node:
 			path := child.Path
+			log.Debugf("child %#v", child)
 			_, err := node.Db.getNode(path, true)
 			if err != nil {
 				return false, err
@@ -1062,9 +1063,9 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	}
 	hash := bin2hex(binhash)
 	relpath := filepath.Join("node", algo, hash)
-	path := db.MkPath(relpath)
+	node.Path = db.MkPath(relpath)
 
-	err = db.put(path, content)
+	err = db.put(node.Path, content)
 	if err != nil {
 		return
 	}
@@ -1080,6 +1081,7 @@ func (db *Db) GetNode(path *Path) (node *Node, err error) {
 // XXX do we ever take advantage of verify == false?  where should we?
 func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 
+	log.Debugf("getNode path %#v", path)
 	abspath := path.Abs()
 	file, err := os.Open(abspath)
 	if err != nil {
@@ -1097,6 +1099,7 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		line = strings.TrimSpace(line)
 		path := db.MkPath(line)
 		entry := db.ObjectFromPath(path)
+		log.Debugf("entry %#v", entry)
 		entries = append(entries, entry)
 
 		content = append(content, buf...)
