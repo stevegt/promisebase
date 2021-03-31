@@ -591,7 +591,7 @@ func (world *World) String() (path string) {
 }
 */
 
-// MkStream makes a symlink named label pointing at node, and returns
+// LinkStream makes a symlink named label pointing at node, and returns
 // the resulting stream object.
 // XXX do we need this?  creating the stream with rootnode == nil is risky
 func (node *Node) LinkStream(label string) (stream *Stream, err error) {
@@ -632,7 +632,7 @@ func (db *Db) NewStream(label string, rootnode *Node) (stream *Stream) {
 }
 
 // OpenStream returns an existing Stream object given a label
-// XXX figure out how to collapse OpenStream, MkStream, and NewStream
+// XXX figure out how to collapse OpenStream and NewStream
 // into one function, probably by deferring any disk I/O in OpenStream
 // until we hit a Read() or Write().
 // XXX likewise for MkBlob and MkNode
@@ -640,10 +640,6 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	// XXX sanitize label
 	linkabspath := filepath.Join(db.Dir, "stream", label)
 	nodeabspath, err := filepath.EvalSymlinks(linkabspath)
-	if err != nil {
-		return
-	}
-
 	if err != nil {
 		return
 	}

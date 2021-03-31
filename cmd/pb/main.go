@@ -62,18 +62,18 @@ type Opts struct {
 	Getblob    bool
 	Putnode    bool
 	Getnode    bool
-	Putworld   bool
-	Getworld   bool
-	Lsworld    bool
+	Linkstream bool
+	Getstream  bool
+	Lsstream   bool
 	Cattree    bool
-	Catworld   bool
+	Catstream  bool
 	Putstream  bool
-	Canon2path bool
-	Path2canon bool
+	Canon2abs  bool
+	Abs2canon  bool
 	Exec       bool
 	Algo       string
-	Key        string
-	KeyLabel   []string `docopt:"<key_label>"`
+	Canpath    string
+	Canpaths   []string
 	Name       string
 	All        bool `docopt:"-a"`
 	Out        bool `docopt:"-o"`
@@ -94,17 +94,17 @@ func run() (rc int) {
 Usage:
   pb init 
   pb putblob <algo>
-  pb getblob <key>
-  pb putnode <algo> <key_label>... 
-  pb getnode <key>
-  pb putworld <key> <name>
-  pb getworld <name>
-  pb lsworld [-a] <name>
-  pb catworld <name> [-o <filename>] 
-  pb cattree <key>
+  pb getblob <canpath>
+  pb putnode <algo> <canpaths>... 
+  pb getnode <canpath>
+  pb Linkstream <canpath> <name>
+  pb getstream <name>
+  pb lsstream [-a] <name>
+  pb catstream <name> [-o <filename>] 
+  pb cattree <canpath>
   pb putstream [-q] <algo> <name>
-  pb canon2path <filename>
-  pb path2canon <filename>
+  pb canon2abs <filename>
+  pb abs2canon <filename>
   pb exec <filename> [<arg>...]
 
 Options:
@@ -139,109 +139,109 @@ Options:
 			log.Error(err)
 			return 5
 		}
-		key, err := putBlob(opts.Algo, &buf)
+		blob, err := putBlob(opts.Algo, buf)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(key)
+		fmt.Println(blob.Path.Canon())
 	case opts.Getblob:
-		buf, err := getBlob(opts.Key)
+		buf, err := getBlob(opts.Canpath)
 		if err != nil || buf == nil {
 			log.Error(err)
 			return 42
 		}
-		_, err = os.Stdout.Write(*buf)
+		_, err = os.Stdout.Write(buf)
 		if err != nil {
 			log.Error(err)
 			return 25
 		}
 	case opts.Putnode:
-		key, err := putNode(opts.Algo, opts.KeyLabel)
+		node, err := putNode(opts.Algo, opts.Canpaths)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(key)
+		fmt.Println(node.Path.Canon())
 	case opts.Getnode:
-		node, err := getNode(opts.Key)
+		node, err := getNode(opts.Canpath)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
 		fmt.Println(node)
-	case opts.Putworld:
-		world, err := putWorld(opts.Key, opts.Name)
+	case opts.Linkstream:
+		stream, err := linkStream(opts.Canpath, opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		gotworld, err := getWorld(world.Name)
+		gotstream, err := getStream(stream.Label)
 		if err != nil {
 			log.Error(err)
 			return 43
 		}
-		fmt.Printf("world/%s -> %s\n", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
-	case opts.Getworld:
-		w, err := getWorld(opts.Name)
+		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon())
+	case opts.Getstream:
+		stream, err := getStream(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(w.Db.KeyFromPath(w.Src).Canon())
-	case opts.Lsworld:
-		leafs, err := lsWorld(opts.Name, opts.All)
+		fmt.Println(stream.RootNode.Path.Canon())
+	case opts.Lsstream:
+		leafs, err := lsStream(opts.Name, opts.All)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
 		fmt.Println(strings.Join(leafs, ""))
-	case opts.Catworld:
-		buf, err := catWorld(opts.Name)
+	case opts.Catstream:
+		buf, err := catStream(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
 		if opts.Out {
-			err = ioutil.WriteFile(opts.Filename, *buf, 0644)
+			err = ioutil.WriteFile(opts.Filename, buf, 0644)
 			if err != nil {
 				log.Error(err)
 				return 43
 			}
 		} else {
-			fmt.Print(string(*buf))
+			fmt.Print(string(buf))
 		}
 	case opts.Cattree:
-		buf, err := catTree(opts.Key)
+		buf, err := catTree(opts.Canpath)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Print(string(*buf))
+		fmt.Print(string(buf))
 	case opts.Putstream:
-		world, err := putStream(opts.Algo, opts.Name, os.Stdin)
+		stream, err := putStream(opts.Algo, opts.Name, os.Stdin)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		gotworld, err := getWorld(world.Name)
+		gotstream, err := getStream(stream.Label)
 		if err != nil {
 			log.Error(err)
 			return 43
 		}
-		_ = gotworld
+		_ = gotstream
 		if !opts.Quiet {
-			fmt.Printf("world/%s -> %s\n", gotworld.Name, gotworld.Db.KeyFromPath(gotworld.Src).Canon())
+			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon())
 		}
-	case opts.Canon2path:
-		path, err := canon2Path(opts.Filename)
+	case opts.Canon2abs:
+		path, err := canon2abs(opts.Filename)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
 		fmt.Println(path)
-	case opts.Path2canon:
-		canon, err := path2Canon(opts.Filename)
+	case opts.Abs2canon:
+		canon, err := abs2canon(opts.Filename)
 		if err != nil {
 			log.Error(err)
 			return 42
@@ -311,19 +311,19 @@ func opendb() (db *pb.Db, err error) {
 	return
 }
 
-func putBlob(algo string, buf *[]byte) (key *pb.Key, err error) {
+func putBlob(algo string, buf []byte) (blob *pb.Blob, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	key, err = db.PutBlob(algo, buf)
+	blob, err = db.PutBlob(algo, buf)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func getBlob(keypath string) (buf *[]byte, err error) {
+func getBlob(canpath string) (buf []byte, err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -333,91 +333,95 @@ func getBlob(keypath string) (buf *[]byte, err error) {
 	if err != nil {
 		return
 	}
-	key := db.KeyFromPath(keypath)
-	buf, err = db.GetBlob(key)
+	path := db.MkPath(canpath)
+	buf, err = db.GetBlob(path)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func putNode(algo string, keylabel []string) (keypath string, err error) {
+func putNode(algo string, canpaths []string) (node *pb.Node, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	var children []*pb.Node
-	for _, kl := range keylabel {
-		parts := strings.Split(kl, ",")
-		k := db.KeyFromPath(parts[0])
-		l := parts[1]
-		child := &pb.Node{Db: db, Key: k, Label: l}
+	var children []pb.Object
+	for _, canpath := range canpaths {
+		path := db.MkPath(canpath)
+		child := db.ObjectFromPath(path)
 		children = append(children, child)
 	}
-	node, err := db.PutNode(algo, children...)
+	node, err = db.PutNode(algo, children...)
 	if err != nil {
 		return
 	}
-	keypath = node.Key.String()
 	return
 }
 
-func getNode(keypath string) (node *pb.Node, err error) {
+func getNode(canpath string) (node *pb.Node, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	key := db.KeyFromPath(keypath)
-	node, err = db.GetNode(key)
+	path := db.MkPath(canpath)
+	node, err = db.GetNode(path)
 	if err != nil {
 		return
 	}
 	return
 }
 
-// $ pb putworld node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 world1
-// world/world1 -> node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
-func putWorld(keypath, name string) (world *pb.World, err error) {
+// $ pb linkstream node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 stream1
+// stream/stream1 -> node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
+func linkStream(canpath, name string) (stream *pb.Stream, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	key := db.KeyFromPath(keypath)
-	world, err = db.PutWorld(key, name)
+	path := db.MkPath(canpath)
+	node, err := db.GetNode(path)
+	if err != nil {
+		return
+	}
+	stream, err = node.LinkStream(name)
+	if err != nil {
+		return
+	}
 	return
 }
 
-func getWorld(name string) (world *pb.World, err error) {
+func getStream(name string) (stream *pb.Stream, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	world, err = db.GetWorld(name)
+	stream, err = db.OpenStream(name)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func lsWorld(name string, all bool) (leafs []string, err error) {
+func lsStream(name string, all bool) (canpaths []string, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	world, err := db.GetWorld(name)
+	stream, err := db.OpenStream(name)
 	if err != nil {
 		return
 	}
-	nodes, err := world.Ls(all)
-	for _, node := range nodes {
-		entry := pb.NodeEntry{CanonPath: node.Key.String(), Label: node.Label}
-		leafs = append(leafs, entry.String())
+	objs, err := stream.Ls(all)
+	for _, obj := range objs {
+		canpath := obj.GetPath().Canon()
+		canpaths = append(canpaths, canpath)
 	}
 	return
 }
 
-func catWorld(name string) (buf *[]byte, err error) {
-	w, err := getWorld(name)
+func catStream(name string) (buf []byte, err error) {
+	w, err := getStream(name)
 	if err != nil {
 		return
 	}
@@ -428,13 +432,13 @@ func catWorld(name string) (buf *[]byte, err error) {
 	return
 }
 
-func catTree(keypath string) (buf *[]byte, err error) {
+func catTree(canpath string) (buf []byte, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	key := db.KeyFromPath(keypath)
-	node, err := db.GetNode(key)
+	path := db.MkPath(canpath)
+	node, err := db.GetNode(path)
 	if err != nil {
 		return
 	}
@@ -445,7 +449,7 @@ func catTree(keypath string) (buf *[]byte, err error) {
 	return
 }
 
-func putStream(algo string, name string, rd io.Reader) (world *pb.World, err error) {
+func putStream(algo string, name string, rd io.Reader) (stream *pb.Stream, err error) {
 	// XXX add -q flag to keep it from printing output
 
 	db, err := opendb()
@@ -456,31 +460,32 @@ func putStream(algo string, name string, rd io.Reader) (world *pb.World, err err
 	if err != nil {
 		return
 	}
-	world, err = db.PutWorld(node.Key, name)
+	if node == nil {
+		panic("node is nil")
+	}
+	stream, err = node.LinkStream(name)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func canon2Path(canon string) (path string, err error) {
+func canon2abs(canpath string) (abspath string, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	key := db.KeyFromPath(canon)
-	// XXX verify hash?
-	return key.Path(), nil
+	path := db.MkPath(canpath)
+	return path.Abs(), nil
 }
 
-func path2Canon(path string) (canon string, err error) {
+func abs2canon(abspath string) (canpath string, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
-	key := db.KeyFromPath(canon)
-	// XXX verify hash?
-	return key.Canon(), nil
+	path := db.MkPath(abspath)
+	return path.Canon(), nil
 }
 
 func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
@@ -498,48 +503,47 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	_, err = ReadAtMost(file, buf)
 	// fmt.Println(n, string(buf))
 
-	// extract hash from buf (must start at first byte in stream, must be first
-	// word ending with whitepace)
+	// extract interpreter addr from buf (must start at first byte in
+	// stream, must be first word ending with whitepace)
 	re := regexp.MustCompile(`^\S+`)
-	interpreterHash := string(re.Find(buf))
+	interpreterAddr := string(re.Find(buf))
 
-	// get hash algorithm
-	algo := filepath.Dir(interpreterHash)
+	// get interpreter hash algorithm
+	algo := filepath.Dir(interpreterAddr)
 	// fmt.Printf("algo!! %s\n", algo)
 
-	// prepend "node/" to hash
-	interpreterHash = "node/" + interpreterHash
+	// prepend "node/" to interpreter addr
+	interpreterPath := db.MkPath("node/" + interpreterAddr)
 
-	// rewind file
+	// rewind script file
 	_, err = file.Seek(0, 0)
 	if err != nil {
 		return
 	}
 
-	// send file to db.PutStream()
+	// send script file to db.PutStream()
 	rootnode, err := db.PutStream(algo, file)
 	if err != nil {
 		return
 	}
 
-	// get scripthash from stream's root node key
-	scriptHash := rootnode.Key.Canon()
+	// get scriptCanon from script stream's root node path
+	scriptCanon := rootnode.Path.Canon()
 
 	// call xeq
-	args = append([]string{scriptHash}, args...)
-	stdout, stderr, rc, err = xeq(interpreterHash, args...)
+	args = append([]string{scriptCanon}, args...)
+	stdout, stderr, rc, err = xeq(interpreterPath, args...)
 	return
 }
 
-func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
+func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc int, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
 
-	// cat node -- that's the interpreter code
-	key := db.KeyFromPath(interpreterHash)
-	node, err := db.GetNode(key)
+	// cat the interpreter node to get the interpreter code
+	node, err := db.GetNode(interpreterPath)
 	if err != nil {
 		return
 	}
@@ -549,12 +553,13 @@ func xeq(interpreterHash string, args ...string) (stdout, stderr io.Reader, rc i
 	}
 	// fmt.Println(string(*txt))
 
-	// save interpreter in temporary file
-	tempfn, err := WriteTempFile(*txt, 0700)
+	// save interpreter code in temporary file
+	tempfn, err := WriteTempFile(txt, 0700)
 	if err != nil {
 		return
 	}
-	// XXX do not uncomment
+
+	// XXX do not uncomment the defer() below
 	// XXX redo the xeq api to have more of a io.Reader and Writer interface
 	// that we can close to let it know when it can delete the tempfile
 	// defer os.Remove(tempfn) // clean up
