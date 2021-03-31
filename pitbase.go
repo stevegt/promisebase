@@ -7,6 +7,7 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -272,7 +273,7 @@ type Blob struct {
 	fh       *os.File
 	algo     string // stow algo here for new blobs
 	Readonly bool
-	hash  *hash.Hash 
+	hash     hash.Hash
 	// inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
@@ -319,15 +320,15 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 }
 
 func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
-	b = db.MkBlob(path)
-    b.algo = algo
+	b = db.MkBlob(nil)
+	b.algo = algo
 	// open temporary file
 	b.fh, err = db.tmpFile()
 	if err != nil {
 		return
 	}
 	// XXX handle other algos
-	b.hash := sha256.New()
+	b.hash = sha256.New()
 
 	return
 }
@@ -340,22 +341,20 @@ func (b *Blob) Close() (err error) {
 
 	// move tmpfile to perm
 	b.fh.Close()
-	binhash := h.Sum(nil)
+	binhash := b.hash.Sum(nil)
 	hexhash := bin2hex(binhash)
-	canpath := "blob"
+	b.Path = b.Db.MkPath(fmt.Sprintf("blob/%s/%s", b.algo, hexhash))
+	abspath := b.Path.Abs()
 
-	path := NewPath(
-
-	path := b.Path.Rel()
 	// mkdir
-	dir, _ := filepath.Split(path)
+	dir, _ := filepath.Split(abspath)
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return
 	}
 
 	// rename temp file to permanent blob file
-	err = os.Rename(b.inode.abspath, path)
+	err = os.Rename(b.fh.Name(), abspath)
 	if err != nil {
 		return
 	}
@@ -375,7 +374,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 	// writing
 
 	// write to temp file
-	n, err = b.inode.fh.Write(data)
+	n, err = b.fh.Write(data)
 	if err != nil {
 		return
 	}
