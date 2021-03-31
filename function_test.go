@@ -169,6 +169,11 @@ func TestBlob(t *testing.T) {
 	b, err = db.OpenBlob(path)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
+	// check size
+	size, err := b.Size()
+	tassert(t, err == nil, "Blob.Size() err %v", err)
+	fmt.Printf("object %s is %d bytes\n", b.Path.Canon(), size)
+
 	// seek to a location
 	nseek, err := b.Seek(2, 0)
 	tassert(t, err == nil, "b.Seek err %v", err)
@@ -182,6 +187,7 @@ func TestBlob(t *testing.T) {
 	// read from that location
 	buf := make([]byte, 100)
 	nread, err := b.Read(buf)
+	fmt.Printf("dsaf nread %#v buf %#v", nread, buf)
 	tassert(t, err == nil, "b.Read err %v", err)
 	tassert(t, nread == 6, "b.Read len expected %v, got %v", 6, nread)
 	expect := mkbuf("medata")
@@ -197,7 +203,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "BlobStat err %v", err)
 	isdir := info.IsDir()
 	tassert(t, isdir == false, "BlobStat isdir %v", isdir)
-	size, err := db.Size(relpath)
+	size, err = db.Size(relpath)
 	tassert(t, err == nil, "BlobSize err %v", err)
 	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
 
@@ -222,10 +228,6 @@ func TestBlob(t *testing.T) {
 
 	gotcanpath := b.Path.Canon()
 	tassert(t, canpath == gotcanpath, "canpath '%v'", gotcanpath)
-
-	size, err = b.Size()
-	tassert(t, err == nil, "Blob.Size() err %v", err)
-	fmt.Printf("object %s is %d bytes\n", b.Path.Canon(), size)
 
 }
 

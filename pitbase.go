@@ -91,6 +91,7 @@ func (db Db) ObjectFromPath(path *Path) (obj Object) {
 	}
 }
 
+/*
 // Inode contains various file-related items such as file descriptor,
 // file handle, maybe some methods, etc.
 // XXX deprecate in favor of Object
@@ -99,6 +100,12 @@ type Inode struct {
 	fh      *os.File
 	abspath string
 }
+
+// Close closes an inode
+func (inode *Inode) Close() (err error) {
+	return inode.fh.Close()
+}
+*/
 
 func mkdir(dir string) (err error) {
 	if _, err = os.Stat(dir); os.IsNotExist(err) {
@@ -220,22 +227,14 @@ func touch(path string) error {
 	return ioutil.WriteFile(path, []byte(""), 0644)
 }
 
-// Close closes an inode
-func (inode *Inode) Close() (err error) {
-	return inode.fh.Close()
-}
-
-func (db *Db) tmpFile() (inode Inode, err error) {
-	return tmpFile(db.Dir)
-}
-
-func tmpFile(dir string) (inode Inode, err error) {
-	inode.fh, err = ioutil.TempFile(dir, "*")
+func (db *Db) tmpFile() (fh *os.File, err error) {
+	dir := db.Dir
+	fh, err = ioutil.TempFile(dir, "*")
 	if err != nil {
 		return
 	}
-	inode.abspath = inode.fh.Name()
-	inode.fd = inode.fh.Fd()
+	// inode.abspath = inode.fh.Name()
+	// inode.fd = inode.fh.Fd()
 	return
 }
 
@@ -244,11 +243,11 @@ func tmpFile(dir string) (inode Inode, err error) {
 func (db *Db) put(path *Path, buf []byte) (err error) {
 
 	// get temporary file
-	inode, err := db.tmpFile()
-	defer inode.Close()
+	fh, err := db.tmpFile()
+	defer fh.Close()
 
 	// write to temp file
-	_, err = inode.fh.Write(buf)
+	_, err = fh.Write(buf)
 	if err != nil {
 		return err
 	}
@@ -259,7 +258,7 @@ func (db *Db) put(path *Path, buf []byte) (err error) {
 		return
 	}
 	// rename temp file to permanent file
-	err = os.Rename(inode.abspath, path.Abs())
+	err = os.Rename(fh.Name(), path.Abs())
 	if err != nil {
 		return
 	}
@@ -271,8 +270,10 @@ type Blob struct {
 	Db       *Db
 	Path     *Path
 	fh       *os.File
+	algo     string // stow algo here for new blobs
 	Readonly bool
-	inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
+	hash  *hash.Hash 
+	// inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
 func (blob *Blob) GetPath() *Path {
@@ -308,25 +309,43 @@ func (db *Db) MkBlob(path *Path) (b *Blob) {
 
 func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 	b = db.MkBlob(path)
-	if exists(path.Abs()) {
-		// open existing file
-		b.fh, err = os.Open(path.Abs())
-		if err != nil {
-			return
-		}
-		b.Readonly = true
-	} else {
-		// open temporary file
-		b.inode, err = db.tmpFile()
-		if err != nil {
-			return
-		}
+	b.Readonly = true
+	// open existing file
+	b.fh, err = os.Open(path.Abs())
+	if err != nil {
+		return
 	}
 	return
 }
 
+func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
+	b = db.MkBlob(path)
+    b.algo = algo
+	// open temporary file
+	b.fh, err = db.tmpFile()
+	if err != nil {
+		return
+	}
+	// XXX handle other algos
+	b.hash := sha256.New()
+
+	return
+}
+
 func (b *Blob) Close() (err error) {
-	defer b.inode.Close()
+	if b.Readonly {
+		err = b.fh.Close()
+		return
+	}
+
+	// move tmpfile to perm
+	b.fh.Close()
+	binhash := h.Sum(nil)
+	hexhash := bin2hex(binhash)
+	canpath := "blob"
+
+	path := NewPath(
+
 	path := b.Path.Rel()
 	// mkdir
 	dir, _ := filepath.Split(path)
@@ -360,6 +379,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 	if err != nil {
 		return
 	}
+	b.hash.Write(data)
 
 	return
 }
@@ -492,6 +512,7 @@ func (db *Db) PutStream(algo string, stream io.Reader) (rootnode *Node, err erro
 			return nil, err
 		}
 
+		log.Debugf("newblobnode %v", newblobnode)
 		if oldnode == nil {
 			// we're just starting the tree
 			rootnode, err = db.PutNode(algo, newblobnode)
