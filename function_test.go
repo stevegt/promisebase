@@ -306,6 +306,7 @@ func TestPutBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tassert(t, gotblob != nil, "gotblob is nil")
 	if path.Canon() != gotblob.Path.Canon() {
 		t.Fatalf("expected path %s, got %s", path.Canon(), gotblob.Path.Canon())
 	}

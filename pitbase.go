@@ -543,12 +543,16 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	// check if it's already stored
 	_, err = os.Stat(path.Abs())
 	if err == nil {
-		// noop
+		b, err = db.OpenBlob(path)
+		if err != nil {
+			return
+		}
 	} else if os.IsNotExist(err) {
+		log.Debugf("putting blob")
 		// store it
 		err = nil // clear IsNotExist err
 		var n int
-		b, err := db.OpenBlob(path)
+		b, err := db.CreateBlob(algo)
 		if err != nil {
 			return b, err
 		}
