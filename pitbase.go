@@ -593,11 +593,12 @@ func (world *World) String() (path string) {
 // MkStream makes a symlink named label pointing at node, and returns
 // the resulting stream object.
 // XXX do we need this?  creating the stream with rootnode == nil is risky
-func (node *Node) MkStream(label string) (stream *Stream, err error) {
-	stream = node.Db.NewStream(label, nil)
+func (node *Node) LinkStream(label string) (stream *Stream, err error) {
+	stream = node.Db.NewStream(label, node)
 	src := filepath.Join("..", node.Path.Rel())
 	// XXX sanitize label
 	linkabspath := filepath.Join(node.Db.Dir, "stream", label)
+	log.Debugf("linkabspath %#v", linkabspath)
 	err = renameio.Symlink(src, linkabspath)
 	if err != nil {
 		return
@@ -637,11 +638,16 @@ func (db *Db) NewStream(label string, rootnode *Node) (stream *Stream) {
 func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	// XXX sanitize label
 	linkabspath := filepath.Join(db.Dir, "stream", label)
-	noderelpath, err := os.Readlink(linkabspath)
+	nodeabspath, err := filepath.EvalSymlinks(linkabspath)
 	if err != nil {
 		return
 	}
-	nodepath := db.MkPath(noderelpath)
+
+	if err != nil {
+		return
+	}
+	nodepath := db.MkPath(nodeabspath)
+	log.Debugf("nodeabspath %#v nodepath %#v", nodeabspath, nodepath)
 	rootnode, err := db.GetNode(nodepath)
 	if err != nil {
 		return
@@ -837,7 +843,7 @@ func (path *Path) Parts() (class, algo, hash string) {
 	index := strings.Index(anypath, path.Db.Dir)
 	if index == 0 {
 		// remove db.Dir
-		anypath = strings.Replace(anypath, path.Db.Dir, "", 1)
+		anypath = strings.Replace(anypath, path.Db.Dir+"/", "", 1)
 	}
 
 	// split into parts
@@ -849,6 +855,7 @@ func (path *Path) Parts() (class, algo, hash string) {
 	// regardless of whether we were given the full or canonical
 	// path
 	hash = parts[len(parts)-1]
+	log.Debugf("anypath %#v class %#v algo %#v hash %#v", anypath, class, algo, hash)
 
 	return
 }
@@ -1081,8 +1088,8 @@ func (db *Db) GetNode(path *Path) (node *Node, err error) {
 // XXX do we ever take advantage of verify == false?  where should we?
 func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 
-	log.Debugf("getNode path %#v", path)
 	abspath := path.Abs()
+	log.Debugf("getNode path %#v abspath %#v", path, abspath)
 	file, err := os.Open(abspath)
 	if err != nil {
 		return

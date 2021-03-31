@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 )
@@ -443,7 +442,7 @@ func TestNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
-	tassert(t, reflect.DeepEqual(node, gotnode), "node mismatch: expect %v got %v", node, gotnode)
+	tassert(t, deepEqual(node, gotnode), "node %v mismatch: expect %v got %v", node.Path, pretty(node), pretty(gotnode))
 }
 
 func TestTree(t *testing.T) {
@@ -482,7 +481,7 @@ func TestTree(t *testing.T) {
 		t.Fatal("node2 is nil")
 	}
 
-	stream1, err := node2.MkStream("stream1")
+	stream1, err := node2.LinkStream("stream1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +490,7 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tassert(t, reflect.DeepEqual(stream1, gotstream), "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
+	tassert(t, stream1.RootNode.Path.Abs() == gotstream.RootNode.Path.Abs(), "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
 
 	// list leaf objs
 	objects, err := stream1.Ls(false)
