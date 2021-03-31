@@ -450,8 +450,9 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 	}
 
 	// rewrite symlink
-	src := filepath.Join("..", stream.Path.Rel())
-	err = renameio.Symlink(src, stream.Path.Canon())
+	noderel := filepath.Join("..", newrootnode.Path.Rel())
+	linkabs := filepath.Join(stream.Db.Dir, stream.Path.Canon())
+	err = renameio.Symlink(noderel, linkabs)
 	if err != nil {
 		return
 	}
@@ -811,6 +812,11 @@ func (path *Path) Abs() string {
 // Canon returns the canonical path given any type of path as input.
 func (path *Path) Canon() string {
 	class, algo, hash := path.Parts()
+	if class == "stream" {
+		// hash is stream name
+		// XXX doesn't support slashes in stream name
+		return filepath.Join(class, hash)
+	}
 	return filepath.Join(class, algo, hash)
 }
 
@@ -848,6 +854,7 @@ func (path *Path) Parts() (class, algo, hash string) {
 
 	// split into parts
 	// XXX detect and handle malformed path
+	// XXX doesn't support slashes in stream name
 	parts := strings.Split(anypath, pathsep)
 	class = parts[0]
 	algo = parts[1]

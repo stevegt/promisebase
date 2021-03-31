@@ -377,7 +377,9 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := db.GetNode(mkpath(t, db, "node/sha256/4caca571948628fa4badbe6c42790446affe3a9b13d9a92fee4862255b34afe2"))
+	path := db.MkPath("node/sha256/1e406fc62d0db78865be531397d61e284bf64e259440134b86b348527c89175b")
+	fmt.Printf("asfdsafd path %#v", path)
+	node, err := db.GetNode(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -497,7 +499,7 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
 	gotobjs := objs2str(objects)
 	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
 
@@ -506,7 +508,7 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "node/sha256/fc489024469b5e9acfa85e4c117e9bef69552720ef5154edaaa6123bad98ec56 stream1\nnode/sha256/9ae11d65603f394a9dcb6a54166dde24ebdd9479c480ad8b8e5b700f3a1cde4b node1label\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379 blob1label\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0 blob2label\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f blob3label\n"
+	expect = "node/sha256/7a7b79f6d5faf3f011bd84bf71703af10530b485fa5eb14fedf4e48c5167d4d7\nnode/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
 
 	gotobjs = objs2str(objects)
 	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
