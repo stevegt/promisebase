@@ -378,7 +378,6 @@ func TestVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := db.MkPath("node/sha256/1e406fc62d0db78865be531397d61e284bf64e259440134b86b348527c89175b")
-	fmt.Printf("asfdsafd path %#v", path)
 	node, err := db.GetNode(path)
 	if err != nil {
 		t.Fatal(err)
