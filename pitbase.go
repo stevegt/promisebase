@@ -329,12 +329,25 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 	// might need a b.Close() function to do the Rename when we're done
 	// writing
 
-	// write to temp file
+	if b.Readonly {
+		err = fmt.Errorf("cannot write to existing blob: %s", b.Path.Abs())
+		return
+	}
+
+	log.Debugf("blob %#v", b)
+	log.Debugf("blob.hash %#v", b.hash)
+
+	// add data to hash digest
+	n, err = b.hash.Write(data)
+	if err != nil {
+		return
+	}
+
+	// write data to temp file
 	n, err = b.fh.Write(data)
 	if err != nil {
 		return
 	}
-	b.hash.Write(data)
 
 	return
 }
@@ -671,7 +684,7 @@ func (node *Node) Verify() (ok bool, err error) {
 			// compare hash with path.Hash
 			hex := bin2hex(binhash)
 			if path.Hash() != hex {
-				log.Debugf("node %v path %v content '%s'", node, path, content)
+				log.Debugf("verify failure path %v content '%s'", path.Abs(), content)
 				return false, fmt.Errorf("expected %v, calculated %v", path.Hash(), hex)
 			}
 		case *Node:
@@ -974,7 +987,17 @@ func (node *Node) Read(buf []byte) (n int, err error) {
 }
 
 func (node *Node) Write(data []byte) (n int, err error) {
-	return node.fh.Write(data)
+	// write to temp file
+	n, err = node.hash.Write(data)
+	if err != nil {
+		return
+	}
+	n, err = node.fh.Write(data)
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
@@ -1084,6 +1107,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 		if err != nil {
 			return node, err
 		}
+		log.Debugf("PutNode path before close %s after %s", path.Abs(), node.Path.Abs())
 
 	}
 	return
@@ -1164,7 +1188,7 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		// compare hash with path.Hash()
 		hex := bin2hex(binhash)
 		if path.Hash() != hex {
-			log.Debugf("node %v path %v content '%s'", node, path, content)
+			log.Debugf("getNode verify failure path %v content '%s'", path.Abs(), content)
 			err = fmt.Errorf("expected %v, calculated %v", path.Hash(), hex)
 			return node, err
 		}
