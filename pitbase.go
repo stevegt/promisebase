@@ -717,6 +717,7 @@ func (node *Node) traverse(all bool) (objects []Object, err error) {
 	if all {
 		objects = append(objects, node)
 	}
+
 	log.Debugf("traverse node %#v", node)
 	for _, obj := range node.entries {
 		log.Debugf("traverse obj %#v", obj)
@@ -733,6 +734,7 @@ func (node *Node) traverse(all bool) (objects []Object, err error) {
 			panic(fmt.Sprintf("unhandled type %T", child))
 		}
 	}
+
 	return
 }
 
@@ -1050,7 +1052,11 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// check if it's already stored
 	_, err = os.Stat(path.Abs())
 	if err == nil {
-		panic("node exists")
+		// XXX verify hardcoded on
+		node, err = db.getNode(path, true)
+		if err != nil {
+			return
+		}
 	} else if os.IsNotExist(err) {
 		// store it
 		err = nil // clear IsNotExist err
