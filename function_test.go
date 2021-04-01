@@ -408,7 +408,7 @@ func TestNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
-	tassert(t, deepEqual(node, gotnode), "node %v mismatch: expect %v got %v", node.Path, pretty(node), pretty(gotnode))
+	tassert(t, node.String() == gotnode.String(), "node %v mismatch: expect %v got %v", node.Path.Abs(), node.String(), gotnode.String())
 }
 
 func TestTree(t *testing.T) {
