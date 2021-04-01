@@ -768,6 +768,8 @@ func (path Path) New(db *Db, raw string) (res *Path) {
 	path.Db = db
 	path.Raw = raw
 
+	// XXX need to also or instead call some sort of realpath function
+	// here to deal with symlinks that might exist in the db.Dir path
 	clean := filepath.Clean(raw)
 
 	// remove db.Dir
