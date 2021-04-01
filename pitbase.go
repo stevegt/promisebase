@@ -706,6 +706,13 @@ func (node *Node) Verify() (ok bool, err error) {
 // XXX we might not need err
 func (node *Node) traverse(all bool) (objects []Object, err error) {
 
+	if node.fh == nil {
+		node, err = node.Db.OpenNode(node.Path)
+		if err != nil {
+			return
+		}
+	}
+
 	if all {
 		objects = append(objects, node)
 	}
@@ -828,7 +835,7 @@ func (path *Path) Parts() (class, algo, hash string) {
 	// regardless of whether we were given the full or canonical
 	// path
 	hash = parts[len(parts)-1]
-	log.Debugf("anypath %#v class %#v algo %#v hash %#v", anypath, class, algo, hash)
+	// log.Debugf("anypath %#v class %#v algo %#v hash %#v", anypath, class, algo, hash)
 
 	return
 }
@@ -960,14 +967,16 @@ func (db *Db) MkNode(path *Path) (node *Node) {
 	return &Node{Db: db, Path: path}
 }
 
+// XXX reconcile with getNode()
 func (db *Db) OpenNode(path *Path) (node *Node, err error) {
-	node = db.MkNode(path)
-	node.Readonly = true
-	// open existing file
-	node.fh, err = os.Open(path.Abs())
+	// XXX verify is hardcoded true
+	node, err = db.getNode(path, true)
 	if err != nil {
 		return
 	}
+	node.Readonly = true
+	// open existing file
+	node.fh, err = os.Open(path.Abs())
 	return
 }
 
@@ -1091,10 +1100,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// check if it's already stored
 	_, err = os.Stat(path.Abs())
 	if err == nil {
-		node, err = db.OpenNode(path)
-		if err != nil {
-			return
-		}
+		panic("node exists")
 	} else if os.IsNotExist(err) {
 		// store it
 		err = nil // clear IsNotExist err
@@ -1155,17 +1161,18 @@ func (db *Db) GetNode(path *Path) (node *Node, err error) {
 }
 
 // XXX do we ever take advantage of verify == false?  where should we?
+// XXX reconcile with OpenNode
 func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 
 	abspath := path.Abs()
-	log.Debugf("getNode path %#v abspath %#v", path, abspath)
 	file, err := os.Open(abspath)
 	if err != nil {
 		return
 	}
 	defer file.Close()
 
-	node = &Node{Db: db, Path: path}
+	node = &Node{Db: db, Path: path, Readonly: true}
+	log.Debugf("getNode path %#v", path)
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -1202,6 +1209,7 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		}
 	}
 
+	log.Debugf("getNode node.entries %#v", node.entries)
 	return
 }
 
