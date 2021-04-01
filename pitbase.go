@@ -745,19 +745,6 @@ func exists(path string) (found bool) {
 	return true
 }
 
-// Key is a unique identifier for an object. An object is a Merkle
-// tree inner or leaf node (blob), world, or ref.
-// XXX deprecate in favor of Object
-/*
-type Key struct {
-	Db    *Db
-	Class string
-	// World string
-	Algo string
-	Hash string
-}
-*/
-
 const pathsep = string(os.PathSeparator)
 
 type Path struct {
@@ -854,38 +841,6 @@ func (path *Path) Hash() (name string) {
 	_, _, hash := path.Parts()
 	return hash
 }
-
-/*
-func (k Key) String() string {
-	return k.Canon()
-}
-
-// Canon returns the canonical path of a key, without the intermediate
-// subdirectory levels.
-func (k Key) Canon() string {
-	return k.path(false)
-}
-
-// KeyFromPath takes either a canonical path or a path relative to db
-// root dir and returns a populated Key object
-// XXX replace with ObjectFromCanPath()
-func (db *Db) KeyFromPath(path string) (key *Key) {
-	parts := strings.Split(path, "/")
-	if len(parts) < 3 {
-		panic(fmt.Errorf("path not found: %q", path))
-	}
-	key = &Key{
-		Db:    db,
-		Class: parts[0],
-		Algo:  parts[1],
-		// the last part of the path should always be the full hash,
-		// regardless of whether we were given the full or canonical
-		// path
-		Hash: parts[len(parts)-1],
-	}
-	return
-}
-*/
 
 /*
 func hex2bin (hexkey string) (binhash []byte) {
