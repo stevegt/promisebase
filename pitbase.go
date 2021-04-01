@@ -706,6 +706,7 @@ func (node *Node) Verify() (ok bool, err error) {
 // XXX we might not need err
 func (node *Node) traverse(all bool) (objects []Object, err error) {
 
+	// XXX is this needed?
 	if node.fh == nil {
 		node, err = node.Db.OpenNode(node.Path)
 		if err != nil {
@@ -716,7 +717,6 @@ func (node *Node) traverse(all bool) (objects []Object, err error) {
 	if all {
 		objects = append(objects, node)
 	}
-
 	log.Debugf("traverse node %#v", node)
 	for _, obj := range node.entries {
 		log.Debugf("traverse obj %#v", obj)
@@ -733,7 +733,6 @@ func (node *Node) traverse(all bool) (objects []Object, err error) {
 			panic(fmt.Sprintf("unhandled type %T", child))
 		}
 	}
-
 	return
 }
 
@@ -936,11 +935,9 @@ func (db *Db) OpenNode(path *Path) (node *Node, err error) {
 }
 
 // XXX compare with CreateBlob and call a common File.Create or CreateFile
-func (db *Db) CreateNode(algo string) (node *Node, err error) {
-	node = db.MkNode(nil)
-	node.algo = algo
+func (node *Node) Create() (err error) {
 	// open temporary file
-	node.fh, err = db.tmpFile()
+	node.fh, err = node.Db.tmpFile()
 	if err != nil {
 		return
 	}
@@ -1033,17 +1030,15 @@ func bin2hex(bin []byte) (hex string) {
 // and returns a pointer to a Node object.
 func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 
-	node = &Node{Db: db}
+	node = &Node{Db: db, algo: algo}
 
 	// populate the entries field
 	node.entries = children
-
 	// concatenate all relpaths together (include the full canpath with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
 	// XXX refactor for streaming
 	buf := []byte(node.String())
-
 	path, err := db.PathFromBuf("node", algo, buf)
 	if err != nil {
 		return
@@ -1060,7 +1055,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 		// store it
 		err = nil // clear IsNotExist err
 		var n int
-		node, err = db.CreateNode(algo)
+		err = node.Create()
 		if err != nil {
 			return node, err
 		}
@@ -1077,7 +1072,6 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 			return node, err
 		}
 		log.Debugf("PutNode path before close %s after %s", path.Abs(), node.Path.Abs())
-
 	}
 	return
 }
