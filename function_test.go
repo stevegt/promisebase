@@ -149,7 +149,7 @@ func TestBlob(t *testing.T) {
 	relpath := "blob/sha256/87d/149/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
-	// path := db.MkPath(canpath)
+	// path := Path{}.New(db, canpath)
 
 	b, err := db.CreateBlob("sha256")
 	tassert(t, err == nil, "OpenBlob err %v", err)
@@ -171,7 +171,7 @@ func TestBlob(t *testing.T) {
 	// check size
 	size, err := b.Size()
 	tassert(t, err == nil, "Blob.Size() err %v", err)
-	fmt.Printf("object %s is %d bytes\n", b.Path.Canon(), size)
+	fmt.Printf("object %s is %d bytes\n", b.Path.Canon, size)
 
 	// seek to a location
 	nseek, err := b.Seek(2, 0)
@@ -209,23 +209,23 @@ func TestBlob(t *testing.T) {
 	// test Object methods
 	objectExample(t, b)
 
-	abspath := b.Path.Abs()
+	abspath := b.Path.Abs
 	tassert(t, len(abspath) > 11, "path len %v", len(abspath))
 	fmt.Printf("object path %s\n", abspath)
 
-	gotrelpath := b.Path.Rel()
+	gotrelpath := b.Path.Rel
 	tassert(t, relpath == gotrelpath, "relpath '%v'", gotrelpath)
 
-	class := b.Path.Class()
+	class := b.Path.Class
 	tassert(t, class == "blob", "class '%v'", class)
 
-	algo := b.Path.Algo()
+	algo := b.Path.Algo
 	tassert(t, algo == "sha256", "algo '%v'", algo)
 
-	gothash := b.Path.Hash()
+	gothash := b.Path.Hash
 	tassert(t, gothash == hash, "hash '%v'", gothash)
 
-	gotcanpath := b.Path.Canon()
+	gotcanpath := b.Path.Canon
 	tassert(t, canpath == gotcanpath, "canpath '%v'", gotcanpath)
 
 }
@@ -233,13 +233,13 @@ func TestBlob(t *testing.T) {
 // an example of how an Object might be used
 func objectExample(t *testing.T, o Object) {
 
-	abspath := o.GetPath().Abs()
+	abspath := o.GetPath().Abs
 	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
 	fmt.Printf("object path %s\n", abspath)
 
 	size, err := o.Size()
 	tassert(t, err == nil, "Blob.Size() err %v", err)
-	fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon(), size)
+	fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon, size)
 }
 
 func TestRm(t *testing.T) {
@@ -255,7 +255,7 @@ func TestRm(t *testing.T) {
 	}
 	_, err = db.GetBlob(blob.Path)
 	if err == nil {
-		t.Fatalf("path not deleted: %s", blob.Path.Abs())
+		t.Fatalf("path not deleted: %s", blob.Path.Abs)
 	}
 }
 
@@ -271,10 +271,10 @@ func TestPutBlob(t *testing.T) {
 		t.Fatal(err)
 	}
 	tassert(t, gotblob != nil, "gotblob is nil")
-	if path.Canon() != gotblob.Path.Canon() {
-		t.Fatalf("expected path %s, got %s", path.Canon(), gotblob.Path.Canon())
+	if path.Canon != gotblob.Path.Canon {
+		t.Fatalf("expected path %s, got %s", path.Canon, gotblob.Path.Canon)
 	}
-	got, err := ioutil.ReadFile(path.Abs())
+	got, err := ioutil.ReadFile(path.Abs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,8 +294,8 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if path.Canon() != gotblob.Path.Canon() {
-		t.Fatalf("expected path %s, got %s", path.Canon(), gotblob.Path.Canon())
+	if path.Canon != gotblob.Path.Canon {
+		t.Fatalf("expected path %s, got %s", path.Canon, gotblob.Path.Canon)
 	}
 	got, err := db.GetBlob(path)
 	if err != nil {
@@ -307,7 +307,7 @@ func TestGetBlob(t *testing.T) {
 }
 
 func pathEqual(a, b *Path) bool {
-	return a.Rel() == b.Rel() && a.Canon() == b.Canon()
+	return a.Rel == b.Rel && a.Canon == b.Canon
 }
 
 // XXX should use reflect.DeepEqual()
@@ -324,9 +324,9 @@ func TestPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectabs := filepath.Join(db.Dir, "blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342")
-	gotabs := path.Abs()
+	gotabs := path.Abs
 	if expectabs != gotabs {
-		t.Fatalf("expected %s, got %s", path.Abs(), gotabs)
+		t.Fatalf("expected %s, got %s", path.Abs, gotabs)
 	}
 }
 
@@ -342,7 +342,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := db.MkPath("node/sha256/1e406fc62d0db78865be531397d61e284bf64e259440134b86b348527c89175b")
+	path := Path{}.New(db, "node/sha256/1e406fc62d0db78865be531397d61e284bf64e259440134b86b348527c89175b")
 	node, err := db.GetNode(path)
 	if err != nil {
 		t.Fatal(err)
@@ -351,10 +351,10 @@ func TestVerify(t *testing.T) {
 		switch i {
 		case 0:
 			expect := "node/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
-			tassert(t, expect == child.GetPath().Rel(), "expected %v got %v", expect, child.GetPath().Rel())
+			tassert(t, expect == child.GetPath().Rel, "expected %v got %v", expect, child.GetPath().Rel)
 		case 1:
 			expect := "blob/sha256/534/d05/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
-			tassert(t, expect == child.GetPath().Rel(), "expected %q got %q", expect, child.GetPath().Rel())
+			tassert(t, expect == child.GetPath().Rel, "expected %q got %q", expect, child.GetPath().Rel)
 		}
 	}
 	ok, err := node.Verify()
@@ -408,7 +408,7 @@ func TestNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
-	tassert(t, node.String() == gotnode.String(), "node %v mismatch: expect %v got %v", node.Path.Abs(), node.String(), gotnode.String())
+	tassert(t, node.String() == gotnode.String(), "node %v mismatch: expect %v got %v", node.Path.Abs, node.String(), gotnode.String())
 }
 
 func TestTree(t *testing.T) {
@@ -456,7 +456,7 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tassert(t, stream1.RootNode.Path.Abs() == gotstream.RootNode.Path.Abs(), "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
+	tassert(t, stream1.RootNode.Path.Abs == gotstream.RootNode.Path.Abs, "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
 	tassert(t, len(stream1.RootNode.entries) > 0, "stream root node has no entries: %#v", stream1.RootNode)
 
 	// list leaf objs
@@ -587,7 +587,7 @@ func BenchmarkPutGetBlob(b *testing.B) {
 
 func objs2str(objects []Object) (out string) {
 	for _, obj := range objects {
-		line := string(obj.GetPath().Canon())
+		line := string(obj.GetPath().Canon)
 		line = strings.TrimSpace(line) + "\n"
 		out += line
 	}

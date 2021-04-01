@@ -3,7 +3,8 @@
 minpct=70
 cmd="go test -v -timeout 60s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
 
-dirs=$(find -name go.mod |xargs dirname)
+# dirs=$(find -name go.mod |xargs dirname)
+dirs=". cmd/pb" # hardcoded so we can control sequence
 
 declare -A msg
 
@@ -31,6 +32,8 @@ do
 		else
 			echo coverage $pct%
 		fi
+	else
+		exit 1
 	fi
 
 	# echo ${msg[$dir]}

@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 
+	. "github.com/stevegt/goadapt"
+
 	"github.com/google/renameio"
 	"github.com/pkg/errors"
 	resticRabin "github.com/restic/chunker"
@@ -81,7 +83,7 @@ type Object interface {
 }
 
 func (db Db) ObjectFromPath(path *Path) (obj Object) {
-	class := path.Class()
+	class := path.Class
 	switch class {
 	case "blob":
 		return db.MkBlob(path)
@@ -188,6 +190,8 @@ func (e *NotDbError) Error() string {
 
 // Open loads an existing db object from dir.
 func Open(dir string) (db *Db, err error) {
+	dir = filepath.Clean(dir)
+
 	if !canstat(dir) {
 		return nil, fmt.Errorf("cannot open: %s", dir)
 	} else if err != nil {
@@ -238,7 +242,7 @@ func (blob *Blob) GetPath() *Path {
 }
 
 func (b *Blob) Size() (n int64, err error) {
-	info, err := os.Stat(b.Path.Abs())
+	info, err := os.Stat(b.Path.Abs)
 	if err != nil {
 		return
 	}
@@ -268,7 +272,7 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 	b = db.MkBlob(path)
 	b.Readonly = true
 	// open existing file
-	b.fh, err = os.Open(path.Abs())
+	b.fh, err = os.Open(path.Abs)
 	if err != nil {
 		return
 	}
@@ -299,8 +303,9 @@ func (b *Blob) Close() (err error) {
 	b.fh.Close()
 	binhash := b.hash.Sum(nil)
 	hexhash := bin2hex(binhash)
-	b.Path = b.Db.MkPath(fmt.Sprintf("blob/%s/%s", b.algo, hexhash))
-	abspath := b.Path.Abs()
+	b.Path = Path{}.New(b.Db, fmt.Sprintf("blob/%s/%s", b.algo, hexhash))
+	Ck(err)
+	abspath := b.Path.Abs
 
 	// mkdir
 	dir, _ := filepath.Split(abspath)
@@ -330,7 +335,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 	// writing
 
 	if b.Readonly {
-		err = fmt.Errorf("cannot write to existing blob: %s", b.Path.Abs())
+		err = fmt.Errorf("cannot write to existing blob: %s", b.Path.Abs)
 		return
 	}
 
@@ -363,7 +368,7 @@ func (b *Blob) Read(buf []byte) (n int, err error) {
 }
 
 func (b *Blob) ReadAll() (buf []byte, err error) {
-	buf, err = ioutil.ReadFile(b.Path.Abs())
+	buf, err = ioutil.ReadFile(b.Path.Abs)
 	if err != nil {
 		return
 	}
@@ -391,7 +396,7 @@ func (b *Blob) Tell() (n int64, err error) {
 // XXX deprecate
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
 	// XXX streaming: call OpenBlob(), b.Read(), and b.Close()
-	buf, err = ioutil.ReadFile(path.Abs())
+	buf, err = ioutil.ReadFile(path.Abs)
 	if err != nil {
 		return
 	}
@@ -401,7 +406,7 @@ func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
 // Rm deletes the file associated with a path of any format and returns an error
 // if the file doesn't exist.
 func (db *Db) Rm(path *Path) (err error) {
-	err = os.Remove(path.Abs())
+	err = os.Remove(path.Abs)
 	if err != nil {
 		return err
 	}
@@ -419,8 +424,8 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 	}
 
 	// rewrite symlink
-	noderel := filepath.Join("..", newrootnode.Path.Rel())
-	linkabs := filepath.Join(stream.Db.Dir, stream.Path.Canon())
+	noderel := filepath.Join("..", newrootnode.Path.Rel)
+	linkabs := filepath.Join(stream.Db.Dir, stream.Path.Canon)
 	err = renameio.Symlink(noderel, linkabs)
 	if err != nil {
 		return
@@ -517,7 +522,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	}
 
 	// check if it's already stored
-	_, err = os.Stat(path.Abs())
+	_, err = os.Stat(path.Abs)
 	if err == nil {
 		b, err = db.OpenBlob(path)
 		if err != nil {
@@ -555,7 +560,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 // XXX do we need this?  creating the stream with rootnode == nil is risky
 func (node *Node) LinkStream(label string) (stream *Stream, err error) {
 	stream = node.Db.NewStream(label, node)
-	src := filepath.Join("..", node.Path.Rel())
+	src := filepath.Join("..", node.Path.Rel)
 	// XXX sanitize label
 	linkabspath := filepath.Join(node.Db.Dir, "stream", label)
 	log.Debugf("linkabspath %#v", linkabspath)
@@ -586,7 +591,7 @@ type Stream struct {
 func (db *Db) NewStream(label string, rootnode *Node) (stream *Stream) {
 	stream = &Stream{Db: db, Label: label, RootNode: rootnode}
 	linkrelpath := filepath.Join("stream", label)
-	stream.Path = db.MkPath(linkrelpath)
+	stream.Path = Path{}.New(db, linkrelpath)
 	return
 }
 
@@ -602,7 +607,7 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	if err != nil {
 		return
 	}
-	nodepath := db.MkPath(nodeabspath)
+	nodepath := Path{}.New(db, nodeabspath)
 	log.Debugf("nodeabspath %#v nodepath %#v", nodeabspath, nodepath)
 	rootnode, err := db.GetNode(nodepath)
 	if err != nil {
@@ -678,15 +683,15 @@ func (node *Node) Verify() (ok bool, err error) {
 				return false, err
 			}
 			// hash content
-			binhash, err := Hash(path.Algo(), content)
+			binhash, err := Hash(path.Algo, content)
 			if err != nil {
 				return false, err
 			}
 			// compare hash with path.Hash
 			hex := bin2hex(binhash)
-			if path.Hash() != hex {
-				log.Debugf("verify failure path %v content '%s'", path.Abs(), content)
-				return false, fmt.Errorf("expected %v, calculated %v", path.Hash(), hex)
+			if path.Hash != hex {
+				log.Debugf("verify failure path %v content '%s'", path.Abs, content)
+				return false, fmt.Errorf("expected %v, calculated %v", path.Hash, hex)
 			}
 		case *Node:
 			path := child.Path
@@ -746,101 +751,71 @@ func exists(path string) (found bool) {
 	return true
 }
 
-const pathsep = string(os.PathSeparator)
-
 type Path struct {
-	Db  *Db
-	Any string
+	Db    *Db
+	Raw   string
+	Abs   string // absolute
+	Rel   string // relative
+	Canon string // canonical
+	Class string
+	Algo  string
+	Hash  string
+	Addr  string
+	Label string // stream label
 }
 
-func (db *Db) MkPath(anypath string) (path *Path) {
-	// XXX we should do some sanity checking here, and then rename
-	// this to NewPath
-	return &Path{Db: db, Any: anypath}
-}
+func (path Path) New(db *Db, raw string) (res *Path) {
+	path.Db = db
+	path.Raw = raw
 
-// Abs returns the absolute path given any type of path as input.
-func (path *Path) Abs() string {
-	relpath := path.Rel()
-	return filepath.Join(path.Db.Dir, relpath)
-}
+	clean := filepath.Clean(raw)
 
-// Canon returns the canonical path given any type of path as input.
-func (path *Path) Canon() string {
-	class, algo, hash := path.Parts()
-	if class == "stream" {
-		// hash is stream name
-		// XXX doesn't support slashes in stream name
-		return filepath.Join(class, hash)
-	}
-	return filepath.Join(class, algo, hash)
-}
-
-// Rel returns the relative path of any type of input path.  We
-// use the nesting depth described in the Db comments.  We use the
-// full hash value in the last component of the path in order to make
-// troubleshooting using UNIX tools slightly easier (in contrast to
-// the way git truncates the leading subdir parts of the hash).
-func (path *Path) Rel() string {
-	class, algo, hash := path.Parts()
-	if class == "stream" {
-		// hash is stream name
-		// XXX doesn't support slashes in stream name
-		return filepath.Join(class, hash)
-	}
-	var subpath string
-	for i := 0; i < path.Db.Depth; i++ {
-		subdir := hash[(3 * i):((3 * i) + 3)]
-		subpath = filepath.Join(subpath, subdir)
-	}
-	return filepath.Join(class, algo, subpath, hash)
-}
-
-// Addr returns a universally-unique address for the data stored at path.
-func (path *Path) Addr() (addr string) {
-	_, algo, hash := path.Parts()
-	// an addr always uses forward slashes, so filepath.Join() would be
-	// the wrong thing here
-	return algo + "/" + hash
-}
-
-func (path *Path) Parts() (class, algo, hash string) {
-
-	anypath := path.Any
-	index := strings.Index(anypath, path.Db.Dir)
+	// remove db.Dir
+	index := strings.Index(clean, path.Db.Dir)
 	if index == 0 {
-		// remove db.Dir
-		anypath = strings.Replace(anypath, path.Db.Dir+"/", "", 1)
+		clean = strings.Replace(clean, path.Db.Dir+"/", "", 1)
 	}
 
 	// split into parts
-	// XXX detect and handle malformed path
-	// XXX doesn't support slashes in stream name
-	parts := strings.Split(anypath, pathsep)
-	class = parts[0]
-	algo = parts[1]
-	// the last part of the path should always be the full hash,
-	// regardless of whether we were given the full or canonical
-	// path
-	hash = parts[len(parts)-1]
-	// log.Debugf("anypath %#v class %#v algo %#v hash %#v", anypath, class, algo, hash)
+	parts := strings.Split(clean, "/")
+	if len(parts) < 2 {
+		panic(fmt.Errorf("malformed path: %s", raw))
+	}
+	path.Class = parts[0]
+	if path.Class == "stream" {
+		path.Label = filepath.Join(parts[1:]...)
+		path.Rel = filepath.Join(path.Class, path.Label)
+		path.Abs = filepath.Join(path.Db.Dir, path.Rel)
+		path.Canon = path.Rel
+	} else {
+		if len(parts) < 3 {
+			panic(fmt.Errorf("malformed path: %s", raw))
+		}
+		path.Algo = parts[1]
+		// the last part of the path should always be the full hash,
+		// regardless of whether we were given the full or canonical
+		// path
+		path.Hash = parts[len(parts)-1]
+		// log.Debugf("anypath %#v class %#v algo %#v hash %#v", anypath, class, algo, hash)
 
-	return
-}
+		// Rel is the relative path of any type of input path.  We
+		// use the nesting depth described in the Db comments.  We use the
+		// full hash value in the last component of the path in order to make
+		// troubleshooting using UNIX tools slightly easier (in contrast to
+		// the way git truncates the leading subdir parts of the hash).
+		var subpath string
+		for i := 0; i < path.Db.Depth; i++ {
+			subdir := path.Hash[(3 * i):((3 * i) + 3)]
+			subpath = filepath.Join(subpath, subdir)
+		}
+		path.Rel = filepath.Join(path.Class, path.Algo, subpath, path.Hash)
+		path.Abs = filepath.Join(path.Db.Dir, path.Rel)
+		path.Canon = filepath.Join(path.Class, path.Algo, path.Hash)
+		// Addr is a universally-unique address for the data stored at path.
+		path.Addr = filepath.Join(path.Algo, path.Hash)
+	}
 
-func (path *Path) Class() (name string) {
-	class, _, _ := path.Parts()
-	return class
-}
-
-func (path *Path) Algo() (name string) {
-	_, algo, _ := path.Parts()
-	return algo
-}
-
-func (path *Path) Hash() (name string) {
-	_, _, hash := path.Parts()
-	return hash
+	return &path
 }
 
 /*
@@ -867,14 +842,14 @@ func (db *Db) PathFromString(class, algo, s string) (path *Path, err error) {
 	return db.PathFromBuf(class, algo, buf)
 }
 
-// XXX deprecate in favor of Blob.Write(), Close(), then Hash()
+// XXX deprecate in favor of Blob.Write(), Close(), then Hash
 func (db *Db) PathFromBuf(class string, algo string, buf []byte) (path *Path, err error) {
 	binhash, err := Hash(algo, buf)
 	if err != nil {
 		return
 	}
 	hash := bin2hex(binhash)
-	path = db.MkPath(filepath.Join(class, algo, hash))
+	path = Path{}.New(db, filepath.Join(class, algo, hash))
 	return
 }
 
@@ -932,7 +907,7 @@ func (db *Db) OpenNode(path *Path) (node *Node, err error) {
 	}
 	node.Readonly = true
 	// open existing file
-	node.fh, err = os.Open(path.Abs())
+	node.fh, err = os.Open(path.Abs)
 	return
 }
 
@@ -991,8 +966,9 @@ func (node *Node) Close() (err error) {
 	node.fh.Close()
 	binhash := node.hash.Sum(nil)
 	hexhash := bin2hex(binhash)
-	node.Path = node.Db.MkPath(fmt.Sprintf("node/%s/%s", node.algo, hexhash))
-	abspath := node.Path.Abs()
+	node.Path = Path{}.New(node.Db, fmt.Sprintf("node/%s/%s", node.algo, hexhash))
+	Ck(err)
+	abspath := node.Path.Abs
 
 	// mkdir
 	dir, _ := filepath.Split(abspath)
@@ -1017,7 +993,7 @@ func (node *Node) Size() (n int64, err error) {
 // String returns the concatenated node entries
 func (node *Node) String() (out string) {
 	for _, entry := range node.entries {
-		out += strings.TrimSpace(entry.GetPath().Canon()) + "\n"
+		out += strings.TrimSpace(entry.GetPath().Canon) + "\n"
 	}
 	return
 }
@@ -1046,11 +1022,12 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 		return
 	}
 	node.Path = path
+	Ck(err)
 
 	// XXX compare with PutBlob; call a common File.Put or PutFile
 
 	// check if it's already stored
-	_, err = os.Stat(path.Abs())
+	_, err = os.Stat(path.Abs)
 	if err == nil {
 		// XXX verify hardcoded on
 		node, err = db.getNode(path, true)
@@ -1077,7 +1054,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 		if err != nil {
 			return node, err
 		}
-		log.Debugf("PutNode path before close %s after %s", path.Abs(), node.Path.Abs())
+		log.Debugf("PutNode path before close %s after %s", path.Abs, node.Path.Abs)
 	}
 	return
 }
@@ -1096,13 +1073,13 @@ func (db *Db) XXXput(path *Path, buf []byte) (err error) {
 		return err
 	}
 
-	dir, _ := filepath.Split(path.Abs())
+	dir, _ := filepath.Split(path.Abs)
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return
 	}
 	// rename temp file to permanent file
-	err = os.Rename(fh.Name(), path.Abs())
+	err = os.Rename(fh.Name(), path.Abs)
 	if err != nil {
 		return
 	}
@@ -1119,7 +1096,7 @@ func (db *Db) GetNode(path *Path) (node *Node, err error) {
 // XXX reconcile with OpenNode
 func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 
-	abspath := path.Abs()
+	abspath := path.Abs
 	file, err := os.Open(abspath)
 	if err != nil {
 		return
@@ -1135,7 +1112,7 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		buf := scanner.Bytes()
 		line := string(buf)
 		line = strings.TrimSpace(line)
-		path := db.MkPath(line)
+		path := Path{}.New(db, line)
 		entry := db.ObjectFromPath(path)
 		log.Debugf("entry %#v", entry)
 		entries = append(entries, entry)
@@ -1151,15 +1128,15 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 
 	if verify {
 		// hash content
-		binhash, err := Hash(path.Algo(), content)
+		binhash, err := Hash(path.Algo, content)
 		if err != nil {
 			return node, err
 		}
-		// compare hash with path.Hash()
+		// compare hash with path.Hash
 		hex := bin2hex(binhash)
-		if path.Hash() != hex {
-			log.Debugf("getNode verify failure path %v content '%s'", path.Abs(), content)
-			err = fmt.Errorf("expected %v, calculated %v", path.Hash(), hex)
+		if path.Hash != hex {
+			log.Debugf("getNode verify failure path %v content '%s'", path.Abs, content)
+			err = fmt.Errorf("expected %v, calculated %v", path.Hash, hex)
 			return node, err
 		}
 	}

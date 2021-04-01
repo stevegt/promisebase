@@ -133,7 +133,7 @@ $ pb catstream stream42 --> FAIL
 $ pb putblob lkdsajf --> FAIL
 
 $ pb getblob kakajsn --> FAIL
-path not found: "kakajsn"
+malformed path: kakajsn
 
 $ pb lsstream lsadkfj --> FAIL
 

@@ -144,7 +144,7 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(blob.Path.Canon())
+		fmt.Println(blob.Path.Canon)
 	case opts.Getblob:
 		buf, err := getBlob(opts.Canpath)
 		if err != nil || buf == nil {
@@ -162,7 +162,7 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(node.Path.Canon())
+		fmt.Println(node.Path.Canon)
 	case opts.Getnode:
 		node, err := getNode(opts.Canpath)
 		if err != nil {
@@ -181,14 +181,14 @@ Options:
 			log.Error(err)
 			return 43
 		}
-		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon())
+		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
 	case opts.Getstream:
 		stream, err := getStream(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(stream.RootNode.Path.Canon())
+		fmt.Println(stream.RootNode.Path.Canon)
 	case opts.Lsstream:
 		canpaths, err := lsStream(opts.Name, opts.All)
 		if err != nil {
@@ -231,7 +231,7 @@ Options:
 		}
 		_ = gotstream
 		if !opts.Quiet {
-			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon())
+			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
 		}
 	case opts.Canon2abs:
 		path, err := canon2abs(opts.Filename)
@@ -333,7 +333,7 @@ func getBlob(canpath string) (buf []byte, err error) {
 	if err != nil {
 		return
 	}
-	path := db.MkPath(canpath)
+	path := pb.Path{}.New(db, canpath)
 	buf, err = db.GetBlob(path)
 	if err != nil {
 		return
@@ -348,7 +348,7 @@ func putNode(algo string, canpaths []string) (node *pb.Node, err error) {
 	}
 	var children []pb.Object
 	for _, canpath := range canpaths {
-		path := db.MkPath(canpath)
+		path := pb.Path{}.New(db, canpath)
 		child := db.ObjectFromPath(path)
 		children = append(children, child)
 	}
@@ -364,7 +364,7 @@ func getNode(canpath string) (node *pb.Node, err error) {
 	if err != nil {
 		return
 	}
-	path := db.MkPath(canpath)
+	path := pb.Path{}.New(db, canpath)
 	node, err = db.GetNode(path)
 	if err != nil {
 		return
@@ -379,7 +379,7 @@ func linkStream(canpath, name string) (stream *pb.Stream, err error) {
 	if err != nil {
 		return
 	}
-	path := db.MkPath(canpath)
+	path := pb.Path{}.New(db, canpath)
 	node, err := db.GetNode(path)
 	if err != nil {
 		return
@@ -415,7 +415,7 @@ func lsStream(name string, all bool) (canpaths []string, err error) {
 	objs, err := stream.Ls(all)
 	for _, obj := range objs {
 		// fmt.Printf("obj %#v\n", obj)
-		canpath := obj.GetPath().Canon()
+		canpath := obj.GetPath().Canon
 		canpaths = append(canpaths, canpath)
 	}
 	return
@@ -438,7 +438,7 @@ func catTree(canpath string) (buf []byte, err error) {
 	if err != nil {
 		return
 	}
-	path := db.MkPath(canpath)
+	path := pb.Path{}.New(db, canpath)
 	node, err := db.GetNode(path)
 	if err != nil {
 		return
@@ -476,8 +476,8 @@ func canon2abs(canpath string) (abspath string, err error) {
 	if err != nil {
 		return
 	}
-	path := db.MkPath(canpath)
-	return path.Abs(), nil
+	path := pb.Path{}.New(db, canpath)
+	return path.Abs, nil
 }
 
 func abs2canon(abspath string) (canpath string, err error) {
@@ -485,8 +485,8 @@ func abs2canon(abspath string) (canpath string, err error) {
 	if err != nil {
 		return
 	}
-	path := db.MkPath(abspath)
-	return path.Canon(), nil
+	path := pb.Path{}.New(db, abspath)
+	return path.Canon, nil
 }
 
 func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error) {
@@ -514,7 +514,7 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// fmt.Printf("algo!! %s\n", algo)
 
 	// prepend "node/" to interpreter addr
-	interpreterPath := db.MkPath("node/" + interpreterAddr)
+	interpreterPath := pb.Path{}.New(db, "node/"+interpreterAddr)
 
 	// rewind script file
 	_, err = file.Seek(0, 0)
@@ -529,7 +529,7 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	}
 
 	// get scriptCanon from script stream's root node path
-	scriptCanon := rootnode.Path.Canon()
+	scriptCanon := rootnode.Path.Canon
 
 	// call xeq
 	args = append([]string{scriptCanon}, args...)

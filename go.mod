@@ -8,5 +8,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/restic/chunker v0.4.0
 	github.com/sirupsen/logrus v1.7.0
+	github.com/stevegt/goadapt v0.0.0-20210401194744-6f3af0fac5f3
 	golang.org/x/sys v0.0.0-20210218155724-8ebf48af031b // indirect
 )
