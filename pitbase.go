@@ -112,6 +112,20 @@ func (e *ExistsError) Error() string {
 	return fmt.Sprintf("directory not empty: %s", e.Dir)
 }
 
+func (db *Db) Stat(path string) (info os.FileInfo, err error) {
+	fullpath := filepath.Join(db.Dir, path)
+	return os.Stat(fullpath)
+}
+
+func (db *Db) Size(path string) (size int64, err error) {
+	info, err := db.Stat(path)
+	if err != nil {
+		return
+	}
+	size = info.Size()
+	return
+}
+
 // Create initializes a db directory and its contents
 func (db Db) Create() (out *Db, err error) {
 	dir := db.Dir
@@ -226,28 +240,106 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 }
 
 type File struct {
-	fh   *os.File
-	Path *Path
+	Db       *Db
+	fh       *os.File
+	Path     *Path
+	Readonly bool
+	hash     hash.Hash
 }
 
-func (file File) New(db *Db) (File, error) {
-	var err error
-	// XXX move the file I/O stuff to another function that gets
-	// called by the first Read(), Write(), etc.
+// XXX can this return a *File for consistency?
+func (file File) New(db *Db) File {
+	file.Db = db
+	if file.Path == nil {
+		file.Path = &Path{}
+	}
+	if file.Path.Algo == "" {
+		file.Path.Algo = "sha256"
+	}
+	if file.Path.Raw == "" {
+		// create new blob
+		switch file.Path.Algo {
+		case "sha256":
+			file.hash = sha256.New()
+		case "sha512":
+			file.hash = sha512.New()
+		default:
+			err := fmt.Errorf("not implemented: %s", file.Path.Algo)
+			panic(err)
+		}
+	} else {
+		// use existing blob
+		file.Readonly = true
+	}
+
+	return file
+}
+
+// gets called by Read(), Write(), etc.
+func (file File) ckopen() (err error) {
+	if file.fh != nil {
+		return
+	}
 	if file.Path == nil {
 		// open temporary file
-		file.fh, err = db.tmpFile()
+		file.fh, err = file.Db.tmpFile()
 		if err != nil {
-			return file, err
+			return
 		}
 	} else {
 		// open existing file
 		file.fh, err = os.Open(file.Path.Abs)
 		if err != nil {
-			return file, err
+			return
 		}
 	}
-	return file, nil
+	return
+}
+
+func (file *File) Close() (err error) {
+	if file.Readonly {
+		err = file.fh.Close()
+		return
+	}
+
+	// move tmpfile to perm
+	file.fh.Close()
+	binhash := file.hash.Sum(nil)
+	hexhash := bin2hex(binhash)
+	Assert(file.Path.Class != "")
+	Assert(file.Path.Algo != "")
+	// replace tmp Path with permanent Path
+	file.Path = Path{}.New(file.Db, fmt.Sprintf("%s/%s/%s", file.Path.Class, file.Path.Algo, hexhash))
+	abspath := file.Path.Abs
+
+	// mkdir
+	dir, _ := filepath.Split(abspath)
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return
+	}
+
+	// rename temp file to permanent blob file
+	err = os.Rename(file.fh.Name(), abspath)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// Read reads from the file and puts the data into `buf`, returning n
+// as the number of bytes read.  If `buf` is too small to fit all of
+// the data, we update b.pos so the next Read() can continue where we
+// left off.  Returns io.EOF err when all data has already been
+// returned by previous Read() calls.  Supports the io.Reader
+// interface.
+func (file *File) Read(buf []byte) (n int, err error) {
+	err = file.ckopen()
+	if err != nil {
+		return
+	}
+	return file.fh.Read(buf)
 }
 
 // Seek moves the cursor position `b.pos` to `n`, using
@@ -257,6 +349,10 @@ func (file File) New(db *Db) (File, error) {
 // current offset, and 2 means relative to the end.  It returns the
 // new offset and an error, if any.  Supports the io.Seeker interface.
 func (file *File) Seek(n int64, whence int) (nout int64, err error) {
+	err = file.ckopen()
+	if err != nil {
+		return
+	}
 	return file.fh.Seek(n, whence)
 }
 
@@ -272,16 +368,34 @@ func (file *File) Size() (n int64, err error) {
 // Tell returns the current seek position (the current value of
 // `b.pos`) in the file.
 func (file *File) Tell() (n int64, err error) {
-	// we do this by calling Seek(0, 1)
+	// call Seek(0, 1)
 	return file.Seek(0, io.SeekCurrent)
 }
 
+func (file *File) Write(data []byte) (n int, err error) {
+	err = file.ckopen()
+	if err != nil {
+		return
+	}
+
+	// add data to hash digest
+	n, err = file.hash.Write(data)
+	if err != nil {
+		return
+	}
+
+	// write data to temp file
+	n, err = file.fh.Write(data)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
 type Blob struct {
-	Db       *Db
-	Path     *Path
-	algo     string // stow algo here for new blobs
-	Readonly bool
-	hash     hash.Hash
+	Db   *Db
+	Path *Path
 	File
 }
 
@@ -289,84 +403,10 @@ func (blob *Blob) GetPath() *Path {
 	return blob.Path
 }
 
-func (db *Db) Stat(path string) (info os.FileInfo, err error) {
-	fullpath := filepath.Join(db.Dir, path)
-	return os.Stat(fullpath)
-}
-
-func (db *Db) Size(path string) (size int64, err error) {
-	info, err := db.Stat(path)
-	if err != nil {
-		return
-	}
-	size = info.Size()
-	return
-}
-
 func (blob Blob) New(db *Db) *Blob {
 	blob.Db = db
+	blob.File = File{Path: blob.Path}.New(db)
 	return &blob
-}
-
-func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
-	b = Blob{Path: path}.New(db)
-	b.Readonly = true
-	b.File, err = File{Path: path}.New(db)
-	if err != nil {
-		return
-	}
-	return
-}
-
-func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
-	b = Blob{}.New(db)
-	b.algo = algo
-	b.File, err = File{}.New(db)
-	if err != nil {
-		return
-	}
-
-	switch b.algo {
-	case "sha256":
-		b.hash = sha256.New()
-	case "sha512":
-		b.hash = sha512.New()
-	default:
-		err = fmt.Errorf("not implemented: %s", b.algo)
-		return
-	}
-
-	return
-}
-
-func (b *Blob) Close() (err error) {
-	if b.Readonly {
-		err = b.File.fh.Close()
-		return
-	}
-
-	// move tmpfile to perm
-	b.File.fh.Close()
-	binhash := b.hash.Sum(nil)
-	hexhash := bin2hex(binhash)
-	b.Path = Path{}.New(b.Db, fmt.Sprintf("blob/%s/%s", b.algo, hexhash))
-	Ck(err)
-	abspath := b.Path.Abs
-
-	// mkdir
-	dir, _ := filepath.Split(abspath)
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return
-	}
-
-	// rename temp file to permanent blob file
-	err = os.Rename(b.File.fh.Name(), abspath)
-	if err != nil {
-		return
-	}
-
-	return
 }
 
 // Write takes data from `data` and puts it into the file named
@@ -385,32 +425,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 		return
 	}
 
-	log.Debugf("blob %#v", b)
-	log.Debugf("blob.hash %#v", b.hash)
-
-	// add data to hash digest
-	n, err = b.hash.Write(data)
-	if err != nil {
-		return
-	}
-
-	// write data to temp file
-	n, err = b.File.fh.Write(data)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-// Read reads from the file named b.Path and puts the data into `buf`,
-// returning n as the number of bytes read.  If `buf` is too small to
-// fit all of the data, we update b.pos so the next Read() can
-// continue where we left off.  Returns io.EOF err when all data has
-// already been returned by previous Read() calls.  Supports the
-// io.Reader interface.
-func (b *Blob) Read(buf []byte) (n int, err error) {
-	return b.File.fh.Read(buf)
+	return b.File.Write(data)
 }
 
 func (b *Blob) ReadAll() (buf []byte, err error) {
@@ -549,24 +564,18 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	if err != nil {
 		return
 	}
+	file := File{Path: path}.New(db)
+	b = Blob{File: file}.New(db)
 
 	// check if it's already stored
 	_, err = os.Stat(path.Abs)
 	if err == nil {
-		b, err = db.OpenBlob(path)
-		if err != nil {
-			return
-		}
+		b = Blob{File: file}.New(db)
 	} else if os.IsNotExist(err) {
-		log.Debugf("putting blob")
-		// store it
 		err = nil // clear IsNotExist err
+
+		// store it
 		var n int
-		b, err = db.CreateBlob(algo)
-		if err != nil {
-			return b, err
-		}
-		log.Debugf("CreateBlob returned %#v", b)
 		n, err = b.Write(buf)
 		if err != nil {
 			return b, err
