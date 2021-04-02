@@ -927,7 +927,7 @@ func (node *Node) Create() (err error) {
 	case "sha512":
 		node.hash = sha512.New()
 	default:
-		err = fmt.Errorf("not implemented: %s", algo)
+		err = fmt.Errorf("not implemented: %s", node.algo)
 		return
 	}
 
