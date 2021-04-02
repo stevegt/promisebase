@@ -596,6 +596,7 @@ func (stream Stream) New(db *Db, label string, rootnode *Node) *Stream {
 }
 
 // OpenStream returns an existing Stream object given a label
+// XXX figure out how to collapse OpenStream and Stream.New
 // into one function, probably by deferring any disk I/O in OpenStream
 // until we hit a Read() or Write().
 // XXX likewise for MkBlob and MkNode
