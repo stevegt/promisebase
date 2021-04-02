@@ -82,11 +82,11 @@ type Object interface {
 	GetPath() (path *Path)
 }
 
-func (db Db) ObjectFromPath(path *Path) (obj Object) {
+func (db *Db) ObjectFromPath(path *Path) (obj Object) {
 	class := path.Class
 	switch class {
 	case "blob":
-		return db.MkBlob(path)
+		return Blob{Path: path}.New(db)
 	case "node":
 		return db.MkNode(path)
 	default:
@@ -264,12 +264,13 @@ func (db *Db) Size(path string) (size int64, err error) {
 	return
 }
 
-func (db *Db) MkBlob(path *Path) (b *Blob) {
-	return &Blob{Db: db, Path: path}
+func (blob Blob) New(db *Db) *Blob {
+	blob.Db = db
+	return &blob
 }
 
 func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
-	b = db.MkBlob(path)
+	b = Blob{Path: path}.New(db)
 	b.Readonly = true
 	// open existing file
 	b.fh, err = os.Open(path.Abs)
@@ -280,7 +281,7 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 }
 
 func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
-	b = db.MkBlob(nil)
+	b = Blob{}.New(db)
 	b.algo = algo
 	// open temporary file
 	b.fh, err = db.tmpFile()
