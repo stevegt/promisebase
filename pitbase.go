@@ -921,7 +921,7 @@ func (node *Node) Create() (err error) {
 		return
 	}
 	// handle other algos
-	switch algo {
+	switch node.algo {
 	case "sha256":
 		node.hash = sha256.New()
 	case "sha512":
