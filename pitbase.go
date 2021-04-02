@@ -225,10 +225,31 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 	return
 }
 
+type File struct {
+	fh   *os.File
+	Path *Path
+}
+
+func (file File) New(db *Db) (res *File, err error) {
+	if file.Path == nil {
+		// open temporary file
+		file.fh, err = db.tmpFile()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		file.fh, err = os.Open(file.Path.Abs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &file, err
+}
+
 type Blob struct {
 	Db       *Db
 	Path     *Path
-	fh       *os.File
+	file     *File
 	algo     string // stow algo here for new blobs
 	Readonly bool
 	hash     hash.Hash
@@ -270,7 +291,7 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 	b = Blob{Path: path}.New(db)
 	b.Readonly = true
 	// open existing file
-	b.fh, err = os.Open(path.Abs)
+	b.file, err = File{Path: path}.New(db)
 	if err != nil {
 		return
 	}
@@ -280,25 +301,32 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
 	b = Blob{}.New(db)
 	b.algo = algo
-	// open temporary file
-	b.fh, err = db.tmpFile()
+	b.file, err = File{}.New(db)
 	if err != nil {
 		return
 	}
-	// XXX handle other algos
-	b.hash = sha256.New()
+
+	switch b.algo {
+	case "sha256":
+		b.hash = sha256.New()
+	case "sha512":
+		b.hash = sha512.New()
+	default:
+		err = fmt.Errorf("not implemented: %s", b.algo)
+		return
+	}
 
 	return
 }
 
 func (b *Blob) Close() (err error) {
 	if b.Readonly {
-		err = b.fh.Close()
+		err = b.file.fh.Close()
 		return
 	}
 
 	// move tmpfile to perm
-	b.fh.Close()
+	b.file.fh.Close()
 	binhash := b.hash.Sum(nil)
 	hexhash := bin2hex(binhash)
 	b.Path = Path{}.New(b.Db, fmt.Sprintf("blob/%s/%s", b.algo, hexhash))
@@ -313,7 +341,7 @@ func (b *Blob) Close() (err error) {
 	}
 
 	// rename temp file to permanent blob file
-	err = os.Rename(b.fh.Name(), abspath)
+	err = os.Rename(b.file.fh.Name(), abspath)
 	if err != nil {
 		return
 	}
@@ -347,7 +375,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 	}
 
 	// write data to temp file
-	n, err = b.fh.Write(data)
+	n, err = b.file.fh.Write(data)
 	if err != nil {
 		return
 	}
@@ -362,7 +390,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 // already been returned by previous Read() calls.  Supports the
 // io.Reader interface.
 func (b *Blob) Read(buf []byte) (n int, err error) {
-	return b.fh.Read(buf)
+	return b.file.fh.Read(buf)
 }
 
 func (b *Blob) ReadAll() (buf []byte, err error) {
@@ -380,7 +408,7 @@ func (b *Blob) ReadAll() (buf []byte, err error) {
 // current offset, and 2 means relative to the end.  It returns the
 // new offset and an error, if any.  Supports the io.Seeker interface.
 func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
-	return b.fh.Seek(n, whence)
+	return b.file.fh.Seek(n, whence)
 }
 
 // Tell returns the current seek position (the current value of
@@ -927,7 +955,7 @@ func (node *Node) Create() (err error) {
 	case "sha512":
 		node.hash = sha512.New()
 	default:
-		err = fmt.Errorf("not implemented: %s", algo)
+		err = fmt.Errorf("not implemented: %s", node.algo)
 		return
 	}
 
