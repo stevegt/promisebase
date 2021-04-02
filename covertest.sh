@@ -42,6 +42,16 @@ do
 	cd -
 done
 
+if ! which errcheck
+then
+	echo recommend you install errcheck:
+	echo go get -u github.com/kisielk/errcheck
+else
+	echo looking for unchecked errors:
+	errcheck . || true
+	cd cmd/pb; errcheck . || true
+fi
+
 echo 
 echo Summary of all tests:
 rc=0
