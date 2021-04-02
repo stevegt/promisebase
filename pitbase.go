@@ -82,6 +82,7 @@ type Object interface {
 	GetPath() (path *Path)
 }
 
+/*
 func (db Db) ObjectFromPath(path *Path) (obj Object) {
 	class := path.Class
 	switch class {
@@ -92,7 +93,8 @@ func (db Db) ObjectFromPath(path *Path) (obj Object) {
 	default:
 		panic(fmt.Sprintf("unhandled class %s", class))
 	}
-}
+} // waiting for review before deleting
+*/
 
 func mkdir(dir string) (err error) {
 	if _, err = os.Stat(dir); os.IsNotExist(err) {
@@ -222,19 +224,17 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 	if err != nil {
 		return
 	}
-	// inode.abspath = inode.fh.Name()
-	// inode.fd = inode.fh.Fd()
 	return
 }
 
 type Blob struct {
-	Db       *Db
-	Path     *Path
-	fh       *os.File
-	algo     string // stow algo here for new blobs
+	Db   *Db
+	Path *Path
+	fh   *os.File
+	algo string // stow algo here for new blobs
+	// XXX algo is also stored in Path. Keep both instances?
 	Readonly bool
 	hash     hash.Hash
-	// inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
 func (blob *Blob) GetPath() *Path {
@@ -264,12 +264,14 @@ func (db *Db) Size(path string) (size int64, err error) {
 	return
 }
 
+/*
 func (db *Db) MkBlob(path *Path) (b *Blob) {
 	return &Blob{Db: db, Path: path}
-}
+} // waiting for review before deleting
+*/
 
 func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
-	b = db.MkBlob(path)
+	b = db.MkObj(path).(Blob)
 	b.Readonly = true
 	// open existing file
 	b.fh, err = os.Open(path.Abs)
@@ -280,7 +282,7 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 }
 
 func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
-	b = db.MkBlob(nil)
+	b = db.MkObj(&Path{Class: "blob"})
 	b.algo = algo
 	// open temporary file
 	b.fh, err = db.tmpFile()
@@ -293,7 +295,7 @@ func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
 	return
 }
 
-func (b *Blob) Close() (err error) {
+func (b Blob) Close() (err error) {
 	if b.Readonly {
 		err = b.fh.Close()
 		return
@@ -600,6 +602,9 @@ func (db *Db) NewStream(label string, rootnode *Node) (stream *Stream) {
 // into one function, probably by deferring any disk I/O in OpenStream
 // until we hit a Read() or Write().
 // XXX likewise for MkBlob and MkNode
+// ryan also made MkObj() which replaces MkBlob and MkNode
+// Issue can be removed after approved in review
+
 func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	// XXX sanitize label
 	linkabspath := filepath.Join(db.Dir, "stream", label)
@@ -896,9 +901,23 @@ type Node struct {
 	algo     string
 }
 
+// This consolidates mkBlob and MkNode even more concisely than ObjectfromPath
+func (db *Db) MkObj(path *Path) Object {
+	if path.Class == "node" {
+		return Node{Db: db, Path: path}
+	} else if path.Class == "blob" {
+		return Blob{Db: db, Path: path}
+	} else {
+		log.Debugf("func MkObj(path) does not recognize path.Class: %v\n", path.Class)
+		return nil
+	}
+}
+
+/*
 func (db *Db) MkNode(path *Path) (node *Node) {
 	return &Node{Db: db, Path: path}
-}
+} // waiting for review before deleting
+*/
 
 // XXX reconcile with getNode()
 func (db *Db) OpenNode(path *Path) (node *Node, err error) {
@@ -958,7 +977,7 @@ func (node *Node) Tell() (n int64, err error) {
 
 // XXX probably merge this with Blob.Close() and Stream.Close(), call it File.Close()
 // XXX likewise for other methods
-func (node *Node) Close() (err error) {
+func (node Node) Close() (err error) {
 	if node.Readonly {
 		err = node.fh.Close()
 		return
@@ -1115,7 +1134,7 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		line := string(buf)
 		line = strings.TrimSpace(line)
 		path := Path{}.New(db, line)
-		entry := db.ObjectFromPath(path)
+		entry := db.MkObj(path)
 		log.Debugf("entry %#v", entry)
 		entries = append(entries, entry)
 

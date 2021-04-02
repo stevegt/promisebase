@@ -349,7 +349,7 @@ func putNode(algo string, canpaths []string) (node *pb.Node, err error) {
 	var children []pb.Object
 	for _, canpath := range canpaths {
 		path := pb.Path{}.New(db, canpath)
-		child := db.ObjectFromPath(path)
+		child := db.MkObj(path)
 		children = append(children, child)
 	}
 	node, err = db.PutNode(algo, children...)
