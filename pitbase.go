@@ -230,42 +230,63 @@ type File struct {
 	Path *Path
 }
 
-func (file File) New(db *Db) (res *File, err error) {
+func (file File) New(db *Db) (File, error) {
+	var err error
+	// XXX move the file I/O stuff to another function that gets
+	// called by the first Read(), Write(), etc.
 	if file.Path == nil {
 		// open temporary file
 		file.fh, err = db.tmpFile()
 		if err != nil {
-			return nil, err
+			return file, err
 		}
 	} else {
+		// open existing file
 		file.fh, err = os.Open(file.Path.Abs)
 		if err != nil {
-			return nil, err
+			return file, err
 		}
 	}
-	return &file, err
+	return file, nil
 }
 
-type Blob struct {
-	Db       *Db
-	Path     *Path
-	file     *File
-	algo     string // stow algo here for new blobs
-	Readonly bool
-	hash     hash.Hash
+// Seek moves the cursor position `b.pos` to `n`, using
+// os.File.Seek():  Seek sets the offset for the next Read
+// or Write on file to offset, interpreted according to `whence`: 0
+// means relative to the origin of the file, 1 means relative to the
+// current offset, and 2 means relative to the end.  It returns the
+// new offset and an error, if any.  Supports the io.Seeker interface.
+func (file *File) Seek(n int64, whence int) (nout int64, err error) {
+	return file.fh.Seek(n, whence)
 }
 
-func (blob *Blob) GetPath() *Path {
-	return blob.Path
-}
-
-func (b *Blob) Size() (n int64, err error) {
-	info, err := os.Stat(b.Path.Abs)
+func (file *File) Size() (n int64, err error) {
+	info, err := os.Stat(file.Path.Abs)
 	if err != nil {
 		return
 	}
 	n = info.Size()
 	return
+}
+
+// Tell returns the current seek position (the current value of
+// `b.pos`) in the file.
+func (file *File) Tell() (n int64, err error) {
+	// we do this by calling Seek(0, 1)
+	return file.Seek(0, io.SeekCurrent)
+}
+
+type Blob struct {
+	Db       *Db
+	Path     *Path
+	algo     string // stow algo here for new blobs
+	Readonly bool
+	hash     hash.Hash
+	File
+}
+
+func (blob *Blob) GetPath() *Path {
+	return blob.Path
 }
 
 func (db *Db) Stat(path string) (info os.FileInfo, err error) {
@@ -290,8 +311,7 @@ func (blob Blob) New(db *Db) *Blob {
 func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 	b = Blob{Path: path}.New(db)
 	b.Readonly = true
-	// open existing file
-	b.file, err = File{Path: path}.New(db)
+	b.File, err = File{Path: path}.New(db)
 	if err != nil {
 		return
 	}
@@ -301,7 +321,7 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
 	b = Blob{}.New(db)
 	b.algo = algo
-	b.file, err = File{}.New(db)
+	b.File, err = File{}.New(db)
 	if err != nil {
 		return
 	}
@@ -321,12 +341,12 @@ func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
 
 func (b *Blob) Close() (err error) {
 	if b.Readonly {
-		err = b.file.fh.Close()
+		err = b.File.fh.Close()
 		return
 	}
 
 	// move tmpfile to perm
-	b.file.fh.Close()
+	b.File.fh.Close()
 	binhash := b.hash.Sum(nil)
 	hexhash := bin2hex(binhash)
 	b.Path = Path{}.New(b.Db, fmt.Sprintf("blob/%s/%s", b.algo, hexhash))
@@ -341,7 +361,7 @@ func (b *Blob) Close() (err error) {
 	}
 
 	// rename temp file to permanent blob file
-	err = os.Rename(b.file.fh.Name(), abspath)
+	err = os.Rename(b.File.fh.Name(), abspath)
 	if err != nil {
 		return
 	}
@@ -375,7 +395,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 	}
 
 	// write data to temp file
-	n, err = b.file.fh.Write(data)
+	n, err = b.File.fh.Write(data)
 	if err != nil {
 		return
 	}
@@ -390,7 +410,7 @@ func (b *Blob) Write(data []byte) (n int, err error) {
 // already been returned by previous Read() calls.  Supports the
 // io.Reader interface.
 func (b *Blob) Read(buf []byte) (n int, err error) {
-	return b.file.fh.Read(buf)
+	return b.File.fh.Read(buf)
 }
 
 func (b *Blob) ReadAll() (buf []byte, err error) {
@@ -399,23 +419,6 @@ func (b *Blob) ReadAll() (buf []byte, err error) {
 		return
 	}
 	return
-}
-
-// Seek moves the cursor position `b.pos` to `n`, using
-// os.File.Seek():  Seek sets the offset for the next Read
-// or Write on file to offset, interpreted according to `whence`: 0
-// means relative to the origin of the file, 1 means relative to the
-// current offset, and 2 means relative to the end.  It returns the
-// new offset and an error, if any.  Supports the io.Seeker interface.
-func (b *Blob) Seek(n int64, whence int) (nout int64, err error) {
-	return b.file.fh.Seek(n, whence)
-}
-
-// Tell returns the current seek position (the current value of
-// `b.pos`) in the file.
-func (b *Blob) Tell() (n int64, err error) {
-	// we do this by calling b.Seek(0, 1)
-	return b.Seek(0, io.SeekCurrent)
 }
 
 // GetBlob retrieves a blob by reading its file contents.
