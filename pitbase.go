@@ -222,8 +222,6 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 	if err != nil {
 		return
 	}
-	// inode.abspath = inode.fh.Name()
-	// inode.fd = inode.fh.Fd()
 	return
 }
 
@@ -234,7 +232,6 @@ type Blob struct {
 	algo     string // stow algo here for new blobs
 	Readonly bool
 	hash     hash.Hash
-	// inode    Inode // XXX get rid of inode dependency so we can deprecate inode?
 }
 
 func (blob *Blob) GetPath() *Path {
@@ -922,8 +919,16 @@ func (node *Node) Create() (err error) {
 	if err != nil {
 		return
 	}
-	// XXX handle other algos
-	node.hash = sha256.New()
+	// handle other algos
+	switch algo {
+	case "sha256":
+		node.hash = sha256.New()
+	case "sha512":
+		node.hash = sha512.New()
+	default:
+		err = fmt.Errorf("not implemented: %s", algo)
+		return
+	}
 
 	return
 }
