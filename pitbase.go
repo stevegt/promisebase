@@ -226,11 +226,10 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 }
 
 type Blob struct {
-	Db   *Db
-	Path *Path
-	fh   *os.File
-	algo string // stow algo here for new blobs
-	// XXX algo is also stored in Path. Keep both instances?
+	Db       *Db
+	Path     *Path
+	fh       *os.File
+	algo     string // stow algo here for new blobs
 	Readonly bool
 	hash     hash.Hash
 }
@@ -292,7 +291,7 @@ func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
 	return
 }
 
-func (b Blob) Close() (err error) {
+func (b *Blob) Close() (err error) {
 	if b.Readonly {
 		err = b.fh.Close()
 		return
@@ -966,7 +965,7 @@ func (node *Node) Tell() (n int64, err error) {
 
 // XXX probably merge this with Blob.Close() and Stream.Close(), call it File.Close()
 // XXX likewise for other methods
-func (node Node) Close() (err error) {
+func (node *Node) Close() (err error) {
 	if node.Readonly {
 		err = node.fh.Close()
 		return
