@@ -373,6 +373,12 @@ func (file *File) Tell() (n int64, err error) {
 }
 
 func (file *File) Write(data []byte) (n int, err error) {
+
+	if file.Readonly {
+		err = fmt.Errorf("cannot write to existing object: %s", file.Path.Abs)
+		return
+	}
+
 	err = file.ckopen()
 	if err != nil {
 		return
@@ -413,20 +419,6 @@ func (blob Blob) New(db *Db) *Blob {
 // b.Path.  Updates pos after each write.  Large blobs might be
 // written using multiple Write() calls.  Supports the io.Writer
 // interface.
-
-func (b *Blob) Write(data []byte) (n int, err error) {
-	// XXX this works for a file that fits in a single write; for
-	// larger blobs we need to do the tmpFile() stuff in Init() and we
-	// might need a b.Close() function to do the Rename when we're done
-	// writing
-
-	if b.Readonly {
-		err = fmt.Errorf("cannot write to existing blob: %s", b.Path.Abs)
-		return
-	}
-
-	return b.File.Write(data)
-}
 
 func (b *Blob) ReadAll() (buf []byte, err error) {
 	buf, err = ioutil.ReadFile(b.Path.Abs)
