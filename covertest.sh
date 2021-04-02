@@ -42,6 +42,23 @@ do
 	cd -
 done
 
+errcheck=PASS
+if ! which errcheck
+then
+	echo recommend you install errcheck:
+	echo go get -u github.com/kisielk/errcheck
+else
+	echo looking for unchecked errors:
+	errcheck . || errcheck=FAIL
+	cd cmd/pb; errcheck . || errcheck=FAIL
+fi
+
+golint=FAIL
+if golint -set_exit_status
+then
+	golint=PASS
+fi
+
 echo 
 echo Summary of all tests:
 rc=0
@@ -55,11 +72,14 @@ do
 	fi
 done
 
-# echo ${msg[@]}
+printf "%-10s %s\n" errcheck $errcheck
+printf "%-10s %s\n" golint $golint
+echo $errcheck $golint | grep -q FAIL && rc=1
 
 if [ "$rc" -ne 0 ]
 then
 	exit $rc
 else
-	echo PASS all functional and coverage tests
+	echo PASS all tests
 fi
+

@@ -82,19 +82,17 @@ type Object interface {
 	GetPath() (path *Path)
 }
 
-/*
-func (db Db) ObjectFromPath(path *Path) (obj Object) {
+func (db *Db) ObjectFromPath(path *Path) (obj Object) {
 	class := path.Class
 	switch class {
 	case "blob":
-		return db.MkBlob(path)
+		return Blob{Path: path}.New(db)
 	case "node":
 		return db.MkNode(path)
 	default:
 		panic(fmt.Sprintf("unhandled class %s", class))
 	}
-} // waiting for review before deleting
-*/
+}
 
 func mkdir(dir string) (err error) {
 	if _, err = os.Stat(dir); os.IsNotExist(err) {
@@ -264,14 +262,13 @@ func (db *Db) Size(path string) (size int64, err error) {
 	return
 }
 
-/*
-func (db *Db) MkBlob(path *Path) (b *Blob) {
-	return &Blob{Db: db, Path: path}
-} // waiting for review before deleting
-*/
+func (blob Blob) New(db *Db) *Blob {
+	blob.Db = db
+	return &blob
+}
 
 func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
-	b = db.MkObj(path).(Blob)
+	b = Blob{Path: path}.New(db)
 	b.Readonly = true
 	// open existing file
 	b.fh, err = os.Open(path.Abs)
@@ -282,7 +279,7 @@ func (db *Db) OpenBlob(path *Path) (b *Blob, err error) {
 }
 
 func (db *Db) CreateBlob(algo string) (b *Blob, err error) {
-	b = db.MkObj(&Path{Class: "blob"})
+	b = Blob{}.New(db)
 	b.algo = algo
 	// open temporary file
 	b.fh, err = db.tmpFile()
@@ -432,7 +429,7 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 	if err != nil {
 		return
 	}
-	newstream = stream.Db.NewStream(stream.Label, newrootnode)
+	newstream = Stream{}.New(stream.Db, stream.Label, newrootnode)
 	return
 
 }
@@ -561,7 +558,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 // the resulting stream object.
 // XXX do we need this?  creating the stream with rootnode == nil is risky
 func (node *Node) LinkStream(label string) (stream *Stream, err error) {
-	stream = node.Db.NewStream(label, node)
+	stream = Stream{}.New(node.Db, label, node)
 	src := filepath.Join("..", node.Path.Rel)
 	// XXX sanitize label
 	linkabspath := filepath.Join(node.Db.Dir, "stream", label)
@@ -590,21 +587,19 @@ type Stream struct {
 	posInBlob   int64
 }
 
-func (db *Db) NewStream(label string, rootnode *Node) (stream *Stream) {
-	stream = &Stream{Db: db, Label: label, RootNode: rootnode}
+func (stream Stream) New(db *Db, label string, rootnode *Node) *Stream {
+	stream.Db = db
+	stream.Label = label
+	stream.RootNode = rootnode
 	linkrelpath := filepath.Join("stream", label)
 	stream.Path = Path{}.New(db, linkrelpath)
-	return
+	return &stream
 }
 
 // OpenStream returns an existing Stream object given a label
-// XXX figure out how to collapse OpenStream and NewStream
 // into one function, probably by deferring any disk I/O in OpenStream
 // until we hit a Read() or Write().
 // XXX likewise for MkBlob and MkNode
-// ryan also made MkObj() which replaces MkBlob and MkNode
-// Issue can be removed after approved in review
-
 func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	// XXX sanitize label
 	linkabspath := filepath.Join(db.Dir, "stream", label)
@@ -622,7 +617,7 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 		panic("rootnode is nil")
 	}
 	log.Debugf("OpenStream rootnode %#v", rootnode)
-	stream = db.NewStream(label, rootnode)
+	stream = Stream{}.New(db, label, rootnode)
 	return
 }
 
@@ -901,23 +896,9 @@ type Node struct {
 	algo     string
 }
 
-// This consolidates mkBlob and MkNode even more concisely than ObjectfromPath
-func (db *Db) MkObj(path *Path) Object {
-	if path.Class == "node" {
-		return Node{Db: db, Path: path}
-	} else if path.Class == "blob" {
-		return Blob{Db: db, Path: path}
-	} else {
-		log.Debugf("func MkObj(path) does not recognize path.Class: %v\n", path.Class)
-		return nil
-	}
-}
-
-/*
 func (db *Db) MkNode(path *Path) (node *Node) {
 	return &Node{Db: db, Path: path}
-} // waiting for review before deleting
-*/
+}
 
 // XXX reconcile with getNode()
 func (db *Db) OpenNode(path *Path) (node *Node, err error) {
@@ -939,8 +920,16 @@ func (node *Node) Create() (err error) {
 	if err != nil {
 		return
 	}
-	// XXX handle other algos
-	node.hash = sha256.New()
+	// handle other algos
+	switch node.algo {
+	case "sha256":
+		node.hash = sha256.New()
+	case "sha512":
+		node.hash = sha512.New()
+	default:
+		err = fmt.Errorf("not implemented: %s", node.algo)
+		return
+	}
 
 	return
 }
@@ -1134,7 +1123,7 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		line := string(buf)
 		line = strings.TrimSpace(line)
 		path := Path{}.New(db, line)
-		entry := db.MkObj(path)
+		entry := db.ObjectFromPath(path)
 		log.Debugf("entry %#v", entry)
 		entries = append(entries, entry)
 
