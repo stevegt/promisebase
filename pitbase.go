@@ -256,8 +256,11 @@ func (file File) New(db *Db) File {
 	if file.Path.Algo == "" {
 		file.Path.Algo = "sha256"
 	}
+	// XXX for now we're using file.Path.Raw as a flag for whether a
+	// file is new and temporary or is an older file that was already
+	// on disk:  empty Raw field means it's a new file
 	if file.Path.Raw == "" {
-		// create new blob
+		// create new file
 		switch file.Path.Algo {
 		case "sha256":
 			file.hash = sha256.New()
@@ -268,7 +271,7 @@ func (file File) New(db *Db) File {
 			panic(err)
 		}
 	} else {
-		// use existing blob
+		// use existing file
 		file.Readonly = true
 	}
 
@@ -280,7 +283,7 @@ func (file File) ckopen() (err error) {
 	if file.fh != nil {
 		return
 	}
-	if file.Path == nil {
+	if file.Path.Raw == "" {
 		// open temporary file
 		file.fh, err = file.Db.tmpFile()
 		if err != nil {
@@ -561,9 +564,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
 	// check if it's already stored
 	_, err = os.Stat(path.Abs)
-	if err == nil {
-		b = Blob{File: file}.New(db)
-	} else if os.IsNotExist(err) {
+	if os.IsNotExist(err) {
 		err = nil // clear IsNotExist err
 
 		// store it
