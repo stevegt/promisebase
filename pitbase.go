@@ -393,9 +393,6 @@ func (file *File) Tell() (n int64, err error) {
 func (file *File) Write(data []byte) (n int, err error) {
 
 	if file.Readonly {
-		// XXX This isn't working -- we're hitting this error
-		// for non-existent files, which means we're setting Readonly
-		// somewhere else when we shouldn't be.
 		err = fmt.Errorf("cannot write to existing object: %s", file.Path.Abs)
 		return
 	}
@@ -414,6 +411,7 @@ func (file *File) Write(data []byte) (n int, err error) {
 	// write data to disk file
 	n, err = file.fh.Write(data)
 	if err != nil {
+		panic(fmt.Sprintf("fh: %#v\n", file.fh))
 		return
 	}
 
@@ -581,7 +579,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
 	// check if it's already stored
 	extant := exists(path.Abs)
-	fmt.Printf("path: %#v\n err: %#v exists %#v\n", path, err, extant)
+	// fmt.Printf("path: %#v exists %#v\n", path, extant)
 	if !extant {
 
 		// store it
