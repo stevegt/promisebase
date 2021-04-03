@@ -582,10 +582,10 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	file := File{Path: path}.New(db)
 	b = Blob{File: file}.New(db)
 
-	fmt.Printf("path: %#v\n", path)
 	// check if it's already stored
-	_, err = os.Stat(path.Abs)
-	if err != nil && os.IsNotExist(err) {
+	extant := exists(path.Abs)
+	fmt.Printf("path: %#v\n err: %#v exists %#v\n", path, err, extant)
+	if !extant {
 		err = nil // clear IsNotExist err
 
 		// store it
@@ -595,7 +595,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 			return b, err
 		}
 		if n != len(buf) {
-			// XXX
+			// XXX handle this gracefully
 			panic("short write")
 		}
 		err = b.Close()
