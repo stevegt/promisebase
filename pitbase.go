@@ -252,11 +252,27 @@ type File struct {
 func (file File) New(db *Db) File {
 	file.Db = db
 	if file.Path == nil {
+		// we don't call Path.New() here 'cause we don't want it ti
+		// try to parse the empty Raw field
 		file.Path = &Path{}
 	}
 	if file.Path.Algo == "" {
+		// we default to "sha256" here, but callers can e.g. specify algo
+		// for a new blob via something like Blob{File{Path{Algo: "sha512"}}}
+		// XXX default should come from a DefaultAlgo field in Db config
 		file.Path.Algo = "sha256"
 	}
+
+	// We want to detect whether this invocation of New is for an
+	// existing disk file, or for a new one that hasn't been written
+	// yet.  In the latter case, we need to set file.hash so
+	// file.Write() can feed new data blocks into the hash algorithm.
+	//
+	// XXX This isn't working -- we're hitting the "cannot write to
+	// existing file" error, which means we're not setting Readonly
+	// somewhere else when we should be, and/or we're not setting
+	// file.Path.initialized right somewhere.
+	//
 	if !file.Path.initialized {
 		// create new file
 		switch file.Path.Algo {
@@ -304,16 +320,23 @@ func (file *File) Close() (err error) {
 	}
 
 	// move tmpfile to perm
+
+	// close disk file
 	file.fh.Close()
+
+	// finish computing hash
 	binhash := file.hash.Sum(nil)
 	hexhash := bin2hex(binhash)
+
+	// now that we know what the data's hash is, we can replace tmp
+	// Path with permanent Path
 	Assert(file.Path.Class != "")
 	Assert(file.Path.Algo != "")
-	// replace tmp Path with permanent Path
-	file.Path = Path{}.New(file.Db, fmt.Sprintf("%s/%s/%s", file.Path.Class, file.Path.Algo, hexhash))
-	abspath := file.Path.Abs
+	canpath := fmt.Sprintf("%s/%s/%s", file.Path.Class, file.Path.Algo, hexhash)
+	file.Path = Path{}.New(file.Db, canpath)
 
-	// mkdir
+	// make sure subdirs exist
+	abspath := file.Path.Abs
 	dir, _ := filepath.Split(abspath)
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
@@ -391,7 +414,7 @@ func (file *File) Write(data []byte) (n int, err error) {
 		return
 	}
 
-	// write data to temp file
+	// write data to disk file
 	n, err = file.fh.Write(data)
 	if err != nil {
 		return
