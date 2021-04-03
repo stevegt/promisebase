@@ -267,12 +267,6 @@ func (file File) New(db *Db) File {
 	// existing disk file, or for a new one that hasn't been written
 	// yet.  In the latter case, we need to set file.hash so
 	// file.Write() can feed new data blocks into the hash algorithm.
-	//
-	// XXX This isn't working -- we're hitting the "cannot write to
-	// existing file" error, which means we're not setting Readonly
-	// somewhere else when we should be, and/or we're not setting
-	// file.Path.initialized right somewhere.
-	//
 	if !file.Path.initialized {
 		// create new file
 		switch file.Path.Algo {
@@ -399,6 +393,9 @@ func (file *File) Tell() (n int64, err error) {
 func (file *File) Write(data []byte) (n int, err error) {
 
 	if file.Readonly {
+		// XXX This isn't working -- we're hitting this error
+		// for non-existent files, which means we're setting Readonly
+		// somewhere else when we shouldn't be.
 		err = fmt.Errorf("cannot write to existing object: %s", file.Path.Abs)
 		return
 	}
@@ -586,7 +583,6 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	extant := exists(path.Abs)
 	fmt.Printf("path: %#v\n err: %#v exists %#v\n", path, err, extant)
 	if !extant {
-		err = nil // clear IsNotExist err
 
 		// store it
 		var n int
