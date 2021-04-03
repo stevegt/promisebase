@@ -360,6 +360,14 @@ func (file *File) Read(buf []byte) (n int, err error) {
 	return file.fh.Read(buf)
 }
 
+func (file *File) ReadAll() (buf []byte, err error) {
+	buf, err = ioutil.ReadFile(file.Path.Abs)
+	if err != nil {
+		return
+	}
+	return
+}
+
 // Seek moves the cursor position `b.pos` to `n`, using
 // os.File.Seek():  Seek sets the offset for the next Read
 // or Write on file to offset, interpreted according to `whence`: 0
@@ -390,6 +398,9 @@ func (file *File) Tell() (n int64, err error) {
 	return file.Seek(0, io.SeekCurrent)
 }
 
+// Write takes data from `data` and puts it into the file named
+// file.Path.Abs.  Large blobs can be written using multiple Write()
+// calls.  Supports the io.Writer interface.
 func (file *File) Write(data []byte) (n int, err error) {
 
 	if file.Readonly {
@@ -433,28 +444,10 @@ func (blob Blob) New(db *Db) *Blob {
 	return &blob
 }
 
-// Write takes data from `data` and puts it into the file named
-// b.Path.  Updates pos after each write.  Large blobs might be
-// written using multiple Write() calls.  Supports the io.Writer
-// interface.
-
-func (b *Blob) ReadAll() (buf []byte, err error) {
-	buf, err = ioutil.ReadFile(b.Path.Abs)
-	if err != nil {
-		return
-	}
-	return
-}
-
-// GetBlob retrieves a blob by reading its file contents.
-// XXX deprecate
+// GetBlob retrieves an entire blob into buf by reading its file contents.
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
-	// XXX streaming: call OpenBlob(), b.Read(), and b.Close()
-	buf, err = ioutil.ReadFile(path.Abs)
-	if err != nil {
-		return
-	}
-	return
+	file := File{Path: path}.New(db)
+	return Blob{File: file}.New(db).ReadAll()
 }
 
 // Rm deletes the file associated with a path of any format and returns an error
@@ -1114,34 +1107,6 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 		}
 		log.Debugf("PutNode path before close %s after %s", path.Abs, node.Path.Abs)
 	}
-	return
-}
-
-// Put creates a temporary file for a buf and then atomically renames to the permanent path.
-// XXX refactor for streaming
-func (db *Db) XXXput(path *Path, buf []byte) (err error) {
-
-	// get temporary file
-	fh, err := db.tmpFile()
-	defer fh.Close()
-
-	// write to temp file
-	_, err = fh.Write(buf)
-	if err != nil {
-		return err
-	}
-
-	dir, _ := filepath.Split(path.Abs)
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return
-	}
-	// rename temp file to permanent file
-	err = os.Rename(fh.Name(), path.Abs)
-	if err != nil {
-		return
-	}
-
 	return
 }
 
