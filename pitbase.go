@@ -87,7 +87,7 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object) {
 	switch class {
 	case "blob":
 		file := File{Path: path}.New(db)
-		return Blob{File: file}.New(db)
+		return Blob{}.New(db, file)
 	case "node":
 		return db.MkNode(path)
 	default:
@@ -241,15 +241,14 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 }
 
 type File struct {
-	Db       *Db
-	fh       *os.File
-	Path     *Path
+	*Db
+	*Path
 	Readonly bool
+	fh       *os.File
 	hash     hash.Hash
 }
 
-// XXX can this return a *File for consistency?
-func (file File) New(db *Db) File {
+func (file File) New(db *Db) *File {
 	file.Db = db
 	if file.Path == nil {
 		// we don't call Path.New() here 'cause we don't want it to
@@ -267,7 +266,10 @@ func (file File) New(db *Db) File {
 	// file, or for a new one that hasn't been written yet.  In the
 	// latter case, we need to set file.hash so file.Write() can feed
 	// new data blocks into the hash algorithm.
-	if len(file.Path.Abs) > 0 && !exists(file.Path.Abs) {
+	if len(file.Path.Abs) > 0 && exists(file.Path.Abs) {
+		// use existing file
+		file.Readonly = true
+	} else {
 		// create new file
 		switch file.Path.Algo {
 		case "sha256":
@@ -278,12 +280,9 @@ func (file File) New(db *Db) File {
 			err := fmt.Errorf("not implemented: %s", file.Path.Algo)
 			panic(err)
 		}
-	} else {
-		// use existing file
-		file.Readonly = true
 	}
 
-	return file
+	return &file
 }
 
 // gets called by Read(), Write(), etc.
@@ -431,23 +430,23 @@ func (file *File) Write(data []byte) (n int, err error) {
 
 type Blob struct {
 	Db *Db
-	File
+	*File
 }
 
 func (blob *Blob) GetPath() *Path {
 	return blob.Path
 }
 
-func (blob Blob) New(db *Db) *Blob {
+func (blob Blob) New(db *Db, file *File) *Blob {
 	blob.Db = db
-	blob.File = File{Path: blob.Path}.New(db)
+	blob.File = file
 	return &blob
 }
 
 // GetBlob retrieves an entire blob into buf by reading its file contents.
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
 	file := File{Path: path}.New(db)
-	return Blob{File: file}.New(db).ReadAll()
+	return Blob{}.New(db, file).ReadAll()
 }
 
 // Rm deletes the file associated with a path of any format and returns an error
@@ -563,12 +562,13 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
 // and returns the hash.
 func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
+	// XXX we're hashing twice -- once here and again during Write()
 	path, err := db.PathFromBuf("blob", algo, buf)
 	if err != nil {
 		return
 	}
 	file := File{Path: path}.New(db)
-	b = Blob{File: file}.New(db)
+	b = Blob{}.New(db, file)
 
 	// check if it's already stored
 	extant := exists(path.Abs)
