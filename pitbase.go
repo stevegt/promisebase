@@ -252,7 +252,7 @@ type File struct {
 func (file File) New(db *Db) File {
 	file.Db = db
 	if file.Path == nil {
-		// we don't call Path.New() here 'cause we don't want it ti
+		// we don't call Path.New() here 'cause we don't want it to
 		// try to parse the empty Raw field
 		file.Path = &Path{}
 	}
