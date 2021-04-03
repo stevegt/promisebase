@@ -86,7 +86,8 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object) {
 	class := path.Class
 	switch class {
 	case "blob":
-		return Blob{Path: path}.New(db)
+		file := File{Path: path}.New(db)
+		return Blob{File: file}.New(db)
 	case "node":
 		return db.MkNode(path)
 	default:
@@ -256,10 +257,7 @@ func (file File) New(db *Db) File {
 	if file.Path.Algo == "" {
 		file.Path.Algo = "sha256"
 	}
-	// XXX for now we're using file.Path.Raw as a flag for whether a
-	// file is new and temporary or is an older file that was already
-	// on disk:  empty Raw field means it's a new file
-	if file.Path.Raw == "" {
+	if !file.Path.initialized {
 		// create new file
 		switch file.Path.Algo {
 		case "sha256":
@@ -283,7 +281,7 @@ func (file File) ckopen() (err error) {
 	if file.fh != nil {
 		return
 	}
-	if file.Path.Raw == "" {
+	if !file.Path.initialized {
 		// open temporary file
 		file.fh, err = file.Db.tmpFile()
 		if err != nil {
@@ -403,8 +401,7 @@ func (file *File) Write(data []byte) (n int, err error) {
 }
 
 type Blob struct {
-	Db   *Db
-	Path *Path
+	Db *Db
 	File
 }
 
@@ -562,9 +559,10 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	file := File{Path: path}.New(db)
 	b = Blob{File: file}.New(db)
 
+	fmt.Printf("path: %#v\n", path)
 	// check if it's already stored
 	_, err = os.Stat(path.Abs)
-	if os.IsNotExist(err) {
+	if err != nil && os.IsNotExist(err) {
 		err = nil // clear IsNotExist err
 
 		// store it
@@ -785,21 +783,23 @@ func exists(path string) (found bool) {
 }
 
 type Path struct {
-	Db    *Db
-	Raw   string
-	Abs   string // absolute
-	Rel   string // relative
-	Canon string // canonical
-	Class string
-	Algo  string
-	Hash  string
-	Addr  string
-	Label string // stream label
+	Db          *Db
+	Raw         string
+	Abs         string // absolute
+	Rel         string // relative
+	Canon       string // canonical
+	Class       string
+	Algo        string
+	Hash        string
+	Addr        string
+	Label       string // stream label
+	initialized bool
 }
 
 func (path Path) New(db *Db, raw string) (res *Path) {
 	path.Db = db
 	path.Raw = raw
+	path.initialized = true
 
 	// XXX need to also or instead call some sort of realpath function
 	// here to deal with symlinks that might exist in the db.Dir path
