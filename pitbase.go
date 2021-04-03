@@ -263,11 +263,11 @@ func (file File) New(db *Db) File {
 		file.Path.Algo = "sha256"
 	}
 
-	// We want to detect whether this invocation of New is for an
-	// existing disk file, or for a new one that hasn't been written
-	// yet.  In the latter case, we need to set file.hash so
-	// file.Write() can feed new data blocks into the hash algorithm.
-	if !file.Path.initialized {
+	// Detect whether this invocation of New is for an existing disk
+	// file, or for a new one that hasn't been written yet.  In the
+	// latter case, we need to set file.hash so file.Write() can feed
+	// new data blocks into the hash algorithm.
+	if len(file.Path.Abs) > 0 && !exists(file.Path.Abs) {
 		// create new file
 		switch file.Path.Algo {
 		case "sha256":
@@ -291,7 +291,7 @@ func (file File) ckopen() (err error) {
 	if file.fh != nil {
 		return
 	}
-	if !file.Path.initialized {
+	if !file.Readonly {
 		// open temporary file
 		file.fh, err = file.Db.tmpFile()
 		if err != nil {
@@ -802,23 +802,21 @@ func exists(path string) (found bool) {
 }
 
 type Path struct {
-	Db          *Db
-	Raw         string
-	Abs         string // absolute
-	Rel         string // relative
-	Canon       string // canonical
-	Class       string
-	Algo        string
-	Hash        string
-	Addr        string
-	Label       string // stream label
-	initialized bool
+	Db    *Db
+	Raw   string
+	Abs   string // absolute
+	Rel   string // relative
+	Canon string // canonical
+	Class string
+	Algo  string
+	Hash  string
+	Addr  string
+	Label string // stream label
 }
 
 func (path Path) New(db *Db, raw string) (res *Path) {
 	path.Db = db
 	path.Raw = raw
-	path.initialized = true
 
 	// XXX need to also or instead call some sort of realpath function
 	// here to deal with symlinks that might exist in the db.Dir path
