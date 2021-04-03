@@ -287,7 +287,7 @@ func (file File) New(db *Db) File {
 }
 
 // gets called by Read(), Write(), etc.
-func (file File) ckopen() (err error) {
+func (file *File) ckopen() (err error) {
 	if file.fh != nil {
 		return
 	}
@@ -411,7 +411,7 @@ func (file *File) Write(data []byte) (n int, err error) {
 	// write data to disk file
 	n, err = file.fh.Write(data)
 	if err != nil {
-		panic(fmt.Sprintf("fh: %#v\n", file.fh))
+		// panic(fmt.Sprintf("fh: %#v\n", file.fh))
 		return
 	}
 
