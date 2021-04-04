@@ -82,14 +82,17 @@ type Object interface {
 	GetPath() (path *Path)
 }
 
-func (db *Db) ObjectFromPath(path *Path) (obj Object) {
+func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 	class := path.Class
 	switch class {
 	case "blob":
-		file := File{Path: path}.New(db)
-		return Blob{}.New(db, file)
+		file, err := File{Path: path}.New(db)
+		if err != nil {
+			return nil, err
+		}
+		return Blob{}.New(db, file), nil
 	case "node":
-		return db.MkNode(path)
+		return db.MkNode(path), nil
 	default:
 		panic(fmt.Sprintf("unhandled class %s", class))
 	}
@@ -248,7 +251,7 @@ type File struct {
 	hash     hash.Hash
 }
 
-func (file File) New(db *Db) *File {
+func (file File) New(db *Db) (*File, error) {
 	file.Db = db
 	if file.Path == nil {
 		// we don't call Path.New() here 'cause we don't want it to
@@ -278,11 +281,11 @@ func (file File) New(db *Db) *File {
 			file.hash = sha512.New()
 		default:
 			err := fmt.Errorf("not implemented: %s", file.Path.Algo)
-			panic(err)
+			return nil, err
 		}
 	}
 
-	return &file
+	return &file, nil
 }
 
 // gets called by Read(), Write(), etc.
@@ -445,7 +448,10 @@ func (blob Blob) New(db *Db, file *File) *Blob {
 
 // GetBlob retrieves an entire blob into buf by reading its file contents.
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
-	file := File{Path: path}.New(db)
+	file, err := File{Path: path}.New(db)
+	if err != nil {
+		return nil, err
+	}
 	return Blob{}.New(db, file).ReadAll()
 }
 
@@ -562,35 +568,26 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
 // and returns the hash.
 func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
-	// XXX we're hashing twice -- once here and again during Write()
-	path, err := db.PathFromBuf("blob", algo, buf)
+	file, err := File{Path: &Path{Algo: algo, Class: "blob"}}.New(db)
 	if err != nil {
-		return
+		return nil, err
 	}
-	file := File{Path: path}.New(db)
 	b = Blob{}.New(db, file)
 
-	// check if it's already stored
-	extant := exists(path.Abs)
-	// fmt.Printf("path: %#v exists %#v\n", path, extant)
-	if !extant {
-
-		// store it
-		var n int
-		n, err = b.Write(buf)
-		if err != nil {
-			return b, err
-		}
-		if n != len(buf) {
-			// XXX handle this gracefully
-			panic("short write")
-		}
-		err = b.Close()
-		if err != nil {
-			return b, err
-		}
-
+	var n int
+	n, err = b.Write(buf)
+	if err != nil {
+		return b, err
 	}
+	if n != len(buf) {
+		// XXX handle this gracefully
+		panic("short write")
+	}
+	err = b.Close()
+	if err != nil {
+		return b, err
+	}
+
 	return
 }
 
@@ -1136,7 +1133,10 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		line := string(buf)
 		line = strings.TrimSpace(line)
 		path := Path{}.New(db, line)
-		entry := db.ObjectFromPath(path)
+		entry, err := db.ObjectFromPath(path)
+		if err != nil {
+			return nil, err
+		}
 		log.Debugf("entry %#v", entry)
 		entries = append(entries, entry)
 

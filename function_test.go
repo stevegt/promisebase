@@ -150,7 +150,8 @@ func TestBlob(t *testing.T) {
 	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	path := Path{}.New(db, canpath)
-	file := File{Path: path}.New(db)
+	file, err := File{Path: path}.New(db)
+	tassert(t, err == nil, "File.New err %v", err)
 	b := Blob{}.New(db, file)
 
 	// put something in the blob
@@ -164,7 +165,9 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "b.Close() err %v", err)
 
 	// re-open readable
-	b = Blob{}.New(db, File{Path: path}.New(db))
+	file, err = File{Path: path}.New(db)
+	tassert(t, err == nil, "File.New err %v", err)
+	b = Blob{}.New(db, file)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// check size
