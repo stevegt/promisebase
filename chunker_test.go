@@ -77,13 +77,13 @@ func genstream(t *testing.T, size int) (stream *testStream) {
 
 func TestPutStreamSmall(t *testing.T) {
 	stream := &testStream{Data: mkbuf("apple bob carol dave echo foxtrot golf hotel india juliet kilo lima mike november oscar pear something ")}
-	db := newdb(t, &Db{MinSize: 10, MaxSize: 20})
+	db := newdb(&Db{MinSize: 10, MaxSize: 20})
 	testPutStream(t, db, stream)
 }
 
 func TestPutStreamBig(t *testing.T) {
 	stream := genstream(t, 100*miB)
-	db := newdb(t, nil)
+	db := newdb(nil)
 	testPutStream(t, db, stream)
 }
 

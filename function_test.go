@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	. "github.com/stevegt/goadapt"
 )
 
 // test boolean condition
@@ -19,54 +21,32 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	t.Helper() // cause file:line info to show caller
 	if !cond {
 		t.Fatalf(txt, args...)
-		/*
-			XXX The following isn't needed with t.Helper(), and doesn't
-			work anyway because t.Logf always prepends the wrong file:line
-			anyway, but keeping here for a while in case it's useful
-			elsewhere.
-
-			// prepend caller's file:line info
-			msg := fmt.Sprintf(txt, args...)
-			_, file, line, ok := runtime.Caller(1)
-			if ok {
-				dir, _ := os.Getwd()
-				file = strings.TrimPrefix(file, dir+"/")
-				// chunker_test.go:74: sadf
-				t.Fatalf("%s:%d: %s", file, line, msg)
-			} else {
-				debug.PrintStack()
-				t.Fatalf("======> %s", msg)
-			}
-		*/
 	}
 }
 
 var testDbDir string
 
-func newdb(t *testing.T, db *Db) *Db {
-	var err error
+func newdb(db *Db) *Db {
 
 	if db == nil {
 		db = &Db{}
 	}
 
 	// create Dir if needed
-	// (if Dir is passed in, then assume the caller has done mkdir)
+	// (if db.Dir is already set, then assume the caller has done mkdir)
+	var err error
 	if db.Dir == "" {
 		db.Dir, err = ioutil.TempDir("", "pitbase")
-		if err != nil {
-			t.Fatal(err)
-		}
+		Ck(err)
 	}
+	db, err = db.Create()
+	Ck(err)
 
-	db, err = (*db).Create()
-	if err != nil {
-		t.Fatal(err)
-	}
-	tassert(t, db != nil, "db is nil")
+	// XXX test other depths
+	// db, err = Db{Depth: 4}.Create(dir)
 
 	fmt.Println(db.Dir)
-	testDbDir = db.Dir // XXX hackkk
+	testDbDir = db.Dir
 	return db
 }
 
@@ -77,19 +57,17 @@ func setup(t *testing.T) (db *Db) {
 		t.Fatal(err)
 	}
 	tassert(t, db != nil, "db is nil")
-	// XXX test other depths
-	// db, err = Db{Dir: dir, Depth: 4}.Create()
-	// fmt.Println(dir)
 	return
 }
 
-func TestExist(t *testing.T) {
-	db := newdb(t, nil)
-	// log.Printf("db: %v", db)
-	db, err := Open(db.Dir)
-	if err != nil {
-		t.Fatal(err)
+func TestMain(m *testing.M) {
+
+	newdb(nil)
+	rc := m.Run()
+	if rc == 0 {
+		// XXX rmdb()
 	}
+	os.Exit(rc)
 }
 
 func nonMissingErr(err error) error {
@@ -150,7 +128,7 @@ func TestBlob(t *testing.T) {
 	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
 	path := Path{}.New(db, canpath)
-	file, err := File{Path: path}.New(db)
+	file, err := File{}.New(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
 	b := Blob{}.New(db, file)
 
@@ -165,7 +143,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "b.Close() err %v", err)
 
 	// re-open readable
-	file, err = File{Path: path}.New(db)
+	file, err = File{}.New(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
 	b = Blob{}.New(db, file)
 	tassert(t, err == nil, "OpenBlob err %v", err)
@@ -312,7 +290,6 @@ func pathEqual(a, b *Path) bool {
 	return a.Rel == b.Rel && a.Canon == b.Canon
 }
 
-// XXX should use reflect.DeepEqual()
 func deepEqual(a, b interface{}) bool {
 	// fmt.Printf("a:\n%s\nb:\n%s\n", pretty(a), pretty(b))
 	return pretty(a) == pretty(b)

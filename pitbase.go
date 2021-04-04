@@ -52,8 +52,6 @@ func caller() func(*runtime.Frame) (function string, file string) {
 	}
 }
 
-type canPath string
-
 // Db is a key-value database. Dir is the base directory. Depth is the
 // number of subdirectory levels in the blob and node trees.  We use
 // three-character hexadecimal names for the subdirectories, giving us
@@ -86,16 +84,17 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 	class := path.Class
 	switch class {
 	case "blob":
-		file, err := File{Path: path}.New(db)
-		if err != nil {
-			return nil, err
-		}
+		file, err := File{}.New(db, path)
+		Ck(err)
 		return Blob{}.New(db, file), nil
 	case "node":
-		return db.MkNode(path), nil
+		file, err := File{}.New(db, path)
+		Ck(err)
+		return Node{}.New(db, file), nil
 	default:
-		panic(fmt.Sprintf("unhandled class %s", class))
+		Assert(false, "unhandled class %s", class)
 	}
+	return
 }
 
 func mkdir(dir string) (err error) {
@@ -251,8 +250,9 @@ type File struct {
 	hash     hash.Hash
 }
 
-func (file File) New(db *Db) (*File, error) {
+func (file File) New(db *Db, path *Path) (*File, error) {
 	file.Db = db
+	file.Path = path
 	if file.Path == nil {
 		// we don't call Path.New() here 'cause we don't want it to
 		// try to parse the empty Raw field
@@ -448,7 +448,7 @@ func (blob Blob) New(db *Db, file *File) *Blob {
 
 // GetBlob retrieves an entire blob into buf by reading its file contents.
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
-	file, err := File{Path: path}.New(db)
+	file, err := File{}.New(db, path)
 	if err != nil {
 		return nil, err
 	}
@@ -565,10 +565,11 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
 }
 
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
-// and returns the hash.
+// and returns the blob object.
 func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
-	file, err := File{Path: &Path{Algo: algo, Class: "blob"}}.New(db)
+	path := &Path{Algo: algo, Class: "blob"}
+	file, err := File{}.New(db, path)
 	if err != nil {
 		return nil, err
 	}
@@ -704,6 +705,7 @@ func (node *Node) Cat() (buf []byte, err error) {
 }
 
 // Verify hashes the node content and compares it to its address
+// XXX move to File
 // XXX refactor to take advantage of streaming
 // XXX right now we only verify nodes by default -- what about blobs?
 func (node *Node) Verify() (ok bool, err error) {
@@ -877,12 +879,13 @@ func hex2bin (hexkey string) (binhash []byte) {
 }
 */
 
+// XXX deprecate
 func (db *Db) PathFromString(class, algo, s string) (path *Path, err error) {
 	buf := []byte(s)
 	return db.PathFromBuf(class, algo, buf)
 }
 
-// XXX deprecate in favor of Blob.Write(), Close(), then Hash
+// XXX deprecate
 func (db *Db) PathFromBuf(class string, algo string, buf []byte) (path *Path, err error) {
 	binhash, err := Hash(algo, buf)
 	if err != nil {
@@ -925,17 +928,15 @@ func GetGID() uint64 {
 
 // Node is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Node struct {
-	Db       *Db
-	Readonly bool
-	entries  []Object
-	Path     *Path
-	fh       *os.File
-	hash     hash.Hash
-	algo     string
+	Db *Db
+	*File
+	entries []Object
 }
 
-func (db *Db) MkNode(path *Path) (node *Node) {
-	return &Node{Db: db, Path: path}
+func (node Node) New(db *Db, file *File) *Node {
+	node.Db = db
+	node.File = file
+	return &node
 }
 
 // XXX reconcile with getNode()
@@ -959,13 +960,13 @@ func (node *Node) Create() (err error) {
 		return
 	}
 	// handle other algos
-	switch node.algo {
+	switch node.Algo {
 	case "sha256":
 		node.hash = sha256.New()
 	case "sha512":
 		node.hash = sha512.New()
 	default:
-		err = fmt.Errorf("not implemented: %s", node.algo)
+		err = fmt.Errorf("not implemented: %s", node.Algo)
 		return
 	}
 
@@ -1014,8 +1015,7 @@ func (node *Node) Close() (err error) {
 	node.fh.Close()
 	binhash := node.hash.Sum(nil)
 	hexhash := bin2hex(binhash)
-	node.Path = Path{}.New(node.Db, fmt.Sprintf("node/%s/%s", node.algo, hexhash))
-	Ck(err)
+	node.Path = Path{}.New(node.Db, fmt.Sprintf("node/%s/%s", node.Algo, hexhash))
 	abspath := node.Path.Abs
 
 	// mkdir
@@ -1056,7 +1056,10 @@ func bin2hex(bin []byte) (hex string) {
 // and returns a pointer to a Node object.
 func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 
-	node = &Node{Db: db, algo: algo}
+	path := &Path{Class: "node", Algo: algo}
+	file, err := File{}.New(db, path)
+	Ck(err)
+	node = Node{}.New(db, file)
 
 	// populate the entries field
 	node.entries = children
@@ -1065,12 +1068,9 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// attacks)
 	// XXX refactor for streaming
 	buf := []byte(node.String())
-	path, err := db.PathFromBuf("node", algo, buf)
-	if err != nil {
-		return
-	}
-	node.Path = path
+	path, err = db.PathFromBuf("node", algo, buf)
 	Ck(err)
+	node.Path = path
 
 	// XXX compare with PutBlob; call a common File.Put or PutFile
 
@@ -1079,29 +1079,18 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	if err == nil {
 		// XXX verify hardcoded on
 		node, err = db.getNode(path, true)
-		if err != nil {
-			return
-		}
+		Ck(err)
 	} else if os.IsNotExist(err) {
 		// store it
 		err = nil // clear IsNotExist err
 		var n int
 		err = node.Create()
-		if err != nil {
-			return node, err
-		}
+		Ck(err)
 		n, err = node.Write(buf)
-		if err != nil {
-			return node, err
-		}
-		if n != len(buf) {
-			// XXX
-			panic("short write")
-		}
+		Ck(err)
+		Assert(n == len(buf), "short write")
 		err = node.Close()
-		if err != nil {
-			return node, err
-		}
+		Ck(err)
 		log.Debugf("PutNode path before close %s after %s", path.Abs, node.Path.Abs)
 	}
 	return
@@ -1115,15 +1104,13 @@ func (db *Db) GetNode(path *Path) (node *Node, err error) {
 // XXX do we ever take advantage of verify == false?  where should we?
 // XXX reconcile with OpenNode
 func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
+	defer Return(&err)
 
-	abspath := path.Abs
-	file, err := os.Open(abspath)
-	if err != nil {
-		return
-	}
+	file, err := File{}.New(db, path)
+	Ck(err)
 	defer file.Close()
 
-	node = &Node{Db: db, Path: path, Readonly: true}
+	node = Node{}.New(db, file)
 	log.Debugf("getNode path %#v", path)
 	scanner := bufio.NewScanner(file)
 	var content []byte
