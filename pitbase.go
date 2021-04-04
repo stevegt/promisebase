@@ -243,7 +243,7 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 }
 
 type File struct {
-	*Db
+	Db *Db
 	*Path
 	Readonly bool
 	fh       *os.File
@@ -273,7 +273,7 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 		// use existing file
 		file.Readonly = true
 	} else {
-		// create new file
+		// we're creating a new file -- initialize hash engine
 		switch file.Path.Algo {
 		case "sha256":
 			file.hash = sha256.New()
@@ -567,27 +567,21 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the blob object.
 func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
+	defer Return(&err)
+
+	Assert(db != nil, "db is nil")
 
 	path := &Path{Algo: algo, Class: "blob"}
 	file, err := File{}.New(db, path)
-	if err != nil {
-		return nil, err
-	}
+	Ck(err)
 	b = Blob{}.New(db, file)
 
 	var n int
 	n, err = b.Write(buf)
-	if err != nil {
-		return b, err
-	}
-	if n != len(buf) {
-		// XXX handle this gracefully
-		panic("short write")
-	}
+	Ck(err)
+	Assert(n == len(buf), "short write")
 	err = b.Close()
-	if err != nil {
-		return b, err
-	}
+	Ck(err)
 
 	return
 }
@@ -939,21 +933,8 @@ func (node Node) New(db *Db, file *File) *Node {
 	return &node
 }
 
-// XXX reconcile with getNode()
-func (db *Db) OpenNode(path *Path) (node *Node, err error) {
-	// XXX verify is hardcoded true
-	node, err = db.getNode(path, true)
-	if err != nil {
-		return
-	}
-	node.Readonly = true
-	// open existing file
-	node.fh, err = os.Open(path.Abs)
-	return
-}
-
 // XXX compare with CreateBlob and call a common File.Create or CreateFile
-func (node *Node) Create() (err error) {
+func (node *Node) XXXCreate() (err error) {
 	// open temporary file
 	node.fh, err = node.Db.tmpFile()
 	if err != nil {
@@ -973,73 +954,25 @@ func (node *Node) Create() (err error) {
 	return
 }
 
+// XXX reconcile with getNode()
+func (db *Db) OpenNode(path *Path) (node *Node, err error) {
+	// XXX verify is hardcoded true
+	node, err = db.getNode(path, true)
+	if err != nil {
+		return
+	}
+	node.Readonly = true
+	// open existing file
+	node.fh, err = os.Open(path.Abs)
+	return
+}
+
 func (node *Node) GetPath() *Path {
 	return node.Path
 }
 
-func (node *Node) Read(buf []byte) (n int, err error) {
-	return node.fh.Read(buf)
-}
-
-func (node *Node) Write(data []byte) (n int, err error) {
-	// write to temp file
-	n, err = node.hash.Write(data)
-	if err != nil {
-		return
-	}
-	n, err = node.fh.Write(data)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func (node *Node) Seek(n int64, whence int) (nout int64, err error) {
-	return node.fh.Seek(n, whence)
-}
-
-func (node *Node) Tell() (n int64, err error) {
-	return node.Seek(0, io.SeekCurrent)
-}
-
-// XXX probably merge this with Blob.Close() and Stream.Close(), call it File.Close()
-// XXX likewise for other methods
-func (node *Node) Close() (err error) {
-	if node.Readonly {
-		err = node.fh.Close()
-		return
-	}
-
-	// move tmpfile to perm
-	node.fh.Close()
-	binhash := node.hash.Sum(nil)
-	hexhash := bin2hex(binhash)
-	node.Path = Path{}.New(node.Db, fmt.Sprintf("node/%s/%s", node.Algo, hexhash))
-	abspath := node.Path.Abs
-
-	// mkdir
-	dir, _ := filepath.Split(abspath)
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return
-	}
-
-	// rename temp file to permanent blob file
-	err = os.Rename(node.fh.Name(), abspath)
-	if err != nil {
-		return
-	}
-	return
-}
-
-func (node *Node) Size() (n int64, err error) {
-	// should this return size of node file or size of all distant child blobs?
-	return
-}
-
 // String returns the concatenated node entries
-func (node *Node) String() (out string) {
+func (node *Node) Txt() (out string) {
 	for _, entry := range node.entries {
 		out += strings.TrimSpace(entry.GetPath().Canon) + "\n"
 	}
@@ -1055,6 +988,9 @@ func bin2hex(bin []byte) (hex string) {
 // PutNode takes one or more child nodes, stores relpaths in a file under node/,
 // and returns a pointer to a Node object.
 func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
+	defer Return(&err)
+
+	Assert(db != nil, "db is nil")
 
 	path := &Path{Class: "node", Algo: algo}
 	file, err := File{}.New(db, path)
@@ -1067,32 +1003,15 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
 	// XXX refactor for streaming
-	buf := []byte(node.String())
-	path, err = db.PathFromBuf("node", algo, buf)
+	buf := []byte(node.Txt())
+
+	var n int
+	n, err = node.Write(buf)
 	Ck(err)
-	node.Path = path
+	Assert(n == len(buf), "short write")
+	err = node.Close()
+	Ck(err)
 
-	// XXX compare with PutBlob; call a common File.Put or PutFile
-
-	// check if it's already stored
-	_, err = os.Stat(path.Abs)
-	if err == nil {
-		// XXX verify hardcoded on
-		node, err = db.getNode(path, true)
-		Ck(err)
-	} else if os.IsNotExist(err) {
-		// store it
-		err = nil // clear IsNotExist err
-		var n int
-		err = node.Create()
-		Ck(err)
-		n, err = node.Write(buf)
-		Ck(err)
-		Assert(n == len(buf), "short write")
-		err = node.Close()
-		Ck(err)
-		log.Debugf("PutNode path before close %s after %s", path.Abs, node.Path.Abs)
-	}
 	return
 }
 

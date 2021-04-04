@@ -169,7 +169,7 @@ Options:
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(node)
+		fmt.Println(node.Txt())
 	case opts.Linkstream:
 		stream, err := linkStream(opts.Canpath, opts.Name)
 		if err != nil {
