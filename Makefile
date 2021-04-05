@@ -3,6 +3,8 @@ test:
 	# go test -v -timeout 10s
 	./covertest.sh
 
+testloop:
+	while true; do inotifywait -e move *.go cmd/pb/*.go cmd/pb/testdata/main.ct; sleep 1; make test; done
 
 pprof:
 	go test -cpuprofile /tmp/pitbase.prof -bench=.
