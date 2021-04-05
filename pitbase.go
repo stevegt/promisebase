@@ -744,13 +744,12 @@ func (node *Node) Verify() (ok bool, err error) {
 // traverse recurses down the tree of nodes returning leaves or optionally all nodes
 // XXX we might not need err
 func (node *Node) traverse(all bool) (objects []Object, err error) {
+	defer Return(&err)
 
-	// XXX is this needed?
 	if node.fh == nil {
-		node, err = node.Db.OpenNode(node.Path)
-		if err != nil {
-			return
-		}
+		file, err := File{}.New(node.Db, node.Path)
+		node = Node{}.New(node.Db, file)
+		Ck(err)
 	}
 
 	if all {
@@ -916,45 +915,11 @@ func (node Node) New(db *Db, file *File) *Node {
 	return &node
 }
 
-// XXX compare with CreateBlob and call a common File.Create or CreateFile
-func (node *Node) XXXCreate() (err error) {
-	// open temporary file
-	node.fh, err = node.Db.tmpFile()
-	if err != nil {
-		return
-	}
-	// handle other algos
-	switch node.Algo {
-	case "sha256":
-		node.hash = sha256.New()
-	case "sha512":
-		node.hash = sha512.New()
-	default:
-		err = fmt.Errorf("not implemented: %s", node.Algo)
-		return
-	}
-
-	return
-}
-
-// XXX reconcile with getNode()
-func (db *Db) OpenNode(path *Path) (node *Node, err error) {
-	// XXX verify is hardcoded true
-	node, err = db.getNode(path, true)
-	if err != nil {
-		return
-	}
-	node.Readonly = true
-	// open existing file
-	node.fh, err = os.Open(path.Abs)
-	return
-}
-
 func (node *Node) GetPath() *Path {
 	return node.Path
 }
 
-// String returns the concatenated node entries
+// Txt returns the concatenated node entries
 func (node *Node) Txt() (out string) {
 	for _, entry := range node.entries {
 		out += strings.TrimSpace(entry.GetPath().Canon) + "\n"

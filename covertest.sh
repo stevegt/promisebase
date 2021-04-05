@@ -23,8 +23,6 @@ do
 
 		html=/tmp/$(echo $PWD | perl -pne 's|^/||; s|/|-|g').html
 		go tool cover -html=/tmp/covertest.out -o $html
-		echo run this to see coverage detail: 
-		echo xdg-open $html
 
 		pct=$(go tool cover -func=/tmp/covertest.out | grep total: | perl -ne 'print if s/.*\s+(\d+)\..*/$1/')
 		if [ "0$pct" -le "0" ]
@@ -38,6 +36,8 @@ do
 			echo coverage $pct%
 			cover[$dir]=PASS
 		fi
+		echo run this to see coverage detail: 
+		echo xdg-open $html
 	else
 		exit 1
 	fi
