@@ -8,15 +8,18 @@ cmd="go test -v -timeout 60s -cover -coverprofile=/tmp/covertest.out -coverpkg=.
 # dirs=$(find -name go.mod |xargs dirname)
 dirs=". cmd/pb" # hardcoded so we can control sequence
 
-declare -A msg
+declare -A gotest cover errcheck golint
 
 for dir in $dirs
 do
 	cd $dir
-	msg[$dir]="FAIL"
+	gotest[$dir]=FAIL
+	cover[$dir]=FAIL
+	errcheck[$dir]=FAIL
+	golint[$dir]=FAIL
 	if $cmd 
 	then 
-		msg[$dir]="PASS"
+		gotest[$dir]=PASS
 
 		html=/tmp/$(echo $PWD | perl -pne 's|^/||; s|/|-|g').html
 		go tool cover -html=/tmp/covertest.out -o $html
@@ -26,59 +29,54 @@ do
 		pct=$(go tool cover -func=/tmp/covertest.out | grep total: | perl -ne 'print if s/.*\s+(\d+)\..*/$1/')
 		if [ "0$pct" -le "0" ]
 		then
-			msg[$dir]="FAIL unable to determine coverage"
+			echo "FAIL unable to determine coverage"
 			rm -f $html
 		elif test "0$pct" -lt "0$minpct"  
 		then
-			msg[$dir]="FAIL coverage $pct is less than $minpct"
+			echo "FAIL coverage $pct is less than $minpct"
 		else
 			echo coverage $pct%
+			cover[$dir]=PASS
 		fi
 	else
 		exit 1
 	fi
 
-	# echo ${msg[$dir]}
+	if ! which errcheck
+	then
+		echo recommend you install errcheck:
+		echo go get -u github.com/kisielk/errcheck
+	else
+		echo looking for unchecked errors:
+		if errcheck . 
+		then
+			errcheck[$dir]=PASS
+		fi
+	fi
+
+	if golint -set_exit_status
+	then
+		golint=PASS
+	fi
+
 	cd -
 done
 
-errcheck=PASS
-if ! which errcheck
-then
-	echo recommend you install errcheck:
-	echo go get -u github.com/kisielk/errcheck
-else
-	echo looking for unchecked errors:
-	errcheck . || errcheck=FAIL
-	cd cmd/pb; errcheck . || errcheck=FAIL
-fi
-
-golint=FAIL
-if golint -set_exit_status
-then
-	golint=PASS
-fi
-
 echo 
 echo Summary of all tests:
-rc=0
 for dir in $dirs
 do
-	# printf "%40s %s\n" $(realpath $dir) "${msg[$dir]}"
-	printf "%-10s %s\n" $dir "${msg[$dir]}"
-	if echo ${msg[$dir]} | grep -q FAIL 
-	then
-		rc=1
-	fi
+	printf "%-15s " $dir
+	printf "gotest %s "   "${gotest[$dir]}"
+	printf "cover %s "    "${cover[$dir]}"
+	printf "errcheck %s " "${errcheck[$dir]}"
+	printf "golint %s "   "${golint[$dir]}"
+	printf "\n"
 done
 
-printf "%-10s %s\n" errcheck $errcheck
-printf "%-10s %s\n" golint $golint
-echo $errcheck $golint | grep -q FAIL && rc=1
-
-if [ "$rc" -ne 0 ]
+if echo "${gotest[@]} ${cover[@]} ${errcheck[@]} ${golint[@]}" | grep -q FAIL 
 then
-	exit $rc
+	exit 1
 else
 	echo PASS all tests
 fi
