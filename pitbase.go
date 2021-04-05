@@ -81,6 +81,8 @@ type Object interface {
 }
 
 func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
+	defer Return(&err)
+
 	class := path.Class
 	switch class {
 	case "blob":
@@ -746,9 +748,14 @@ func (node *Node) Verify() (ok bool, err error) {
 func (node *Node) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
-	if node.fh == nil {
+	if node.File == nil {
 		file, err := File{}.New(node.Db, node.Path)
-		node = Node{}.New(node.Db, file)
+		Ck(err)
+		node.File = file
+	}
+
+	if node.entries == nil {
+		err = node.loadEntries()
 		Ck(err)
 	}
 
@@ -757,7 +764,7 @@ func (node *Node) traverse(all bool) (objects []Object, err error) {
 	}
 
 	log.Debugf("traverse node %#v", node)
-	for _, obj := range node.entries {
+	for _, obj := range *node.entries {
 		log.Debugf("traverse obj %#v", obj)
 		switch child := obj.(type) {
 		case *Node:
@@ -906,7 +913,7 @@ func GetGID() uint64 {
 type Node struct {
 	Db *Db
 	*File
-	entries []Object
+	entries *[]Object
 }
 
 func (node Node) New(db *Db, file *File) *Node {
@@ -921,7 +928,7 @@ func (node *Node) GetPath() *Path {
 
 // Txt returns the concatenated node entries
 func (node *Node) Txt() (out string) {
-	for _, entry := range node.entries {
+	for _, entry := range *node.entries {
 		out += strings.TrimSpace(entry.GetPath().Canon) + "\n"
 	}
 	return
@@ -946,7 +953,7 @@ func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
 	node = Node{}.New(db, file)
 
 	// populate the entries field
-	node.entries = children
+	node.entries = &children
 	// concatenate all relpaths together (include the full canpath with
 	// the 'blob/' or 'node/' prefix to help protect against preimage
 	// attacks)
@@ -978,7 +985,18 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 	defer file.Close()
 
 	node = Node{}.New(db, file)
-	log.Debugf("getNode path %#v", path)
+
+	err = node.loadEntries()
+	Ck(err)
+
+	return
+}
+
+func (node *Node) loadEntries() (err error) {
+	defer Return(&err)
+
+	Assert(node.File != nil)
+	file := node.File
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -986,11 +1004,9 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		buf := scanner.Bytes()
 		line := string(buf)
 		line = strings.TrimSpace(line)
-		path := Path{}.New(db, line)
-		entry, err := db.ObjectFromPath(path)
-		if err != nil {
-			return nil, err
-		}
+		path := Path{}.New(node.Db, line)
+		entry, err := node.Db.ObjectFromPath(path)
+		Ck(err)
 		log.Debugf("entry %#v", entry)
 		entries = append(entries, entry)
 
@@ -1001,22 +1017,25 @@ func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
 		log.Fatal(err)
 	}
 
-	node.entries = entries
+	node.entries = &entries
 
-	if verify {
-		// hash content
-		binhash, err := Hash(path.Algo, content)
-		if err != nil {
-			return node, err
+	/*
+		// XXX merge this with Verify
+		if verify {
+			// hash content
+			binhash, err := Hash(path.Algo, content)
+			if err != nil {
+				return node, err
+			}
+			// compare hash with path.Hash
+			hex := bin2hex(binhash)
+			if path.Hash != hex {
+				log.Debugf("getNode verify failure path %v content '%s'", path.Abs, content)
+				err = fmt.Errorf("expected %v, calculated %v", path.Hash, hex)
+				return node, err
+			}
 		}
-		// compare hash with path.Hash
-		hex := bin2hex(binhash)
-		if path.Hash != hex {
-			log.Debugf("getNode verify failure path %v content '%s'", path.Abs, content)
-			err = fmt.Errorf("expected %v, calculated %v", path.Hash, hex)
-			return node, err
-		}
-	}
+	*/
 
 	log.Debugf("getNode node.entries %#v", node.entries)
 	return

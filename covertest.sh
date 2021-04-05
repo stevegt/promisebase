@@ -2,6 +2,8 @@
 
 set -e
 
+unset DBDIR
+
 minpct=70
 cmd="go test -v -timeout 60s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
 
@@ -38,8 +40,6 @@ do
 		fi
 		echo run this to see coverage detail: 
 		echo xdg-open $html
-	else
-		exit 1
 	fi
 
 	if ! which errcheck

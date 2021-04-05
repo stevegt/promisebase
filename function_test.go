@@ -326,7 +326,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, child := range node.entries {
+	for i, child := range *node.entries {
 		switch i {
 		case 0:
 			expect := "node/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
@@ -436,7 +436,7 @@ func TestTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	tassert(t, stream1.RootNode.Path.Abs == gotstream.RootNode.Path.Abs, "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
-	tassert(t, len(stream1.RootNode.entries) > 0, "stream root node has no entries: %#v", stream1.RootNode)
+	tassert(t, len(*stream1.RootNode.entries) > 0, "stream root node has no entries: %#v", stream1.RootNode)
 
 	// list leaf objs
 	objects, err := stream1.Ls(false)
