@@ -873,23 +873,6 @@ func hex2bin (hexkey string) (binhash []byte) {
 }
 */
 
-// XXX deprecate
-func (db *Db) PathFromString(class, algo, s string) (path *Path, err error) {
-	buf := []byte(s)
-	return db.PathFromBuf(class, algo, buf)
-}
-
-// XXX deprecate
-func (db *Db) PathFromBuf(class string, algo string, buf []byte) (path *Path, err error) {
-	binhash, err := Hash(algo, buf)
-	if err != nil {
-		return
-	}
-	hash := bin2hex(binhash)
-	path = Path{}.New(db, filepath.Join(class, algo, hash))
-	return
-}
-
 // Hash returns the hash of a blob using a given algorithm
 // XXX rework to support streaming
 func Hash(algo string, buf []byte) (hash []byte, err error) {

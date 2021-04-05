@@ -86,7 +86,7 @@ func mkbuf(s string) []byte {
 }
 
 func mkpath(t *testing.T, db *Db, class, s string) (path *Path) {
-	path, err := db.PathFromString(class, "sha256", s)
+	path, err := db.pathFromString(class, "sha256", s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +242,7 @@ func TestRm(t *testing.T) {
 func TestPutBlob(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.PathFromBuf("blob", "sha256", val)
+	path, err := db.pathFromBuf("blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestPutBlob(t *testing.T) {
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.PathFromBuf("blob", "sha256", val)
+	path, err := db.pathFromBuf("blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func deepEqual(a, b interface{}) bool {
 func TestPath(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.PathFromBuf("blob", "sha256", val)
+	path, err := db.pathFromBuf("blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -488,6 +488,23 @@ func TestMkdir(t *testing.T) {
 	}
 }
 
+// XXX deprecate
+func (db *Db) pathFromString(class, algo, s string) (path *Path, err error) {
+	buf := []byte(s)
+	return db.pathFromBuf(class, algo, buf)
+}
+
+// XXX deprecate
+func (db *Db) pathFromBuf(class string, algo string, buf []byte) (path *Path, err error) {
+	binhash, err := Hash(algo, buf)
+	if err != nil {
+		return
+	}
+	hash := bin2hex(binhash)
+	path = Path{}.New(db, filepath.Join(class, algo, hash))
+	return
+}
+
 var benchSize int
 
 func Benchmark0PutBlob(b *testing.B) {
@@ -518,7 +535,7 @@ func Benchmark2GetBlob(b *testing.B) {
 	}
 	// fmt.Println("bench size:", benchSize)
 	for n := 0; n <= benchSize; n++ {
-		path, err := db.PathFromString("blob", "sha256", asString(n))
+		path, err := db.pathFromString("blob", "sha256", asString(n))
 		if err != nil {
 			b.Fatal(err)
 		}
