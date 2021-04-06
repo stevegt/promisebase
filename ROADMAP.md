@@ -13,10 +13,12 @@ x reconcile Node and blob
     x Object interface
   x merge in Key as well
 - rename Node to Tree
+- fix preimage risk -- leaf vs node marker M is used e.g. H( M || h1 || h2) or H(M || h1)
+    - add a header in each file identifying the object class
+      - hash after
 - probably won't do these due to risk of preimage, and need for implicit fetch of tree entries
     - merge ./blob and ./node directories?  
     - add class column to tree lines?  
-- do we need to add a header in each file identifying the object class?
 - split into multiple files or packages
     - db, node, world, and util
     - World may be a good candidate for a separate package
