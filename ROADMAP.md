@@ -8,11 +8,15 @@ x implement multilevel storage
 x implement `pb exec` and a language prototype 
   x spike, likely to inform all of the following
   x after this works, move it to its own package
-- reconcile Node and blob
-  - maybe call them both Object
-    - maybe Object interface
-  - maybe merge in Key as well
-  - rename blob to block or chunk?
+x reconcile Node and blob
+  x call them both Object
+    x Object interface
+  x merge in Key as well
+- rename Node to Tree
+- probably won't do these due to risk of preimage, and need for implicit fetch of tree entries
+    - merge ./blob and ./node directories?  
+    - add class column to tree lines?  
+- do we need to add a header in each file identifying the object class?
 - split into multiple files or packages
     - db, node, world, and util
     - World may be a good candidate for a separate package

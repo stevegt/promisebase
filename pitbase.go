@@ -133,6 +133,8 @@ func (db *Db) Size(path string) (size int64, err error) {
 
 // Create initializes a db directory and its contents
 func (db Db) Create() (out *Db, err error) {
+	defer Return(&err)
+
 	dir := db.Dir
 
 	// if directory exists, make sure it's empty
@@ -141,9 +143,8 @@ func (db Db) Create() (out *Db, err error) {
 		files, err = ioutil.ReadDir(dir)
 		if len(files) > 0 {
 			return nil, &ExistsError{Dir: dir}
-		} else if err != nil {
-			return
 		}
+		Ck(err)
 	}
 
 	// set nesting depth
@@ -152,49 +153,29 @@ func (db Db) Create() (out *Db, err error) {
 	}
 
 	err = mkdir(dir)
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	// The blob dir is where we store hashed blobs
 	err = mkdir(filepath.Join(dir, "blob"))
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	// we store references to nodes as stream symlinks
 	err = mkdir(filepath.Join(dir, "stream"))
-	if err != nil {
-		return
-	}
-
-	// we store transactions (temporary copy on write copies of the refs dir) in tx
-	// err = mkdir(filepath.Join(dir, "tx"))
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	// we store merkle tree nodes in node
 	err = mkdir(filepath.Join(dir, "node"))
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	if db.Poly == 0 {
 		db.Poly, err = resticRabin.RandomPolynomial()
-		if err != nil {
-			return
-		}
+		Ck(err)
 	}
 
 	buf, err := json.Marshal(db)
-	if err != nil {
-		return
-	}
+	Ck(err)
 	err = ioutil.WriteFile(filepath.Join(dir, "config.json"), buf, 0644)
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	return &db, nil
 }
@@ -672,16 +653,15 @@ func (stream *Stream) Cat() (buf []byte, err error) {
 
 // Cat concatenates all of the leaf node content in node's tree and returns
 // it all as a pointer to a byte slice.
-// XXX replace with node.Read()
+// XXX rework for streaming
 func (node *Node) Cat() (buf []byte, err error) {
+	defer Return(&err)
 
 	// db := node.Db
 
 	// get leaf nodes
 	objects, err := node.traverse(false)
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	// append leaf node content to buf
 	buf = []byte{}
@@ -692,9 +672,7 @@ func (node *Node) Cat() (buf []byte, err error) {
 			panic("assertion failure: blob type")
 		}
 		content, err = blob.ReadAll()
-		if err != nil {
-			return
-		}
+		Ck(err)
 		buf = append(buf, content...)
 	}
 	return
@@ -744,7 +722,6 @@ func (node *Node) Verify() (ok bool, err error) {
 }
 
 // traverse recurses down the tree of nodes returning leaves or optionally all nodes
-// XXX we might not need err
 func (node *Node) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
