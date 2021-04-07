@@ -60,8 +60,8 @@ type Opts struct {
 	Init       bool
 	Putblob    bool
 	Getblob    bool
-	Putnode    bool
-	Getnode    bool
+	Puttree    bool
+	Gettree    bool
 	Linkstream bool
 	Getstream  bool
 	Lsstream   bool
@@ -95,8 +95,8 @@ Usage:
   pb init 
   pb putblob <algo>
   pb getblob <canpath>
-  pb putnode <algo> <canpaths>... 
-  pb getnode <canpath>
+  pb puttree <algo> <canpaths>... 
+  pb gettree <canpath>
   pb linkstream <canpath> <name>
   pb getstream <name>
   pb lsstream [-a] <name>
@@ -156,20 +156,20 @@ Options:
 			log.Error(err)
 			return 25
 		}
-	case opts.Putnode:
-		node, err := putNode(opts.Algo, opts.Canpaths)
+	case opts.Puttree:
+		tree, err := putTree(opts.Algo, opts.Canpaths)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(node.Path.Canon)
-	case opts.Getnode:
-		node, err := getNode(opts.Canpath)
+		fmt.Println(tree.Path.Canon)
+	case opts.Gettree:
+		tree, err := getTree(opts.Canpath)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(node.Txt())
+		fmt.Println(tree.Txt())
 	case opts.Linkstream:
 		stream, err := linkStream(opts.Canpath, opts.Name)
 		if err != nil {
@@ -181,14 +181,14 @@ Options:
 			log.Error(err)
 			return 43
 		}
-		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
+		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootTree.Path.Canon)
 	case opts.Getstream:
 		stream, err := getStream(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(stream.RootNode.Path.Canon)
+		fmt.Println(stream.RootTree.Path.Canon)
 	case opts.Lsstream:
 		canpaths, err := lsStream(opts.Name, opts.All)
 		if err != nil {
@@ -231,7 +231,7 @@ Options:
 		}
 		_ = gotstream
 		if !opts.Quiet {
-			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
+			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootTree.Path.Canon)
 		}
 	case opts.Canon2abs:
 		path, err := canon2abs(opts.Filename)
@@ -341,7 +341,7 @@ func getBlob(canpath string) (buf []byte, err error) {
 	return
 }
 
-func putNode(algo string, canpaths []string) (node *pb.Node, err error) {
+func putTree(algo string, canpaths []string) (tree *pb.Tree, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
@@ -355,39 +355,39 @@ func putNode(algo string, canpaths []string) (node *pb.Node, err error) {
 		}
 		children = append(children, child)
 	}
-	node, err = db.PutNode(algo, children...)
+	tree, err = db.PutTree(algo, children...)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func getNode(canpath string) (node *pb.Node, err error) {
+func getTree(canpath string) (tree *pb.Tree, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
 	path := pb.Path{}.New(db, canpath)
-	node, err = db.GetNode(path)
+	tree, err = db.GetTree(path)
 	if err != nil {
 		return
 	}
 	return
 }
 
-// $ pb linkstream node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 stream1
-// stream/stream1 -> node/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
+// $ pb linkstream tree/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2 stream1
+// stream/stream1 -> tree/sha256/3d4f1ab0047e0b567fabe45acb91a239f9453d3a02bcb3047843d0040d43c8d2
 func linkStream(canpath, name string) (stream *pb.Stream, err error) {
 	db, err := opendb()
 	if err != nil {
 		return
 	}
 	path := pb.Path{}.New(db, canpath)
-	node, err := db.GetNode(path)
+	tree, err := db.GetTree(path)
 	if err != nil {
 		return
 	}
-	stream, err = node.LinkStream(name)
+	stream, err = tree.LinkStream(name)
 	if err != nil {
 		return
 	}
@@ -442,11 +442,11 @@ func catTree(canpath string) (buf []byte, err error) {
 		return
 	}
 	path := pb.Path{}.New(db, canpath)
-	node, err := db.GetNode(path)
+	tree, err := db.GetTree(path)
 	if err != nil {
 		return
 	}
-	buf, err = node.Cat()
+	buf, err = tree.Cat()
 	if err != nil {
 		return
 	}
@@ -460,14 +460,14 @@ func putStream(algo string, name string, rd io.Reader) (stream *pb.Stream, err e
 	if err != nil {
 		return
 	}
-	node, err := db.PutStream(algo, rd)
+	tree, err := db.PutStream(algo, rd)
 	if err != nil {
 		return
 	}
-	if node == nil {
-		panic("node is nil")
+	if tree == nil {
+		panic("tree is nil")
 	}
-	stream, err = node.LinkStream(name)
+	stream, err = tree.LinkStream(name)
 	if err != nil {
 		return
 	}
@@ -516,8 +516,8 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	algo := filepath.Dir(interpreterAddr)
 	// fmt.Printf("algo!! %s\n", algo)
 
-	// prepend "node/" to interpreter addr
-	interpreterPath := pb.Path{}.New(db, "node/"+interpreterAddr)
+	// prepend "tree/" to interpreter addr
+	interpreterPath := pb.Path{}.New(db, "tree/"+interpreterAddr)
 
 	// rewind script file
 	_, err = file.Seek(0, 0)
@@ -526,13 +526,13 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	}
 
 	// send script file to db.PutStream()
-	rootnode, err := db.PutStream(algo, file)
+	roottree, err := db.PutStream(algo, file)
 	if err != nil {
 		return
 	}
 
-	// get scriptCanon from script stream's root node path
-	scriptCanon := rootnode.Path.Canon
+	// get scriptCanon from script stream's root tree path
+	scriptCanon := roottree.Path.Canon
 
 	// call xeq
 	args = append([]string{scriptCanon}, args...)
@@ -546,12 +546,12 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 		return
 	}
 
-	// cat the interpreter node to get the interpreter code
-	node, err := db.GetNode(interpreterPath)
+	// cat the interpreter tree to get the interpreter code
+	tree, err := db.GetTree(interpreterPath)
 	if err != nil {
 		return
 	}
-	txt, err := node.Cat()
+	txt, err := tree.Cat()
 	if err != nil {
 		return
 	}
