@@ -321,29 +321,29 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := Path{}.New(db, "node/sha256/1e406fc62d0db78865be531397d61e284bf64e259440134b86b348527c89175b")
-	node, err := db.GetNode(path)
+	path := Path{}.New(db, "tree/sha256/1e406fc62d0db78865be531397d61e284bf64e259440134b86b348527c89175b")
+	tree, err := db.GetTree(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, child := range *node.entries {
+	for i, child := range *tree.entries {
 		switch i {
 		case 0:
-			expect := "node/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
+			expect := "tree/sha256/1e0/9f2/1e09f25b6b42842798bc74ee930d7d0e6b712512087e6b3b39f15cc10a82ba18"
 			tassert(t, expect == child.GetPath().Rel, "expected %v got %v", expect, child.GetPath().Rel)
 		case 1:
 			expect := "blob/sha256/534/d05/534d059533cc6a29b0e8747334c6af08619b1b59e6727f50a8094c90f6393282"
 			tassert(t, expect == child.GetPath().Rel, "expected %q got %q", expect, child.GetPath().Rel)
 		}
 	}
-	ok, err := node.Verify()
+	ok, err := tree.Verify()
 	if err != nil {
 		t.Fatal(err)
 	}
-	tassert(t, ok, "node verify failed: %v", pretty(node))
+	tassert(t, ok, "tree verify failed: %v", pretty(tree))
 }
 
-func TestNode(t *testing.T) {
+func TestTree(t *testing.T) {
 	db := setup(t)
 	// setup
 	buf1 := mkbuf("blob1value")
@@ -358,12 +358,12 @@ func TestNode(t *testing.T) {
 	}
 
 	// put
-	node, err := db.PutNode("sha256", child1, child2)
+	tree, err := db.PutTree("sha256", child1, child2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if node == nil {
-		t.Fatal("node is nil")
+	if tree == nil {
+		t.Fatal("tree is nil")
 	}
 
 	/*
@@ -375,19 +375,19 @@ func TestNode(t *testing.T) {
 		tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
 	*/
 
-	ok, err := node.Verify()
+	ok, err := tree.Verify()
 	if err != nil {
 		t.Fatal(err)
 	}
-	tassert(t, ok, "node verify failed: %v", node)
+	tassert(t, ok, "tree verify failed: %v", tree)
 
 	// get
-	gotnode, err := db.GetNode(node.Path)
+	gottree, err := db.GetTree(tree.Path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
-	tassert(t, node.Txt() == gotnode.Txt(), "node %v mismatch: expect %v got %v", node.Path.Abs, node.Txt(), gotnode.Txt())
+	tassert(t, tree.Txt() == gottree.Txt(), "tree %v mismatch: expect %v got %v", tree.Path.Abs, tree.Txt(), gottree.Txt())
 }
 
 func TestTree(t *testing.T) {
@@ -411,22 +411,22 @@ func TestTree(t *testing.T) {
 	}
 
 	// put
-	node1, err := db.PutNode("sha256", blob1, blob2)
+	tree1, err := db.PutTree("sha256", blob1, blob2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if node1 == nil {
-		t.Fatal("node1 is nil")
+	if tree1 == nil {
+		t.Fatal("tree1 is nil")
 	}
-	node2, err := db.PutNode("sha256", node1, blob3)
+	tree2, err := db.PutTree("sha256", tree1, blob3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if node2 == nil {
-		t.Fatal("node2 is nil")
+	if tree2 == nil {
+		t.Fatal("tree2 is nil")
 	}
 
-	stream1, err := node2.LinkStream("stream1")
+	stream1, err := tree2.LinkStream("stream1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,8 +435,8 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tassert(t, stream1.RootNode.Path.Abs == gotstream.RootNode.Path.Abs, "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
-	tassert(t, len(*stream1.RootNode.entries) > 0, "stream root node has no entries: %#v", stream1.RootNode)
+	tassert(t, stream1.RootTree.Path.Abs == gotstream.RootTree.Path.Abs, "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
+	tassert(t, len(*stream1.RootTree.entries) > 0, "stream root tree has no entries: %#v", stream1.RootTree)
 
 	// list leaf objs
 	objects, err := stream1.Ls(false)
@@ -452,7 +452,7 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "node/sha256/7a7b79f6d5faf3f011bd84bf71703af10530b485fa5eb14fedf4e48c5167d4d7\nnode/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
+	expect = "tree/sha256/7a7b79f6d5faf3f011bd84bf71703af10530b485fa5eb14fedf4e48c5167d4d7\ntree/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
 
 	gotobjs = objs2str(objects)
 	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
