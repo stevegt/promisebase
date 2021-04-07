@@ -13,12 +13,40 @@ x reconcile Node and blob
     x Object interface
   x merge in Key as well
 - rename Node to Tree
-- fix preimage risk -- leaf vs node marker M is used e.g. H( M || h1 || h2) or H(M || h1)
-    - add a header in each file identifying the object class
-      - hash after
-- probably won't do these due to risk of preimage, and need for implicit fetch of tree entries
-    - merge ./blob and ./node directories?  
-    - add class column to tree lines?  
+- fix preimage risk 
+    - right now we're doing this: Hnode = H(             "blob" || H(blob1) ||   "blob" || H(blob2) )
+    - guidelines say do this:     Hnode = H(   1    || H(  0    ||   blob1) || H(  0    ||   blob2) )
+    - so we should be doing this: Hnode = H( "node" || H("blob" ||   blob1) || H("blob" ||   blob2) )
+    - see https://crypto.stackexchange.com/a/43434/34230 for example
+      of guidelines for preventing second preimage attack
+        - "The hash of the list (e1,e2) is then H(1 || h0 || h1) for h0=H(0 || e0) and h1=H(0 || e1). "
+        - 1 == "node" and 0 == "blob"
+    - so we need to add a header in each file identifying the object class
+      - hash after adding the header
+- further research:
+    - rainbow tables https://en.wikipedia.org/wiki/Rainbow_table#Precomputed_hash_chains
+- possible alternative to merkle:
+    - bloom tree: https://arxiv.org/pdf/2002.03057.pdf
+- merge ./blob and ./node directories?  
+- our goal isn't to keep two pieces of data from hashing to the same
+  value, as in passwords -- we in fact want identical data to have the
+  same hash, for deduplication.  the reason we salt is to not enable
+  hash reversing of out-of-band protocols
+    - from discord: "Passwords get salted to prevent the same password
+      from two different users resulting in the same hash.  That's not
+      exactly what I mean we should do with data blocks -- we want the
+      same data to always result in the same hash.  What I mean
+      instead is that, if Mallory finds a hash of the cleartext of
+      some private data somewhere, and that data wasn't salted before
+      hashing, we should not make it easy for Mallory to use our tool
+      to fetch that private data. Making Mallory's attack easy would
+      break a lot of the modern world by making one-way hashes
+      reversible -- I've been worried about that vulnerability from
+      the beginning.  We can resist Mallory's attack by first salting
+      the private data before hashing it.  I think that we can prevent
+      Mallory's attack by simply prepending the word "blob" on every
+      blob before hashing it, for instance.  I think."
+- start RFC 3 with the above
 - split into multiple files or packages
     - db, node, world, and util
     - World may be a good candidate for a separate package
