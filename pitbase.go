@@ -53,7 +53,7 @@ func caller() func(*runtime.Frame) (function string, file string) {
 }
 
 // Db is a key-value database. Dir is the base directory. Depth is the
-// number of subdirectory levels in the blob and node trees.  We use
+// number of subdirectory levels in the blob and tree dirs.  We use
 // three-character hexadecimal names for the subdirectories, giving us
 // a maximum of 4096 subdirs in a parent dir -- that's a sweet spot.
 // Two-character names (such as what git uses under .git/objects) only
@@ -62,13 +62,13 @@ func caller() func(*runtime.Frame) (function string, file string) {
 // cause performance issues on e.g. ext4.
 type Db struct {
 	Dir     string          // base of tree
-	Depth   int             // number of subdir levels in blob and node trees
+	Depth   int             // number of subdir levels in blob and tree dirs
 	Poly    resticRabin.Pol // rabin polynomial for chunking
 	MinSize uint            // minimum chunk size
 	MaxSize uint            // maximum chunk size
 }
 
-// Object is a data item stored in a Db; includes blob, node, and
+// Object is a data item stored in a Db; includes blob, tree, and
 // stream.
 type Object interface {
 	Read(buf []byte) (n int, err error)
@@ -89,10 +89,10 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 		file, err := File{}.New(db, path)
 		Ck(err)
 		return Blob{}.New(db, file), nil
-	case "node":
+	case "tree":
 		file, err := File{}.New(db, path)
 		Ck(err)
-		return Node{}.New(db, file), nil
+		return Tree{}.New(db, file), nil
 	default:
 		Assert(false, "unhandled class %s", class)
 	}
@@ -159,12 +159,12 @@ func (db Db) Create() (out *Db, err error) {
 	err = mkdir(filepath.Join(dir, "blob"))
 	Ck(err)
 
-	// we store references to nodes as stream symlinks
+	// we store references to trees as stream symlinks
 	err = mkdir(filepath.Join(dir, "stream"))
 	Ck(err)
 
-	// we store merkle tree nodes in node
-	err = mkdir(filepath.Join(dir, "node"))
+	// we store merkle tree nodes in tree
+	err = mkdir(filepath.Join(dir, "tree"))
 	Ck(err)
 
 	if db.Poly == 0 {
@@ -452,20 +452,20 @@ func (db *Db) Rm(path *Path) (err error) {
 // tree as a new leaf node, and then rewrites the stream label's symlink
 // to point at the new tree root.
 func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, err error) {
-	oldrootnode := stream.RootNode
-	newrootnode, err := oldrootnode.AppendBlob(algo, buf)
+	oldroottree := stream.RootTree
+	newroottree, err := oldroottree.AppendBlob(algo, buf)
 	if err != nil {
 		return
 	}
 
 	// rewrite symlink
-	noderel := filepath.Join("..", newrootnode.Path.Rel)
+	treerel := filepath.Join("..", newroottree.Path.Rel)
 	linkabs := filepath.Join(stream.Db.Dir, stream.Path.Canon)
-	err = renameio.Symlink(noderel, linkabs)
+	err = renameio.Symlink(treerel, linkabs)
 	if err != nil {
 		return
 	}
-	newstream = Stream{}.New(stream.Db, stream.Label, newrootnode)
+	newstream = Stream{}.New(stream.Db, stream.Label, newroottree)
 	return
 
 }
@@ -476,14 +476,14 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 // or files in accounting, trading, version control, blockchain, and file
 // storage applications.
 // XXX refactor for streaming, or add an AppendBlobStream
-func (node *Node) AppendBlob(algo string, buf []byte) (newrootnode *Node, err error) {
-	oldrootnode := node
+func (tree *Tree) AppendBlob(algo string, buf []byte) (newroottree *Tree, err error) {
+	oldroottree := tree
 
 	// put blob
-	blob, err := node.Db.PutBlob(algo, buf)
+	blob, err := tree.Db.PutBlob(algo, buf)
 
-	// put node for new root of merkle tree
-	newrootnode, err = node.Db.PutNode(algo, oldrootnode, blob)
+	// put tree for new root of merkle tree
+	newroottree, err = tree.Db.PutTree(algo, oldroottree, blob)
 	if err != nil {
 		return
 	}
@@ -493,7 +493,7 @@ func (node *Node) AppendBlob(algo string, buf []byte) (newrootnode *Node, err er
 // PutStream reads blobs from stream, creates a merkle tree with those
 // blobs as leaf nodes, and returns the root node of the new tree.
 // XXX needs to accept label arg
-func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
+func (db *Db) PutStream(algo string, rd io.Reader) (roottree *Tree, err error) {
 	// set chunker parameters
 	chunker, err := Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
 	if err != nil {
@@ -509,7 +509,7 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
 	// XXX buffer size really only needs to be slightly larger than the max chunk size,
 	// XXX which we should be able to get out of the rabin struct
 	buf := make([]byte, chunker.MaxSize+1) // this might be wrong
-	var oldnode *Node
+	var oldtree *Tree
 	for {
 		chunk, err := chunker.Next(buf)
 		if errors.Cause(err) == io.EOF {
@@ -520,29 +520,29 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Node, err error) {
 			return nil, err
 		}
 
-		newblobnode, err := db.PutBlob(algo, chunk.Data)
+		newblob, err := db.PutBlob(algo, chunk.Data)
 		if err != nil {
 			return nil, err
 		}
 
-		log.Debugf("newblobnode %v", newblobnode)
-		if oldnode == nil {
+		log.Debugf("newblob %v", newblob)
+		if oldtree == nil {
 			// we're just starting the tree
-			rootnode, err = db.PutNode(algo, newblobnode)
+			roottree, err = db.PutTree(algo, newblob)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// add the next node
-			rootnode, err = db.PutNode(algo, oldnode, newblobnode)
+			roottree, err = db.PutTree(algo, oldtree, newblob)
 			if err != nil {
 				return nil, err
 			}
 		}
-		log.Debugf("rootnode %v", rootnode)
-		oldnode = rootnode
+		log.Debugf("roottree %v", roottree)
+		oldtree = roottree
 	}
-	log.Debugf("oldnode %v", oldnode)
+	log.Debugf("oldtree %v", oldtree)
 
 	return
 }
@@ -569,14 +569,14 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	return
 }
 
-// LinkStream makes a symlink named label pointing at node, and returns
+// LinkStream makes a symlink named label pointing at tree, and returns
 // the resulting stream object.
-// XXX do we need this?  creating the stream with rootnode == nil is risky
-func (node *Node) LinkStream(label string) (stream *Stream, err error) {
-	stream = Stream{}.New(node.Db, label, node)
-	src := filepath.Join("..", node.Path.Rel)
+// XXX do we need this?  creating the stream with roottree == nil is risky
+func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
+	stream = Stream{}.New(tree.Db, label, tree)
+	src := filepath.Join("..", tree.Path.Rel)
 	// XXX sanitize label
-	linkabspath := filepath.Join(node.Db.Dir, "stream", label)
+	linkabspath := filepath.Join(tree.Db.Dir, "stream", label)
 	log.Debugf("linkabspath %#v", linkabspath)
 	err = renameio.Symlink(src, linkabspath)
 	if err != nil {
@@ -588,13 +588,13 @@ func (node *Node) LinkStream(label string) (stream *Stream, err error) {
 // Stream is an ordered set of bytes of arbitrary (but not infinite)
 // length.  It implements the io.ReadWriteCloser interface so a
 // Stream acts like a file from the perspective of a caller.
-// XXX Either (A) stop exporting Node and Blob, and have callers only
-// see Stream, or (B) be prepared to expose nodes and blobs to open
+// XXX Either (A) stop exporting Tree and Blob, and have callers only
+// see Stream, or (B) be prepared to expose trees and blobs to open
 // market operations, and redefine `address` to include blobs as well
-// as nodes.
+// as trees.
 type Stream struct {
 	Db          *Db
-	RootNode    *Node
+	RootTree    *Tree
 	Label       string
 	Path        *Path
 	chunker     *Rabin
@@ -602,10 +602,10 @@ type Stream struct {
 	posInBlob   int64
 }
 
-func (stream Stream) New(db *Db, label string, rootnode *Node) *Stream {
+func (stream Stream) New(db *Db, label string, roottree *Tree) *Stream {
 	stream.Db = db
 	stream.Label = label
-	stream.RootNode = rootnode
+	stream.RootTree = roottree
 	linkrelpath := filepath.Join("stream", label)
 	stream.Path = Path{}.New(db, linkrelpath)
 	return &stream
@@ -615,25 +615,25 @@ func (stream Stream) New(db *Db, label string, rootnode *Node) *Stream {
 // XXX figure out how to collapse OpenStream and Stream.New
 // into one function, probably by deferring any disk I/O in OpenStream
 // until we hit a Read() or Write().
-// XXX likewise for MkBlob and MkNode
+// XXX likewise for MkBlob and MkTree
 func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	// XXX sanitize label
 	linkabspath := filepath.Join(db.Dir, "stream", label)
-	nodeabspath, err := filepath.EvalSymlinks(linkabspath)
+	treeabspath, err := filepath.EvalSymlinks(linkabspath)
 	if err != nil {
 		return
 	}
-	nodepath := Path{}.New(db, nodeabspath)
-	log.Debugf("nodeabspath %#v nodepath %#v", nodeabspath, nodepath)
-	rootnode, err := db.GetNode(nodepath)
+	treepath := Path{}.New(db, treeabspath)
+	log.Debugf("treeabspath %#v treepath %#v", treeabspath, treepath)
+	roottree, err := db.GetTree(treepath)
 	if err != nil {
 		return
 	}
-	if rootnode == nil {
-		panic("rootnode is nil")
+	if roottree == nil {
+		panic("roottree is nil")
 	}
-	log.Debugf("OpenStream rootnode %#v", rootnode)
-	stream = Stream{}.New(db, label, rootnode)
+	log.Debugf("OpenStream roottree %#v", roottree)
+	stream = Stream{}.New(db, label, roottree)
 	return
 }
 
@@ -642,25 +642,25 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 func (stream *Stream) Ls(all bool) (objects []Object, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	return stream.RootNode.traverse(all)
+	return stream.RootTree.traverse(all)
 }
 
 // Cat concatenates all of the leaf node content in World and returns
 // it as a pointer to a byte slice.
 func (stream *Stream) Cat() (buf []byte, err error) {
-	return stream.RootNode.Cat()
+	return stream.RootTree.Cat()
 }
 
 // Cat concatenates all of the leaf node content in node's tree and returns
 // it all as a pointer to a byte slice.
 // XXX rework for streaming
-func (node *Node) Cat() (buf []byte, err error) {
+func (tree *Tree) Cat() (buf []byte, err error) {
 	defer Return(&err)
 
-	// db := node.Db
+	// db := tree.Db
 
 	// get leaf nodes
-	objects, err := node.traverse(false)
+	objects, err := tree.traverse(false)
 	Ck(err)
 
 	// append leaf node content to buf
@@ -681,9 +681,9 @@ func (node *Node) Cat() (buf []byte, err error) {
 // Verify hashes the node content and compares it to its address
 // XXX move to File
 // XXX refactor to take advantage of streaming
-// XXX right now we only verify nodes by default -- what about blobs?
-func (node *Node) Verify() (ok bool, err error) {
-	objects, err := node.traverse(true)
+// XXX right now we only verify trees by default -- what about blobs?
+func (tree *Tree) Verify() (ok bool, err error) {
+	objects, err := tree.traverse(true)
 	if err != nil {
 		return
 	}
@@ -707,10 +707,10 @@ func (node *Node) Verify() (ok bool, err error) {
 				log.Debugf("verify failure path %v content '%s'", path.Abs, content)
 				return false, fmt.Errorf("expected %v, calculated %v", path.Hash, hex)
 			}
-		case *Node:
+		case *Tree:
 			path := child.Path
 			log.Debugf("child %#v", child)
-			_, err := node.Db.getNode(path, true)
+			_, err := tree.Db.getTree(path, true)
 			if err != nil {
 				return false, err
 			}
@@ -722,29 +722,29 @@ func (node *Node) Verify() (ok bool, err error) {
 }
 
 // traverse recurses down the tree of nodes returning leaves or optionally all nodes
-func (node *Node) traverse(all bool) (objects []Object, err error) {
+func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
-	if node.File == nil {
-		file, err := File{}.New(node.Db, node.Path)
+	if tree.File == nil {
+		file, err := File{}.New(tree.Db, tree.Path)
 		Ck(err)
-		node.File = file
+		tree.File = file
 	}
 
-	if node.entries == nil {
-		err = node.loadEntries()
+	if tree.entries == nil {
+		err = tree.loadEntries()
 		Ck(err)
 	}
 
 	if all {
-		objects = append(objects, node)
+		objects = append(objects, tree)
 	}
 
-	log.Debugf("traverse node %#v", node)
-	for _, obj := range *node.entries {
+	log.Debugf("traverse tree %#v", tree)
+	for _, obj := range *tree.entries {
 		log.Debugf("traverse obj %#v", obj)
 		switch child := obj.(type) {
-		case *Node:
+		case *Tree:
 			childobjs, err := child.traverse(all)
 			if err != nil {
 				return nil, err
@@ -886,26 +886,26 @@ func GetGID() uint64 {
 	return n
 }
 
-// Node is a vertex in a Merkle tree. Entries point at leafs or other nodes.
-type Node struct {
+// Tree is a vertex in a Merkle tree. Entries point at leafs or other nodes.
+type Tree struct {
 	Db *Db
 	*File
 	entries *[]Object
 }
 
-func (node Node) New(db *Db, file *File) *Node {
-	node.Db = db
-	node.File = file
-	return &node
+func (tree Tree) New(db *Db, file *File) *Tree {
+	tree.Db = db
+	tree.File = file
+	return &tree
 }
 
-func (node *Node) GetPath() *Path {
-	return node.Path
+func (tree *Tree) GetPath() *Path {
+	return tree.Path
 }
 
-// Txt returns the concatenated node entries
-func (node *Node) Txt() (out string) {
-	for _, entry := range *node.entries {
+// Txt returns the concatenated tree entries
+func (tree *Tree) Txt() (out string) {
+	for _, entry := range *tree.entries {
 		out += strings.TrimSpace(entry.GetPath().Canon) + "\n"
 	}
 	return
@@ -917,63 +917,64 @@ func bin2hex(bin []byte) (hex string) {
 	return
 }
 
-// PutNode takes one or more child nodes, stores relpaths in a file under node/,
-// and returns a pointer to a Node object.
-func (db *Db) PutNode(algo string, children ...Object) (node *Node, err error) {
+// PutTree takes one or more child nodes, stores relpaths in a file
+// under tree/,
+// and returns a pointer to a Tree object.
+func (db *Db) PutTree(algo string, children ...Object) (tree *Tree, err error) {
 	defer Return(&err)
 
 	Assert(db != nil, "db is nil")
 
-	path := &Path{Class: "node", Algo: algo}
+	path := &Path{Class: "tree", Algo: algo}
 	file, err := File{}.New(db, path)
 	Ck(err)
-	node = Node{}.New(db, file)
+	tree = Tree{}.New(db, file)
 
 	// populate the entries field
-	node.entries = &children
+	tree.entries = &children
 	// concatenate all relpaths together (include the full canpath with
-	// the 'blob/' or 'node/' prefix to help protect against preimage
+	// the 'blob/' or 'tree/' prefix to help protect against preimage
 	// attacks)
 	// XXX refactor for streaming
-	buf := []byte(node.Txt())
+	buf := []byte(tree.Txt())
 
 	var n int
-	n, err = node.Write(buf)
+	n, err = tree.Write(buf)
 	Ck(err)
 	Assert(n == len(buf), "short write")
-	err = node.Close()
+	err = tree.Close()
 	Ck(err)
 
 	return
 }
 
-// GetNode takes a node path and returns a Node struct
-func (db *Db) GetNode(path *Path) (node *Node, err error) {
-	return db.getNode(path, true)
+// GetTree takes a tree path and returns a Tree struct
+func (db *Db) GetTree(path *Path) (tree *Tree, err error) {
+	return db.getTree(path, true)
 }
 
 // XXX do we ever take advantage of verify == false?  where should we?
-// XXX reconcile with OpenNode
-func (db *Db) getNode(path *Path, verify bool) (node *Node, err error) {
+// XXX reconcile with OpenTree
+func (db *Db) getTree(path *Path, verify bool) (tree *Tree, err error) {
 	defer Return(&err)
 
 	file, err := File{}.New(db, path)
 	Ck(err)
 	defer file.Close()
 
-	node = Node{}.New(db, file)
+	tree = Tree{}.New(db, file)
 
-	err = node.loadEntries()
+	err = tree.loadEntries()
 	Ck(err)
 
 	return
 }
 
-func (node *Node) loadEntries() (err error) {
+func (tree *Tree) loadEntries() (err error) {
 	defer Return(&err)
 
-	Assert(node.File != nil)
-	file := node.File
+	Assert(tree.File != nil)
+	file := tree.File
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -981,8 +982,8 @@ func (node *Node) loadEntries() (err error) {
 		buf := scanner.Bytes()
 		line := string(buf)
 		line = strings.TrimSpace(line)
-		path := Path{}.New(node.Db, line)
-		entry, err := node.Db.ObjectFromPath(path)
+		path := Path{}.New(tree.Db, line)
+		entry, err := tree.Db.ObjectFromPath(path)
 		Ck(err)
 		log.Debugf("entry %#v", entry)
 		entries = append(entries, entry)
@@ -994,7 +995,7 @@ func (node *Node) loadEntries() (err error) {
 		log.Fatal(err)
 	}
 
-	node.entries = &entries
+	tree.entries = &entries
 
 	/*
 		// XXX merge this with Verify
@@ -1007,14 +1008,14 @@ func (node *Node) loadEntries() (err error) {
 			// compare hash with path.Hash
 			hex := bin2hex(binhash)
 			if path.Hash != hex {
-				log.Debugf("getNode verify failure path %v content '%s'", path.Abs, content)
+				log.Debugf("getTree verify failure path %v content '%s'", path.Abs, content)
 				err = fmt.Errorf("expected %v, calculated %v", path.Hash, hex)
 				return node, err
 			}
 		}
 	*/
 
-	log.Debugf("getNode node.entries %#v", node.entries)
+	log.Debugf("getTree tree.entries %#v", tree.entries)
 	return
 }
 
@@ -1044,7 +1045,7 @@ func (s Stream) Init() *Stream {
 }
 
 // XXX this is not the right signature
-func (s Stream) XXX() (rootnode *Node, err error) {
+func (s Stream) XXX() (rootnode *Tree, err error) {
 
 	// XXX  We will need an io.Pipe() somewhere near here to solve the
 	// mismatch between us wanting to be an io.Writer, and restic's
