@@ -89,14 +89,14 @@ func TestPutStreamBig(t *testing.T) {
 
 func testPutStream(t *testing.T, db *Db, stream *testStream) {
 
-	node, err := db.PutStream("sha256", stream)
+	tree, err := db.PutStream("sha256", stream)
 	tassert(t, err == nil, "PutStream(): %v", err)
-	tassert(t, node != nil, "PutStream() node is nil")
+	tassert(t, tree != nil, "PutStream() tree is nil")
 
-	fmt.Printf("root %s/%s\n", db.Dir, node.Path.Abs)
+	fmt.Printf("root %s/%s\n", db.Dir, tree.Path.Abs)
 
-	gotbuf, err := node.Cat()
-	tassert(t, err == nil, "node.Cat(): %v", err)
+	gotbuf, err := tree.Cat()
+	tassert(t, err == nil, "tree.Cat(): %v", err)
 
 	if len(stream.Data) < 200 && len(gotbuf) < 200 {
 		tassert(t, bytes.Compare(stream.Data, gotbuf) == 0, "expected %v\n=================\ngot %v", string(stream.Data), string(gotbuf))
