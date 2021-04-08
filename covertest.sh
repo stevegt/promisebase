@@ -40,6 +40,11 @@ do
 		fi
 		echo run this to see coverage detail: 
 		echo xdg-open $html
+	else
+		if [ "$dir" == "." ]
+		then
+			exit 1
+		fi
 	fi
 
 	if ! which errcheck

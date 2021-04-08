@@ -93,7 +93,7 @@ func testPutStream(t *testing.T, db *Db, stream *testStream) {
 	tassert(t, err == nil, "PutStream(): %v", err)
 	tassert(t, tree != nil, "PutStream() tree is nil")
 
-	fmt.Printf("root %s/%s\n", db.Dir, tree.Path.Abs)
+	// fmt.Printf("root %s\n", tree.Path.Abs)
 
 	gotbuf, err := tree.Cat()
 	tassert(t, err == nil, "tree.Cat(): %v", err)

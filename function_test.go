@@ -86,7 +86,7 @@ func mkbuf(s string) []byte {
 }
 
 func mkpath(t *testing.T, db *Db, class, s string) (path *Path) {
-	path, err := db.pathFromString(class, "sha256", s)
+	path, err := pathFromString(db, class, "sha256", s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,9 +124,9 @@ func TestHash(t *testing.T) {
 func TestBlob(t *testing.T) {
 	db := setup(t)
 
-	relpath := "blob/sha256/87d/149/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
-	canpath := "blob/sha256/87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
-	hash := "87d149cb424c0387656f211d2589fb5b1e16229921309e98588419ccca8a7362"
+	hash := "d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
+	canpath := "blob/sha256/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
+	relpath := "blob/sha256/d2c/71a/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
 	path := Path{}.New(db, canpath)
 	file, err := File{}.New(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
@@ -150,8 +150,8 @@ func TestBlob(t *testing.T) {
 
 	// check size
 	size, err := b.Size()
-	tassert(t, err == nil, "Blob.Size() err %v", err)
-	fmt.Printf("object %s is %d bytes\n", b.Path.Canon, size)
+	tassert(t, err == nil, "Blob.Size() size %d err %v", size, err)
+	// fmt.Printf("object %s is %d bytes\n", b.Path.Canon, size)
 
 	// seek to a location
 	nseek, err := b.Seek(2, 0)
@@ -182,7 +182,7 @@ func TestBlob(t *testing.T) {
 
 	abspath := b.Path.Abs
 	tassert(t, len(abspath) > 11, "path len %v", len(abspath))
-	fmt.Printf("object path %s\n", abspath)
+	// fmt.Printf("object path %s\n", abspath)
 
 	gotrelpath := b.Path.Rel
 	tassert(t, relpath == gotrelpath, "relpath '%v'", gotrelpath)
@@ -206,11 +206,11 @@ func objectExample(t *testing.T, o Object) {
 
 	abspath := o.GetPath().Abs
 	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
-	fmt.Printf("object path %s\n", abspath)
+	// fmt.Printf("object path %s\n", abspath)
 
 	size, err := o.Size()
-	tassert(t, err == nil, "Blob.Size() err %v", err)
-	fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon, size)
+	tassert(t, err == nil, "Blob.Size() size %d err %v", size, err)
+	// fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon, size)
 }
 
 func TestRm(t *testing.T) {
@@ -224,40 +224,16 @@ func TestRm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.GetBlob(blob.Path)
+	gotblob, err := db.GetBlob(blob.Path)
 	if err == nil {
-		t.Fatalf("path not deleted: %s", blob.Path.Abs)
-	}
-}
-
-func TestPutBlob(t *testing.T) {
-	db := setup(t)
-	val := mkbuf("somevalue")
-	path, err := db.pathFromBuf("blob", "sha256", val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotblob, err := db.PutBlob("sha256", val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tassert(t, gotblob != nil, "gotblob is nil")
-	if path.Canon != gotblob.Path.Canon {
-		t.Fatalf("expected path %s, got %s", path.Canon, gotblob.Path.Canon)
-	}
-	got, err := ioutil.ReadFile(path.Abs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
+		t.Fatalf("blob not deleted: %#v", gotblob)
 	}
 }
 
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.pathFromBuf("blob", "sha256", val)
+	path, err := pathFromBuf(db, "blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +249,7 @@ func TestGetBlob(t *testing.T) {
 		t.Fatal(err)
 	}
 	if bytes.Compare(val, got) != 0 {
-		t.Fatalf("expected %s, got %s", string(val), string(got))
+		t.Fatalf("expected %q, got %q", string(val), string(got))
 	}
 }
 
@@ -286,10 +262,11 @@ func deepEqual(a, b interface{}) bool {
 	return pretty(a) == pretty(b)
 }
 
+/*
 func TestPath(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
-	path, err := db.pathFromBuf("blob", "sha256", val)
+	path, err := pathFromBuf(db, "blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,6 +276,7 @@ func TestPath(t *testing.T) {
 		t.Fatalf("expected %s, got %s", path.Abs, gotabs)
 	}
 }
+*/
 
 func TestGetGID(t *testing.T) {
 	n := GetGID()
@@ -479,15 +457,14 @@ func TestMkdir(t *testing.T) {
 	}
 }
 
-// XXX deprecate
-func (db *Db) pathFromString(class, algo, s string) (path *Path, err error) {
+func pathFromString(db *Db, class, algo, s string) (path *Path, err error) {
 	buf := []byte(s)
-	return db.pathFromBuf(class, algo, buf)
+	return pathFromBuf(db, class, algo, buf)
 }
 
-// XXX deprecate
-func (db *Db) pathFromBuf(class string, algo string, buf []byte) (path *Path, err error) {
-	binhash, err := Hash(algo, buf)
+func pathFromBuf(db *Db, class string, algo string, buf []byte) (path *Path, err error) {
+	b := append([]byte(class+"\n"), buf...)
+	binhash, err := Hash(algo, b)
 	if err != nil {
 		return
 	}
@@ -526,7 +503,7 @@ func Benchmark2GetBlob(b *testing.B) {
 	}
 	// fmt.Println("bench size:", benchSize)
 	for n := 0; n <= benchSize; n++ {
-		path, err := db.pathFromString("blob", "sha256", asString(n))
+		path, err := pathFromString(db, "blob", "sha256", asString(n))
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -273,8 +273,13 @@ func (file *File) ckopen() (err error) {
 		file.fh, err = file.Db.tmpFile()
 		Ck(err)
 		// write file header
-		header := file.header()
-		n, err := file.fh.Write([]byte(header))
+		header := []byte(file.header())
+		n, err := file.fh.Write(header)
+		Ck(err)
+		Assert(n == len(header))
+		// add header to hash data to help keep us from accidentally
+		// writing a cyrtographic hash reverser
+		n, err = file.hash.Write(header)
 		Ck(err)
 		Assert(n == len(header))
 	} else {
@@ -286,8 +291,9 @@ func (file *File) ckopen() (err error) {
 		buf := make([]byte, len(header))
 		n, err := file.fh.Read(buf)
 		Ck(err)
-		Assert(n == len(header))
-		Assert(string(buf) == header)
+		if n != len(header) || string(buf) != header {
+			return fmt.Errorf("malformed header: %s file: %s", string(buf), file.Path.Abs)
+		}
 	}
 	return
 }
@@ -338,17 +344,27 @@ func (file *File) Close() (err error) {
 // returned by previous Read() calls.  Supports the io.Reader
 // interface.
 func (file *File) Read(buf []byte) (n int, err error) {
+	defer Return(&err)
+	file.Readonly = true
 	err = file.ckopen()
-	if err != nil {
-		return
-	}
+	Ck(err)
 	return file.fh.Read(buf)
 }
 
 func (file *File) ReadAll() (buf []byte, err error) {
-	buf, err = ioutil.ReadFile(file.Path.Abs)
-	if err != nil {
-		return
+	defer Return(&err)
+	err = file.ckopen()
+	Ck(err)
+	for {
+		b := make([]byte, 4096)
+		n, err := file.fh.Read(b)
+		if errors.Cause(err) == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, b[:n]...)
 	}
 	return
 }
@@ -366,6 +382,7 @@ func (file *File) ReadAll() (buf []byte, err error) {
 // to know that the file header exists at all -- these functions
 // operate on the file body data only.
 func (file *File) Seek(n int64, whence int) (nout int64, err error) {
+	file.Readonly = true
 	err = file.ckopen()
 	if err != nil {
 		return
@@ -388,6 +405,7 @@ func (file *File) Seek(n int64, whence int) (nout int64, err error) {
 }
 
 func (file *File) Size() (n int64, err error) {
+	file.Readonly = true
 	info, err := os.Stat(file.Path.Abs)
 	if err != nil {
 		return
@@ -456,6 +474,7 @@ func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	file.Readonly = true
 	return Blob{}.New(db, file).ReadAll()
 }
 
@@ -692,6 +711,10 @@ func (tree *Tree) Cat() (buf []byte, err error) {
 		if !ok {
 			panic("assertion failure: blob type")
 		}
+		file, err := File{}.New(blob.Db, blob.File.Path)
+		Ck(err)
+		blob = Blob{}.New(blob.Db, file)
+		// XXX rework for streaming
 		content, err = blob.ReadAll()
 		Ck(err)
 		buf = append(buf, content...)
