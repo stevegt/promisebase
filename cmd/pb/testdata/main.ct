@@ -41,53 +41,53 @@ blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 $ pb putblob sha256 < ../bigblob
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 
-# put a node
-$ pb putnode sha256 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
-node/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
+# put a tree
+$ pb puttree sha256 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262 blob/sha256/562/50f/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
+tree/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
 
 # get it (fully qualified)
-$ pb getnode node/sha256/1c2/7ff/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
+$ pb gettree tree/sha256/1c2/7ff/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 
 # get it (canonical)
-$ pb getnode node/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
+$ pb gettree tree/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 
-# put a parent node
+# put a parent tree
 # XXX also test fully qualified inputs
-$ pb putnode sha256 node/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
-node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
+$ pb puttree sha256 tree/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
+tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 
 # get it
-$ pb getnode node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
-node/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
+$ pb gettree tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
+tree/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
-# make a stream from that parent node
+# make a stream from that parent tree
 # - this just makes a symlink in var/stream and shows the result
-$ pb linkstream node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14 stream1
-stream/stream1 -> node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
+$ pb linkstream tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14 stream1
+stream/stream1 -> tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 
 # get a stream
 # - calls Readlink("var/stream/stream1") and returns the canpath of the thing it's pointing at
 $ pb getstream stream1
-node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
+tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 
 # get stream fail
 $ pb getstream stream42 --> FAIL
 
-# list all of the leaf nodes in a stream 
+# list all of the leaf tree in a stream 
 $ pb lsstream stream1
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
-# list all of the nodes in a stream, both leaf and inner, depth first
+# list all of the tree in a stream, both leaf and inner, depth first
 $ pb lsstream -a stream1
-node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
-node/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
+tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
+tree/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
@@ -96,7 +96,7 @@ blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 $ pb lsstream stream42 --> FAIL
 $ pb lsstream -a stream42 --> FAIL
 
-# show a concatenation of all leaf node content in a stream
+# show a concatenation of all leaf tree content in a stream
 $ pb catstream stream1
 multiline blob
 this is line 2
@@ -112,7 +112,7 @@ parturient montes, nascetur ridiculus mus.
 this is blob1
 
 # same, but for tree
-$ pb cattree node/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
+$ pb cattree tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 multiline blob
 this is line 2
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae
@@ -154,7 +154,7 @@ $ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy
 # try executing code in an arbitrary language
 # load the lang1 interpreter
 $ pb putstream sha256 lang1 < ../lang1.sh 
-stream/lang1 -> node/sha256/012661ca4b9d603d813d10ef66f08676938b6cd59baa105e1ad526b90645fada
+stream/lang1 -> tree/sha256/012661ca4b9d603d813d10ef66f08676938b6cd59baa105e1ad526b90645fada
 
 # run a script written in lang1
 $ pb exec ../hello.lang1
@@ -163,8 +163,8 @@ Hello, Universe!
 # ensure stream names can include slashes
 # XXX - also need to ensure they don't include '..', or that they otherwise
 # XXX   resolve to anything outside of ./stream/
-# $ pb putnode sha256 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262,/some/path
-# node/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
-# $ pb putstream node/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c /some/stream
-# /some/stream -> node/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
+# $ pb puttree sha256 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262,/some/path
+# tree/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
+# $ pb putstream tree/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c /some/stream
+# /some/stream -> tree/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
 
