@@ -273,22 +273,24 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 
 // gets called by Read(), Write(), etc.
 func (file *File) ckopen() (err error) {
+	defer Return(&err)
+
 	if file.fh != nil {
 		return
 	}
 	if !file.Readonly {
 		// open temporary file
 		file.fh, err = file.Db.tmpFile()
-		if err != nil {
-			return
-		}
-		// XXX write file header here, but we'd need to know the file class
+		Ck(err)
+		// write file header
+		header := fmt.Sprintf(file.Path.Class + "\n")
+		n, err := file.fh.Write([]byte(header))
+		Ck(err)
+		Assert(n == len(header))
 	} else {
 		// open existing file
 		file.fh, err = os.Open(file.Path.Abs)
-		if err != nil {
-			return
-		}
+		Ck(err)
 	}
 	return
 }
@@ -427,7 +429,6 @@ func (blob *Blob) GetPath() *Path {
 func (blob Blob) New(db *Db, file *File) *Blob {
 	blob.Db = db
 	blob.File = file
-	// XXX write file header here, but only if it's a new file
 	return &blob
 }
 
