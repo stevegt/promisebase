@@ -177,15 +177,6 @@ func TestBlob(t *testing.T) {
 	_, err = b.Write(data)
 	tassert(t, err != nil, "b.Write to a read-only file should throw error")
 
-	// test db methods for stat and size
-	info, err := db.Stat(relpath)
-	tassert(t, err == nil, "BlobStat err %v", err)
-	isdir := info.IsDir()
-	tassert(t, isdir == false, "BlobStat isdir %v", isdir)
-	size, err = db.Size(relpath)
-	tassert(t, err == nil, "BlobSize err %v", err)
-	tassert(t, size == int64(8), "BlobSize size expected %v got %v", 8, size)
-
 	// test Object methods
 	objectExample(t, b)
 

@@ -117,20 +117,6 @@ func (e *ExistsError) Error() string {
 	return fmt.Sprintf("directory not empty: %s", e.Dir)
 }
 
-func (db *Db) Stat(path string) (info os.FileInfo, err error) {
-	fullpath := filepath.Join(db.Dir, path)
-	return os.Stat(fullpath)
-}
-
-func (db *Db) Size(path string) (size int64, err error) {
-	info, err := db.Stat(path)
-	if err != nil {
-		return
-	}
-	size = info.Size()
-	return
-}
-
 // Create initializes a db directory and its contents
 func (db Db) Create() (out *Db, err error) {
 	defer Return(&err)
@@ -271,6 +257,10 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 	return &file, nil
 }
 
+func (file *File) header() string {
+	return fmt.Sprintf(file.Path.Class + "\n")
+}
+
 // gets called by Read(), Write(), etc.
 func (file *File) ckopen() (err error) {
 	defer Return(&err)
@@ -283,7 +273,7 @@ func (file *File) ckopen() (err error) {
 		file.fh, err = file.Db.tmpFile()
 		Ck(err)
 		// write file header
-		header := fmt.Sprintf(file.Path.Class + "\n")
+		header := file.header()
 		n, err := file.fh.Write([]byte(header))
 		Ck(err)
 		Assert(n == len(header))
@@ -292,7 +282,7 @@ func (file *File) ckopen() (err error) {
 		file.fh, err = os.Open(file.Path.Abs)
 		Ck(err)
 		// strip file header
-		header := fmt.Sprintf(file.Path.Class + "\n")
+		header := file.header()
 		buf := make([]byte, len(header))
 		n, err := file.fh.Read(buf)
 		Ck(err)
@@ -369,12 +359,32 @@ func (file *File) ReadAll() (buf []byte, err error) {
 // means relative to the origin of the file, 1 means relative to the
 // current offset, and 2 means relative to the end.  It returns the
 // new offset and an error, if any.  Supports the io.Seeker interface.
+//
+// Size(), Seek(), etc. act as if the file content doesn't include the
+// header.  In  other words, a caller of Seek(), Size(), or Tell()
+// doesn't need to know the size of the file header, and doesn't need
+// to know that the file header exists at all -- these functions
+// operate on the file body data only.
 func (file *File) Seek(n int64, whence int) (nout int64, err error) {
 	err = file.ckopen()
 	if err != nil {
 		return
 	}
-	return file.fh.Seek(n, whence)
+	hl := int64(len(file.header()))
+	var pos int64
+	switch whence {
+	case 0:
+		pos = n + hl
+	case 1:
+		pos = n
+	case 2:
+		pos = n
+	default:
+		Assert(false)
+	}
+	nout, err = file.fh.Seek(pos, whence)
+	nout -= hl
+	return
 }
 
 func (file *File) Size() (n int64, err error) {
@@ -382,7 +392,8 @@ func (file *File) Size() (n int64, err error) {
 	if err != nil {
 		return
 	}
-	n = info.Size()
+	hl := int64(len(file.header()))
+	n = info.Size() - hl
 	return
 }
 
