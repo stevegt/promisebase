@@ -412,7 +412,7 @@ func TestTreeStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect := "blob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
+	expect := "blob/sha256/a13d00682410383f1003d6428d1028d6feb88f166e1266949bc4cd91725d532a\nblob/sha256/fc0d850d5930109e3eb3b799f067da93483fb80407e5d9dac56e17455be1dbaa\nblob/sha256/b4c9630d4f6928c0fb77a01984e5920a0a2be28382812c7ba31d60aa0abe652f\n"
 	gotobjs := objs2str(objects)
 	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
 
@@ -421,7 +421,7 @@ func TestTreeStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect = "tree/sha256/7a7b79f6d5faf3f011bd84bf71703af10530b485fa5eb14fedf4e48c5167d4d7\ntree/sha256/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf\nblob/sha256/1499559e764b35ac77e76e8886ef237b3649d12014566034198661dc7db77379\nblob/sha256/48618376a9fcd7ec1147a90520a003d72ffa169b855f0877fd42b722538867f0\nblob/sha256/ea5a02427e3ca466defa703ed3055a86cd3ae9ee6598fd1bf7e0219a6c490a7f\n"
+	expect = "tree/sha256/da0e74aa2d64168df0321877dd98a0e0c1f8b8f02a6f54211995623f518dd7f4\ntree/sha256/78e986b6bf7f04ec9fa1e14fb506f0cba967898183a1db602348ee65234c2c06\nblob/sha256/a13d00682410383f1003d6428d1028d6feb88f166e1266949bc4cd91725d532a\nblob/sha256/fc0d850d5930109e3eb3b799f067da93483fb80407e5d9dac56e17455be1dbaa\nblob/sha256/b4c9630d4f6928c0fb77a01984e5920a0a2be28382812c7ba31d60aa0abe652f\n"
 
 	gotobjs = objs2str(objects)
 	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)

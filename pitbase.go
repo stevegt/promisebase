@@ -257,8 +257,8 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 	return &file, nil
 }
 
-func (file *File) header() string {
-	return fmt.Sprintf(file.Path.Class + "\n")
+func (path *Path) header() string {
+	return fmt.Sprintf(path.Class + "\n")
 }
 
 // gets called by Read(), Write(), etc.
@@ -727,37 +727,28 @@ func (tree *Tree) Cat() (buf []byte, err error) {
 // XXX refactor to take advantage of streaming
 // XXX right now we only verify trees by default -- what about blobs?
 func (tree *Tree) Verify() (ok bool, err error) {
+	defer Return(&err)
 	objects, err := tree.traverse(true)
-	if err != nil {
-		return
-	}
+	Ck(err)
 	for _, obj := range objects {
 		switch child := obj.(type) {
 		case *Blob:
 			// XXX add a verify flag to GetBlob and do this there
 			path := child.Path
 			content, err := child.Db.GetBlob(path)
-			if err != nil {
-				return false, err
-			}
+			Ck(err)
 			// hash content
+			content = append([]byte(path.header()), content...)
 			binhash, err := Hash(path.Algo, content)
-			if err != nil {
-				return false, err
-			}
+			Ck(err)
 			// compare hash with path.Hash
 			hex := bin2hex(binhash)
-			if path.Hash != hex {
-				log.Debugf("verify failure path %v content '%s'", path.Abs, content)
-				return false, fmt.Errorf("expected %v, calculated %v", path.Hash, hex)
-			}
+			Assert(path.Hash == hex)
 		case *Tree:
 			path := child.Path
 			log.Debugf("child %#v", child)
 			_, err := tree.Db.getTree(path, true)
-			if err != nil {
-				return false, err
-			}
+			Ck(err)
 		default:
 			panic(fmt.Sprintf("unhandled type %T", child))
 		}
