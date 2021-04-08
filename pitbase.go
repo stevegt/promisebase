@@ -282,6 +282,7 @@ func (file *File) ckopen() (err error) {
 		if err != nil {
 			return
 		}
+		// XXX write file header here, but we'd need to know the file class
 	} else {
 		// open existing file
 		file.fh, err = os.Open(file.Path.Abs)
@@ -426,6 +427,7 @@ func (blob *Blob) GetPath() *Path {
 func (blob Blob) New(db *Db, file *File) *Blob {
 	blob.Db = db
 	blob.File = file
+	// XXX write file header here, but only if it's a new file
 	return &blob
 }
 
