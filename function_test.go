@@ -390,7 +390,7 @@ func TestTree(t *testing.T) {
 	tassert(t, tree.Txt() == gottree.Txt(), "tree %v mismatch: expect %v got %v", tree.Path.Abs, tree.Txt(), gottree.Txt())
 }
 
-func TestTree(t *testing.T) {
+func TestTreeStream(t *testing.T) {
 	db := setup(t)
 
 	// setup
