@@ -435,8 +435,8 @@ func TestTreeStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tassert(t, stream1.RootTree.Path.Abs == gotstream.RootTree.Path.Abs, "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
-	tassert(t, len(*stream1.RootTree.entries) > 0, "stream root tree has no entries: %#v", stream1.RootTree)
+	tassert(t, stream1.RootNode.Path.Abs == gotstream.RootNode.Path.Abs, "stream mismatch: expect %v got %v", pretty(stream1), pretty(gotstream))
+	tassert(t, len(*stream1.RootNode.entries) > 0, "stream root tree has no entries: %#v", stream1.RootNode)
 
 	// list leaf objs
 	objects, err := stream1.Ls(false)

@@ -452,20 +452,20 @@ func (db *Db) Rm(path *Path) (err error) {
 // tree as a new leaf node, and then rewrites the stream label's symlink
 // to point at the new tree root.
 func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, err error) {
-	oldroottree := stream.RootTree
-	newroottree, err := oldroottree.AppendBlob(algo, buf)
+	oldrootnode := stream.RootNode
+	newrootnode, err := oldrootnode.AppendBlob(algo, buf)
 	if err != nil {
 		return
 	}
 
 	// rewrite symlink
-	treerel := filepath.Join("..", newroottree.Path.Rel)
+	treerel := filepath.Join("..", newrootnode.Path.Rel)
 	linkabs := filepath.Join(stream.Db.Dir, stream.Path.Canon)
 	err = renameio.Symlink(treerel, linkabs)
 	if err != nil {
 		return
 	}
-	newstream = Stream{}.New(stream.Db, stream.Label, newroottree)
+	newstream = Stream{}.New(stream.Db, stream.Label, newrootnode)
 	return
 
 }
@@ -476,14 +476,14 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 // or files in accounting, trading, version control, blockchain, and file
 // storage applications.
 // XXX refactor for streaming, or add an AppendBlobStream
-func (tree *Tree) AppendBlob(algo string, buf []byte) (newroottree *Tree, err error) {
-	oldroottree := tree
+func (tree *Tree) AppendBlob(algo string, buf []byte) (newrootnode *Tree, err error) {
+	oldrootnode := tree
 
 	// put blob
 	blob, err := tree.Db.PutBlob(algo, buf)
 
 	// put tree for new root of merkle tree
-	newroottree, err = tree.Db.PutTree(algo, oldroottree, blob)
+	newrootnode, err = tree.Db.PutTree(algo, oldrootnode, blob)
 	if err != nil {
 		return
 	}
@@ -493,7 +493,7 @@ func (tree *Tree) AppendBlob(algo string, buf []byte) (newroottree *Tree, err er
 // PutStream reads blobs from stream, creates a merkle tree with those
 // blobs as leaf nodes, and returns the root node of the new tree.
 // XXX needs to accept label arg
-func (db *Db) PutStream(algo string, rd io.Reader) (roottree *Tree, err error) {
+func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Tree, err error) {
 	// set chunker parameters
 	chunker, err := Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
 	if err != nil {
@@ -528,19 +528,19 @@ func (db *Db) PutStream(algo string, rd io.Reader) (roottree *Tree, err error) {
 		log.Debugf("newblob %v", newblob)
 		if oldtree == nil {
 			// we're just starting the tree
-			roottree, err = db.PutTree(algo, newblob)
+			rootnode, err = db.PutTree(algo, newblob)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// add the next node
-			roottree, err = db.PutTree(algo, oldtree, newblob)
+			rootnode, err = db.PutTree(algo, oldtree, newblob)
 			if err != nil {
 				return nil, err
 			}
 		}
-		log.Debugf("roottree %v", roottree)
-		oldtree = roottree
+		log.Debugf("rootnode %v", rootnode)
+		oldtree = rootnode
 	}
 	log.Debugf("oldtree %v", oldtree)
 
@@ -571,7 +571,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
 // LinkStream makes a symlink named label pointing at tree, and returns
 // the resulting stream object.
-// XXX do we need this?  creating the stream with roottree == nil is risky
+// XXX do we need this?  creating the stream with rootnode == nil is risky
 func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
 	stream = Stream{}.New(tree.Db, label, tree)
 	src := filepath.Join("..", tree.Path.Rel)
@@ -594,7 +594,7 @@ func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
 // as trees.
 type Stream struct {
 	Db          *Db
-	RootTree    *Tree
+	RootNode    *Tree
 	Label       string
 	Path        *Path
 	chunker     *Rabin
@@ -602,10 +602,10 @@ type Stream struct {
 	posInBlob   int64
 }
 
-func (stream Stream) New(db *Db, label string, roottree *Tree) *Stream {
+func (stream Stream) New(db *Db, label string, rootnode *Tree) *Stream {
 	stream.Db = db
 	stream.Label = label
-	stream.RootTree = roottree
+	stream.RootNode = rootnode
 	linkrelpath := filepath.Join("stream", label)
 	stream.Path = Path{}.New(db, linkrelpath)
 	return &stream
@@ -625,15 +625,15 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	}
 	treepath := Path{}.New(db, treeabspath)
 	log.Debugf("treeabspath %#v treepath %#v", treeabspath, treepath)
-	roottree, err := db.GetTree(treepath)
+	rootnode, err := db.GetTree(treepath)
 	if err != nil {
 		return
 	}
-	if roottree == nil {
-		panic("roottree is nil")
+	if rootnode == nil {
+		panic("rootnode is nil")
 	}
-	log.Debugf("OpenStream roottree %#v", roottree)
-	stream = Stream{}.New(db, label, roottree)
+	log.Debugf("OpenStream rootnode %#v", rootnode)
+	stream = Stream{}.New(db, label, rootnode)
 	return
 }
 
@@ -642,13 +642,13 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 func (stream *Stream) Ls(all bool) (objects []Object, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
-	return stream.RootTree.traverse(all)
+	return stream.RootNode.traverse(all)
 }
 
 // Cat concatenates all of the leaf node content in World and returns
 // it as a pointer to a byte slice.
 func (stream *Stream) Cat() (buf []byte, err error) {
-	return stream.RootTree.Cat()
+	return stream.RootNode.Cat()
 }
 
 // Cat concatenates all of the leaf node content in node's tree and returns

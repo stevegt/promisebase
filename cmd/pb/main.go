@@ -181,14 +181,14 @@ Options:
 			log.Error(err)
 			return 43
 		}
-		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootTree.Path.Canon)
+		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
 	case opts.Getstream:
 		stream, err := getStream(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
-		fmt.Println(stream.RootTree.Path.Canon)
+		fmt.Println(stream.RootNode.Path.Canon)
 	case opts.Lsstream:
 		canpaths, err := lsStream(opts.Name, opts.All)
 		if err != nil {
@@ -231,7 +231,7 @@ Options:
 		}
 		_ = gotstream
 		if !opts.Quiet {
-			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootTree.Path.Canon)
+			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
 		}
 	case opts.Canon2abs:
 		path, err := canon2abs(opts.Filename)
