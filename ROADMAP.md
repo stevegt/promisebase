@@ -12,7 +12,10 @@ x reconcile Node and blob
   x call them both Object
     x Object interface
   x merge in Key as well
-- rename Node to Tree
+x rename Node to Tree
+X add file headers
+- remove 'blob/' and 'tree/' from tree file content
+  - see `Example Tree File Format` section of RFC-3 
 - fix preimage risk 
     - right now we're doing this: Hnode = H(             "blob" || H(blob1) ||   "blob" || H(blob2) )
     - guidelines say do this:     Hnode = H(   1    || H(  0    ||   blob1) || H(  0    ||   blob2) )
