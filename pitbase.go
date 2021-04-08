@@ -293,7 +293,7 @@ func (file *File) ckopen() (err error) {
 		Ck(err)
 		// strip file header
 		header := fmt.Sprintf(file.Path.Class + "\n")
-		buf := make([]byte, len(header)+1)
+		buf := make([]byte, len(header))
 		n, err := file.fh.Read(buf)
 		Ck(err)
 		Assert(n == len(header))
