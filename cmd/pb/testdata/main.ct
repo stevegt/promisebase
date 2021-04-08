@@ -78,13 +78,13 @@ tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 # get stream fail
 $ pb getstream stream42 --> FAIL
 
-# list all of the leaf tree in a stream 
+# list all of the leaf nodes in a stream 
 $ pb lsstream stream1
 blob/sha256/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262
 blob/sha256/56250ff893aebd9b41712f784c9b3eda3426e09e3b0cea708317fbc406aeb590
 blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 
-# list all of the tree in a stream, both leaf and inner, depth first
+# list all of the nodes in a stream, both leaf and inner, depth first
 $ pb lsstream -a stream1
 tree/sha256/baf87585cfc90e782e7b7e3b6acb47b56a025f542e6066e26ed98d6a80954f14
 tree/sha256/1c27ff61d673083a92a0ee0ddd8abcbbea3a5a9c7db59800754b7b0734d1c2f3
@@ -96,7 +96,7 @@ blob/sha256/b0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908
 $ pb lsstream stream42 --> FAIL
 $ pb lsstream -a stream42 --> FAIL
 
-# show a concatenation of all leaf tree content in a stream
+# show a concatenation of all leaf node content in a stream
 $ pb catstream stream1
 multiline blob
 this is line 2
