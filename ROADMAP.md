@@ -13,27 +13,24 @@ x reconcile Node and blob
     x Object interface
   x merge in Key as well
 x rename Node to Tree
-X add file headers
-- fix preimage risk 
-    - right now we're doing this: Hnode = H(             "blob" || H(blob1) ||   "blob" || H(blob2) )
-    - guidelines say do this:     Hnode = H(   1    || H(  0    ||   blob1) || H(  0    ||   blob2) )
-    - so we should be doing this: Hnode = H( "node" || H("blob" ||   blob1) || H("blob" ||   blob2) )
-    - see https://crypto.stackexchange.com/a/43434/34230 for example
+x add file headers
+x fix preimage risk 
+    x right now we're doing this: Hnode = H(             "blob" || H(blob1) ||   "blob" || H(blob2) )
+    x guidelines say do this:     Hnode = H(   1    || H(  0    ||   blob1) || H(  0    ||   blob2) )
+    x so we should be doing this: Hnode = H( "node" || H("blob" ||   blob1) || H("blob" ||   blob2) )
+    x see https://crypto.stackexchange.com/a/43434/34230 for example
       of guidelines for preventing second preimage attack
-        - "The hash of the list (e1,e2) is then H(1 || h0 || h1) for h0=H(0 || e0) and h1=H(0 || e1). "
-        - 1 == "node" and 0 == "blob"
-    - so we need to add a header in each file identifying the object class
-      - hash after adding the header
-- further research:
-    - rainbow tables https://en.wikipedia.org/wiki/Rainbow_table#Precomputed_hash_chains
-- possible alternative to merkle:
-    - bloom tree: https://arxiv.org/pdf/2002.03057.pdf
-- merge ./blob and ./node directories?  
-- our goal isn't to keep two pieces of data from hashing to the same
+        x "The hash of the list (e1,e2) is then H(1 || h0 || h1) for h0=H(0 || e0) and h1=H(0 || e1). "
+        x 1 == "node" and 0 == "blob"
+    x so we need to add a header in each file identifying the object class
+      x hash after adding the header
+x possible alternative to merkle:
+    x bloom tree: https://arxiv.org/pdf/2002.03057.pdf
+x our goal isn't to keep two pieces of data from hashing to the same
   value, as in passwords -- we in fact want identical data to have the
   same hash, for deduplication.  the reason we salt is to not enable
   hash reversing of out-of-band protocols
-    - from discord: "Passwords get salted to prevent the same password
+    x from discord: "Passwords get salted to prevent the same password
       from two different users resulting in the same hash.  That's not
       exactly what I mean we should do with data blocks -- we want the
       same data to always result in the same hash.  What I mean
@@ -47,21 +44,24 @@ X add file headers
       the private data before hashing it.  I think that we can prevent
       Mallory's attack by simply prepending the word "blob" on every
       blob before hashing it, for instance.  I think."
-- start RFC 3 with the above
+x start RFC 3 with the above
 - split into multiple files or packages
-    - db, node, world, and util
-    - World may be a good candidate for a separate package
+    - close out `streaming`, make a new `split` branch
+    - db, tree, stream, blob, and util
+    - tests also
+- make a tool to make hash updates easier
+- merge ./blob and ./tree directories?  
+- further research:
+    - rainbow tables https://en.wikipedia.org/wiki/Rainbow_table#Precomputed_hash_chains
+- unexport things that don't need exporting
 - continue improving coverage
 - revisit filepath.Join() vs anywhere we really want forward-slashes
 - start writing test cases for possible next layer to prove or disprove the following
     - likely application is image and container management, host management, file version control, accounting, logging...
         - generically, don't forget the decentralized virtual machine model
-    - write world.GetLabels(), or start on the next layer up and put it there?
-    - can we merge world name and label so we can do nested worlds?
-    - can we apply more than one label to the same node entry?
+    - write db.GetLabels(), or start on the next layer up and put it there?
     - revisit whether we want any accounting at this layer, or just provide hooks
         - start working out container communication api
-- unexport things that don't need exporting
 - add documentation:
     - README.md
     x ROADMAP.md
