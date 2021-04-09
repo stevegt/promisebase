@@ -46,9 +46,12 @@ x our goal isn't to keep two pieces of data from hashing to the same
       blob before hashing it, for instance.  I think."
 x start RFC 3 with the above
 - split into multiple files or packages
-    - close out `streaming`, make a new `split` branch
+    x close out `streaming`, make a new `split` branch
     - db, tree, stream, blob, and util
     - tests also
+- clean up test directories
+- spike non-trivial dsl
+    - might need a stable db for this somewhere
 - make a tool to make hash updates easier
 - merge ./blob and ./tree directories?  
 - further research:
