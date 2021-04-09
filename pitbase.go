@@ -6,7 +6,6 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
-	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,7 +16,6 @@ import (
 
 	. "github.com/stevegt/goadapt"
 
-	"github.com/google/renameio"
 	"github.com/pkg/errors"
 	resticRabin "github.com/restic/chunker"
 	"github.com/sirupsen/logrus"
@@ -210,248 +208,6 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 	return
 }
 
-type File struct {
-	Db *Db
-	*Path
-	Readonly bool
-	fh       *os.File
-	hash     hash.Hash
-}
-
-func (file File) New(db *Db, path *Path) (*File, error) {
-	file.Db = db
-	file.Path = path
-	if file.Path == nil {
-		// we don't call Path.New() here 'cause we don't want it to
-		// try to parse the empty Raw field
-		file.Path = &Path{}
-	}
-	if file.Path.Algo == "" {
-		// we default to "sha256" here, but callers can e.g. specify algo
-		// for a new blob via something like Blob{File{Path{Algo: "sha512"}}}
-		// XXX default should come from a DefaultAlgo field in Db config
-		file.Path.Algo = "sha256"
-	}
-
-	// Detect whether this invocation of New is for an existing disk
-	// file, or for a new one that hasn't been written yet.  In the
-	// latter case, we need to set file.hash so file.Write() can feed
-	// new data blocks into the hash algorithm.
-	if len(file.Path.Abs) > 0 && exists(file.Path.Abs) {
-		// use existing file
-		file.Readonly = true
-	} else {
-		// we're creating a new file -- initialize hash engine
-		switch file.Path.Algo {
-		case "sha256":
-			file.hash = sha256.New()
-		case "sha512":
-			file.hash = sha512.New()
-		default:
-			err := fmt.Errorf("not implemented: %s", file.Path.Algo)
-			return nil, err
-		}
-	}
-
-	return &file, nil
-}
-
-func (path *Path) header() string {
-	return fmt.Sprintf(path.Class + "\n")
-}
-
-// gets called by Read(), Write(), etc.
-func (file *File) ckopen() (err error) {
-	defer Return(&err)
-
-	if file.fh != nil {
-		return
-	}
-	if !file.Readonly {
-		// open temporary file
-		file.fh, err = file.Db.tmpFile()
-		Ck(err)
-		// write file header
-		header := []byte(file.header())
-		n, err := file.fh.Write(header)
-		Ck(err)
-		Assert(n == len(header))
-		// add header to hash data to help keep us from accidentally
-		// writing a cyrtographic hash reverser
-		n, err = file.hash.Write(header)
-		Ck(err)
-		Assert(n == len(header))
-	} else {
-		// open existing file
-		file.fh, err = os.Open(file.Path.Abs)
-		Ck(err)
-		// strip file header
-		header := file.header()
-		buf := make([]byte, len(header))
-		n, err := file.fh.Read(buf)
-		Ck(err)
-		if n != len(header) || string(buf) != header {
-			return fmt.Errorf("malformed header: %s file: %s", string(buf), file.Path.Abs)
-		}
-	}
-	return
-}
-
-func (file *File) Close() (err error) {
-	if file.Readonly {
-		err = file.fh.Close()
-		return
-	}
-
-	// move tmpfile to perm
-
-	// close disk file
-	file.fh.Close()
-
-	// finish computing hash
-	binhash := file.hash.Sum(nil)
-	hexhash := bin2hex(binhash)
-
-	// now that we know what the data's hash is, we can replace tmp
-	// Path with permanent Path
-	Assert(file.Path.Class != "")
-	Assert(file.Path.Algo != "")
-	canpath := fmt.Sprintf("%s/%s/%s", file.Path.Class, file.Path.Algo, hexhash)
-	file.Path = Path{}.New(file.Db, canpath)
-
-	// make sure subdirs exist
-	abspath := file.Path.Abs
-	dir, _ := filepath.Split(abspath)
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		return
-	}
-
-	// rename temp file to permanent blob file
-	err = os.Rename(file.fh.Name(), abspath)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-// Read reads from the file and puts the data into `buf`, returning n
-// as the number of bytes read.  If `buf` is too small to fit all of
-// the data, we update b.pos so the next Read() can continue where we
-// left off.  Returns io.EOF err when all data has already been
-// returned by previous Read() calls.  Supports the io.Reader
-// interface.
-func (file *File) Read(buf []byte) (n int, err error) {
-	defer Return(&err)
-	file.Readonly = true
-	err = file.ckopen()
-	Ck(err)
-	return file.fh.Read(buf)
-}
-
-func (file *File) ReadAll() (buf []byte, err error) {
-	defer Return(&err)
-	err = file.ckopen()
-	Ck(err)
-	for {
-		b := make([]byte, 4096)
-		n, err := file.fh.Read(b)
-		if errors.Cause(err) == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		buf = append(buf, b[:n]...)
-	}
-	return
-}
-
-// Seek moves the cursor position `b.pos` to `n`, using
-// os.File.Seek():  Seek sets the offset for the next Read
-// or Write on file to offset, interpreted according to `whence`: 0
-// means relative to the origin of the file, 1 means relative to the
-// current offset, and 2 means relative to the end.  It returns the
-// new offset and an error, if any.  Supports the io.Seeker interface.
-//
-// Size(), Seek(), etc. act as if the file content doesn't include the
-// header.  In  other words, a caller of Seek(), Size(), or Tell()
-// doesn't need to know the size of the file header, and doesn't need
-// to know that the file header exists at all -- these functions
-// operate on the file body data only.
-func (file *File) Seek(n int64, whence int) (nout int64, err error) {
-	file.Readonly = true
-	err = file.ckopen()
-	if err != nil {
-		return
-	}
-	hl := int64(len(file.header()))
-	var pos int64
-	switch whence {
-	case 0:
-		pos = n + hl
-	case 1:
-		pos = n
-	case 2:
-		pos = n
-	default:
-		Assert(false)
-	}
-	nout, err = file.fh.Seek(pos, whence)
-	nout -= hl
-	return
-}
-
-func (file *File) Size() (n int64, err error) {
-	file.Readonly = true
-	info, err := os.Stat(file.Path.Abs)
-	if err != nil {
-		return
-	}
-	hl := int64(len(file.header()))
-	n = info.Size() - hl
-	return
-}
-
-// Tell returns the current seek position (the current value of
-// `b.pos`) in the file.
-func (file *File) Tell() (n int64, err error) {
-	// call Seek(0, 1)
-	return file.Seek(0, io.SeekCurrent)
-}
-
-// Write takes data from `data` and puts it into the file named
-// file.Path.Abs.  Large blobs can be written using multiple Write()
-// calls.  Supports the io.Writer interface.
-func (file *File) Write(data []byte) (n int, err error) {
-
-	if file.Readonly {
-		err = fmt.Errorf("cannot write to existing object: %s", file.Path.Abs)
-		return
-	}
-
-	err = file.ckopen()
-	if err != nil {
-		return
-	}
-
-	// add data to hash digest
-	n, err = file.hash.Write(data)
-	if err != nil {
-		return
-	}
-
-	// write data to disk file
-	n, err = file.fh.Write(data)
-	if err != nil {
-		// panic(fmt.Sprintf("fh: %#v\n", file.fh))
-		return
-	}
-
-	return
-}
-
 // GetBlob retrieves an entire blob into buf by reading its file contents.
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
 	file, err := File{}.New(db, path)
@@ -470,28 +226,6 @@ func (db *Db) Rm(path *Path) (err error) {
 		return err
 	}
 	return
-}
-
-// AppendBlob puts a blob in the database, appends it to the Merkle
-// tree as a new leaf node, and then rewrites the stream label's symlink
-// to point at the new tree root.
-func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, err error) {
-	oldrootnode := stream.RootNode
-	newrootnode, err := oldrootnode.AppendBlob(algo, buf)
-	if err != nil {
-		return
-	}
-
-	// rewrite symlink
-	treerel := filepath.Join("..", newrootnode.Path.Rel)
-	linkabs := filepath.Join(stream.Db.Dir, stream.Path.Canon)
-	err = renameio.Symlink(treerel, linkabs)
-	if err != nil {
-		return
-	}
-	newstream = Stream{}.New(stream.Db, stream.Label, newrootnode)
-	return
-
 }
 
 // PutStream reads blobs from stream, creates a merkle tree with those
@@ -573,32 +307,6 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 	return
 }
 
-// Stream is an ordered set of bytes of arbitrary (but not infinite)
-// length.  It implements the io.ReadWriteCloser interface so a
-// Stream acts like a file from the perspective of a caller.
-// XXX Either (A) stop exporting Tree and Blob, and have callers only
-// see Stream, or (B) be prepared to expose trees and blobs to open
-// market operations, and redefine `address` to include blobs as well
-// as trees.
-type Stream struct {
-	Db          *Db
-	RootNode    *Tree
-	Label       string
-	Path        *Path
-	chunker     *Rabin
-	currentBlob *Blob
-	posInBlob   int64
-}
-
-func (stream Stream) New(db *Db, label string, rootnode *Tree) *Stream {
-	stream.Db = db
-	stream.Label = label
-	stream.RootNode = rootnode
-	linkrelpath := filepath.Join("stream", label)
-	stream.Path = Path{}.New(db, linkrelpath)
-	return &stream
-}
-
 // OpenStream returns an existing Stream object given a label
 // XXX figure out how to collapse OpenStream and Stream.New
 // into one function, probably by deferring any disk I/O in OpenStream
@@ -624,96 +332,12 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	stream = Stream{}.New(db, label, rootnode)
 	return
 }
-
-// Ls lists all of the leaf nodes in a stream and optionally both
-// leaf and inner
-func (stream *Stream) Ls(all bool) (objects []Object, err error) {
-	// XXX this should be a generator, to prevent memory consumption
-	// with large trees
-	return stream.RootNode.traverse(all)
-}
-
-// Cat concatenates all of the leaf node content in World and returns
-// it as a pointer to a byte slice.
-func (stream *Stream) Cat() (buf []byte, err error) {
-	return stream.RootNode.Cat()
-}
-
 func exists(path string) (found bool) {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return false
 	}
 	return true
-}
-
-type Path struct {
-	Db    *Db
-	Raw   string
-	Abs   string // absolute
-	Rel   string // relative
-	Canon string // canonical
-	Class string
-	Algo  string
-	Hash  string
-	Addr  string
-	Label string // stream label
-}
-
-func (path Path) New(db *Db, raw string) (res *Path) {
-	path.Db = db
-	path.Raw = raw
-
-	// XXX need to also or instead call some sort of realpath function
-	// here to deal with symlinks that might exist in the db.Dir path
-	clean := filepath.Clean(raw)
-
-	// remove db.Dir
-	index := strings.Index(clean, path.Db.Dir)
-	if index == 0 {
-		clean = strings.Replace(clean, path.Db.Dir+"/", "", 1)
-	}
-
-	// split into parts
-	parts := strings.Split(clean, "/")
-	if len(parts) < 2 {
-		panic(fmt.Errorf("malformed path: %s", raw))
-	}
-	path.Class = parts[0]
-	if path.Class == "stream" {
-		path.Label = filepath.Join(parts[1:]...)
-		path.Rel = filepath.Join(path.Class, path.Label)
-		path.Abs = filepath.Join(path.Db.Dir, path.Rel)
-		path.Canon = path.Rel
-	} else {
-		if len(parts) < 3 {
-			panic(fmt.Errorf("malformed path: %s", raw))
-		}
-		path.Algo = parts[1]
-		// the last part of the path should always be the full hash,
-		// regardless of whether we were given the full or canonical
-		// path
-		path.Hash = parts[len(parts)-1]
-		// log.Debugf("anypath %#v class %#v algo %#v hash %#v", anypath, class, algo, hash)
-
-		// Rel is the relative path of any type of input path.  We
-		// use the nesting depth described in the Db comments.  We use the
-		// full hash value in the last component of the path in order to make
-		// troubleshooting using UNIX tools slightly easier (in contrast to
-		// the way git truncates the leading subdir parts of the hash).
-		var subpath string
-		for i := 0; i < path.Db.Depth; i++ {
-			subdir := path.Hash[(3 * i):((3 * i) + 3)]
-			subpath = filepath.Join(subpath, subdir)
-		}
-		path.Rel = filepath.Join(path.Class, path.Algo, subpath, path.Hash)
-		path.Abs = filepath.Join(path.Db.Dir, path.Rel)
-		path.Canon = filepath.Join(path.Class, path.Algo, path.Hash)
-		// Addr is a universally-unique address for the data stored at path.
-		path.Addr = filepath.Join(path.Algo, path.Hash)
-	}
-
-	return &path
 }
 
 /*
