@@ -52,6 +52,7 @@ x start RFC 3 with the above
 - clean up test directories
 - spike non-trivial dsl
     - might need a stable db for this somewhere
+    - good candidate would be `harness`
 - make a tool to make hash updates easier
 - merge ./blob and ./tree directories?  
 - further research:
