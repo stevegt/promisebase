@@ -1026,9 +1026,8 @@ func (tree *Tree) loadEntries() (err error) {
 		content = append(content, buf...)
 		content = append(content, '\n')
 	}
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
+	err = scanner.Err()
+	Ck(err)
 
 	tree.entries = &entries
 
