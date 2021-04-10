@@ -45,9 +45,9 @@ x our goal isn't to keep two pieces of data from hashing to the same
       Mallory's attack by simply prepending the word "blob" on every
       blob before hashing it, for instance.  I think."
 x start RFC 3 with the above
-- split into multiple files or packages
+x split into multiple files or packages
     x close out `streaming`, make a new `split` branch
-    - db, tree, stream, blob, and util
+    x db, tree, stream, blob, and util
     - tests also
 - clean up test directories
 - spike non-trivial dsl
