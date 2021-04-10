@@ -54,10 +54,14 @@ x split into multiple files or packages
     - might need a stable db for this somewhere
     - good candidate would be `harness`
 - make a tool to make hash updates easier
+    - `pb mv`
+    - `pb mkpath` 
+    - `pb mksubst old new` - generate perl regex 
 - merge ./blob and ./tree directories?  
 - further research:
     - rainbow tables https://en.wikipedia.org/wiki/Rainbow_table#Precomputed_hash_chains
 - unexport things that don't need exporting
+- clean up golint and errcheck
 - continue improving coverage
 - revisit filepath.Join() vs anywhere we really want forward-slashes
 - start writing test cases for possible next layer to prove or disprove the following
