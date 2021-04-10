@@ -8,6 +8,55 @@ import (
 	"testing"
 )
 
+// randStream supports the io.Reader interface -- see the RandStream
+// function for usage.
+type randStream struct {
+	Size    int64
+	nextPos int64
+}
+
+func (s *randStream) Read(p []byte) (n int, err error) {
+	start := s.nextPos
+	if start >= s.Size {
+		err = io.EOF
+		return
+	}
+	end := start + int64(len(p))
+	if end > s.Size {
+		// We need to limit the total bytes read from the stream so
+		// that we don't return more than Size.  There may be a better
+		// way of doing this, but in the meantime, on the last Read(),
+		// we'll create a smaller buffer than p, write into that, and
+		// then copy to p.
+		buf := make([]byte, s.Size-start)
+		_, err = rand.Read(buf)
+		if err != nil {
+			return
+		}
+		n = copy(p, buf)
+	} else {
+		n, err = rand.Read(p)
+	}
+	s.nextPos += int64(n)
+	return
+}
+
+// RandStream supports the io.Reader interface.  It returns a stream
+// that will produce `size` bytes of random data before EOF.
+func RandStream(size int64) (stream *randStream) {
+	stream = &randStream{Size: size}
+	rand.Seed(42)
+	return
+}
+
+func TestRandStream(t *testing.T) {
+	size := int64(10 * miB)
+	stream := RandStream(size)
+	buf, err := ioutil.ReadAll(stream)
+	tassert(t, err == nil, "ReadAll: %v", err)
+	tassert(t, size == int64(len(buf)), "size: expected %d got %d", size, len(buf))
+}
+
 func TestTreeStream(t *testing.T) {
 	db := setup(t)
 
@@ -132,52 +181,3 @@ func TestStream(t *testing.T) {
 
 }
 */
-
-// randStream supports the io.Reader interface -- see the RandStream
-// function for usage.
-type randStream struct {
-	Size    int64
-	nextPos int64
-}
-
-func (s *randStream) Read(p []byte) (n int, err error) {
-	start := s.nextPos
-	if start >= s.Size {
-		err = io.EOF
-		return
-	}
-	end := start + int64(len(p))
-	if end > s.Size {
-		// We need to limit the total bytes read from the stream so
-		// that we don't return more than Size.  There may be a better
-		// way of doing this, but in the meantime, on the last Read(),
-		// we'll create a smaller buffer than p, write into that, and
-		// then copy to p.
-		buf := make([]byte, s.Size-start)
-		_, err = rand.Read(buf)
-		if err != nil {
-			return
-		}
-		n = copy(p, buf)
-	} else {
-		n, err = rand.Read(p)
-	}
-	s.nextPos += int64(n)
-	return
-}
-
-// RandStream supports the io.Reader interface.  It returns a stream
-// that will produce `size` bytes of random data before EOF.
-func RandStream(size int64) (stream *randStream) {
-	stream = &randStream{Size: size}
-	rand.Seed(42)
-	return
-}
-
-func TestRandStream(t *testing.T) {
-	size := int64(10 * miB)
-	stream := RandStream(size)
-	buf, err := ioutil.ReadAll(stream)
-	tassert(t, err == nil, "ReadAll: %v", err)
-	tassert(t, size == int64(len(buf)), "size: expected %d got %d", size, len(buf))
-}

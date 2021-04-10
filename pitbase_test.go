@@ -13,15 +13,32 @@ import (
 	. "github.com/stevegt/goadapt"
 )
 
-// test boolean condition
-func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
-	t.Helper() // cause file:line info to show caller
-	if !cond {
-		t.Fatalf(txt, args...)
-	}
+var testDbDir string
+
+func asString(input interface{}) (out string) {
+	out = fmt.Sprintf("%v", input)
+	return
 }
 
-var testDbDir string
+func deepEqual(a, b interface{}) bool {
+	// fmt.Printf("a:\n%s\nb:\n%s\n", pretty(a), pretty(b))
+	return pretty(a) == pretty(b)
+}
+
+func mkbuf(s string) []byte {
+	tmp := []byte(s)
+	return tmp
+}
+
+/*
+func mkpath(t *testing.T, db *Db, class, s string) (path *Path) {
+	path, err := pathFromString(db, class, "sha256", s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return
+}
+*/
 
 func newdb(db *Db) *Db {
 
@@ -47,26 +64,6 @@ func newdb(db *Db) *Db {
 	return db
 }
 
-func setup(t *testing.T) (db *Db) {
-	db, err := Open(testDbDir)
-	if err != nil {
-		log.Printf("db err: %v", err)
-		t.Fatal(err)
-	}
-	tassert(t, db != nil, "db is nil")
-	return
-}
-
-func TestMain(m *testing.M) {
-
-	newdb(nil)
-	rc := m.Run()
-	if rc == 0 {
-		// XXX rmdb()
-	}
-	os.Exit(rc)
-}
-
 func nonMissingErr(err error) error {
 	switch err.(type) {
 	case *os.PathError:
@@ -77,20 +74,78 @@ func nonMissingErr(err error) error {
 	return err
 }
 
-func mkbuf(s string) []byte {
-	tmp := []byte(s)
-	return tmp
+// an example of how an Object might be used
+func objectExample(t *testing.T, o Object) {
+
+	abspath := o.GetPath().Abs
+	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
+	// fmt.Printf("object path %s\n", abspath)
+
+	size, err := o.Size()
+	tassert(t, err == nil, "Blob.Size() size %d err %v", size, err)
+	// fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon, size)
 }
 
-/*
-func mkpath(t *testing.T, db *Db, class, s string) (path *Path) {
-	path, err := pathFromString(db, class, "sha256", s)
-	if err != nil {
-		t.Fatal(err)
+func objs2str(objects []Object) (out string) {
+	for _, obj := range objects {
+		line := string(obj.GetPath().Canon)
+		line = strings.TrimSpace(line) + "\n"
+		out += line
 	}
 	return
 }
-*/
+
+func pathEqual(a, b *Path) bool {
+	return a.Rel == b.Rel && a.Canon == b.Canon
+}
+
+func pathFromBuf(db *Db, class string, algo string, buf []byte) (path *Path, err error) {
+	b := append([]byte(class+"\n"), buf...)
+	binhash, err := Hash(algo, b)
+	if err != nil {
+		return
+	}
+	hash := bin2hex(binhash)
+	path = Path{}.New(db, filepath.Join(class, algo, hash))
+	return
+}
+
+// XXX deprecate
+func pathFromString(db *Db, class, algo, s string) (path *Path, err error) {
+	buf := []byte(s)
+	return pathFromBuf(db, class, algo, buf)
+}
+
+func setup(t *testing.T) (db *Db) {
+	db, err := Open(testDbDir)
+	if err != nil {
+		log.Printf("db err: %v", err)
+		t.Fatal(err)
+	}
+	tassert(t, db != nil, "db is nil")
+	return
+}
+
+func shell(path string, args ...string) (out []byte, err error) {
+	cmd := exec.Command(path, args...)
+	out, err = cmd.CombinedOutput()
+	return
+}
+
+// test boolean condition
+func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
+	t.Helper() // cause file:line info to show caller
+	if !cond {
+		t.Fatalf(txt, args...)
+	}
+}
+
+func TestGetGID(t *testing.T) {
+	n := GetGID()
+	if n == 0 {
+		t.Fatalf("oh no n is 0")
+	}
+}
 
 func TestHash(t *testing.T) {
 	val := mkbuf("somevalue")
@@ -120,25 +175,22 @@ func TestHash(t *testing.T) {
 	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
 }
 
-// an example of how an Object might be used
-func objectExample(t *testing.T, o Object) {
+func TestMain(m *testing.M) {
 
-	abspath := o.GetPath().Abs
-	tassert(t, len(abspath) > 0, "path len %v", len(abspath))
-	// fmt.Printf("object path %s\n", abspath)
-
-	size, err := o.Size()
-	tassert(t, err == nil, "Blob.Size() size %d err %v", size, err)
-	// fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon, size)
+	newdb(nil)
+	rc := m.Run()
+	if rc == 0 {
+		// XXX rmdb()
+	}
+	os.Exit(rc)
 }
 
-func pathEqual(a, b *Path) bool {
-	return a.Rel == b.Rel && a.Canon == b.Canon
-}
-
-func deepEqual(a, b interface{}) bool {
-	// fmt.Printf("a:\n%s\nb:\n%s\n", pretty(a), pretty(b))
-	return pretty(a) == pretty(b)
+// XXX add chattr for failure test
+func TestMkdir(t *testing.T) {
+	err := mkdir("/etc/foobar")
+	if err == nil {
+		t.Fatal("expected error, got none")
+	}
 }
 
 /*
@@ -156,55 +208,3 @@ func TestPath(t *testing.T) {
 	}
 }
 */
-
-func TestGetGID(t *testing.T) {
-	n := GetGID()
-	if n == 0 {
-		t.Fatalf("oh no n is 0")
-	}
-}
-
-// XXX add chattr for failure test
-func TestMkdir(t *testing.T) {
-	err := mkdir("/etc/foobar")
-	if err == nil {
-		t.Fatal("expected error, got none")
-	}
-}
-
-// XXX deprecate
-func pathFromString(db *Db, class, algo, s string) (path *Path, err error) {
-	buf := []byte(s)
-	return pathFromBuf(db, class, algo, buf)
-}
-
-func pathFromBuf(db *Db, class string, algo string, buf []byte) (path *Path, err error) {
-	b := append([]byte(class+"\n"), buf...)
-	binhash, err := Hash(algo, b)
-	if err != nil {
-		return
-	}
-	hash := bin2hex(binhash)
-	path = Path{}.New(db, filepath.Join(class, algo, hash))
-	return
-}
-
-func objs2str(objects []Object) (out string) {
-	for _, obj := range objects {
-		line := string(obj.GetPath().Canon)
-		line = strings.TrimSpace(line) + "\n"
-		out += line
-	}
-	return
-}
-
-func asString(input interface{}) (out string) {
-	out = fmt.Sprintf("%v", input)
-	return
-}
-
-func shell(path string, args ...string) (out []byte, err error) {
-	cmd := exec.Command(path, args...)
-	out, err = cmd.CombinedOutput()
-	return
-}

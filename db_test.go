@@ -5,23 +5,6 @@ import (
 	"testing"
 )
 
-func TestRm(t *testing.T) {
-	db := setup(t)
-	buf := mkbuf("somevalue")
-	blob, err := db.PutBlob("sha256", buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = db.Rm(blob.Path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotblob, err := db.GetBlob(blob.Path)
-	if err == nil {
-		t.Fatalf("blob not deleted: %#v", gotblob)
-	}
-}
-
 func TestGetBlob(t *testing.T) {
 	db := setup(t)
 	val := mkbuf("somevalue")
@@ -42,5 +25,22 @@ func TestGetBlob(t *testing.T) {
 	}
 	if bytes.Compare(val, got) != 0 {
 		t.Fatalf("expected %q, got %q", string(val), string(got))
+	}
+}
+
+func TestRm(t *testing.T) {
+	db := setup(t)
+	buf := mkbuf("somevalue")
+	blob, err := db.PutBlob("sha256", buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = db.Rm(blob.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotblob, err := db.GetBlob(blob.Path)
+	if err == nil {
+		t.Fatalf("blob not deleted: %#v", gotblob)
 	}
 }
