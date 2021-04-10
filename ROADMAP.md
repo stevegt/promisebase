@@ -48,7 +48,7 @@ x start RFC 3 with the above
 x split into multiple files or packages
     x close out `streaming`, make a new `split` branch
     x db, tree, stream, blob, and util
-    - tests also
+    x tests also
 - clean up test directories
 - spike non-trivial dsl
     - might need a stable db for this somewhere
