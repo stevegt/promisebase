@@ -50,14 +50,38 @@ x split into multiple files or packages
     x db, tree, stream, blob, and util
     x tests also
 - clean up test directories
-- spike non-trivial dsl
-    - might need a stable db for this somewhere
-    - good candidate would be `harness`
+- spike pit
+    - disk is network
+    - accounting
+    - unix authentication
+    - move stream to trader?
+    - XXX
+- spike network layer
+    - daemon
+    - unix domain socket, stream mode
+    - broker
+- non-trivial dsl spike candidates:
+    - `harness`
+        - calls docker 
+        - spike objfault handler
+    - VCS
+        - needs stable db 
+    - RFC
+        - needs stable db 
+    - upper layer DSL (accounting, network, or market)
+        - needs distro db -- could bootstrap via go:embed
+        - we implement syscall-like primitives in Go, upper layers in DSL
+            - fork -- run container with config and args
+            - pull -- fetch object from remote
+            - 
+            - commit -- add transaction to ledger
 - make a tool to make hash updates easier
     - `pb mv`
     - `pb mkpath` 
     - `pb mksubst old new` - generate perl regex 
 - merge ./blob and ./tree directories?  
+- move stream to a higher layer, move ./stream to caller's disk space?
+    - otherwise pitbase needs to auth&auth
 - further research:
     - rainbow tables https://en.wikipedia.org/wiki/Rainbow_table#Precomputed_hash_chains
 - unexport things that don't need exporting
