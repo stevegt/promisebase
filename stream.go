@@ -14,10 +14,11 @@ import (
 // market operations, and redefine `address` to include blobs as well
 // as trees.
 type Stream struct {
-	Db          *Db
-	RootNode    *Tree
-	Label       string
-	Path        *Path
+	Db       *Db
+	RootNode *Tree
+	Label    string
+	Path     *Path
+	// the following are to support stream.Seek() XXX but it's not implemented yet
 	chunker     *Rabin
 	currentBlob *Blob
 	posInBlob   int64
@@ -56,6 +57,7 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 
 // Cat concatenates all of the leaf node content in World and returns
 // it as a pointer to a byte slice.
+// XXX return io.Reader instead of buf
 func (stream *Stream) Cat() (buf []byte, err error) {
 	return stream.RootNode.Cat()
 }
@@ -65,6 +67,7 @@ func (stream *Stream) Cat() (buf []byte, err error) {
 func (stream *Stream) Ls(all bool) (objects []Object, err error) {
 	// XXX this should be a generator, to prevent memory consumption
 	// with large trees
+	// XXX should be passthrough to tree.Ls()
 	return stream.RootNode.traverse(all)
 }
 

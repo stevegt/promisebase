@@ -46,7 +46,7 @@ func (tree *Tree) AppendBlob(algo string, buf []byte) (newrootnode *Tree, err er
 
 // Cat concatenates all of the leaf node content in node's tree and returns
 // it all as a pointer to a byte slice.
-// XXX rework for streaming
+// XXX return io.Reader instead of buf
 func (tree *Tree) Cat() (buf []byte, err error) {
 	defer Return(&err)
 
