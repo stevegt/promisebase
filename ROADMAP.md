@@ -50,16 +50,34 @@ x split into multiple files or packages
     x db, tree, stream, blob, and util
     x tests also
 - clean up test directories
-- spike pit
-    - disk is network
-    - accounting
-    - unix authentication
-    - move stream to trader?
-    - XXX
+- make this work:
+
+```
+    host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-export.tar 
+    stream/ubuntu -> tree/sha256/0ebd5d411223e3777db972163a60aa2f45c386db5c2353978e95fabdd1b08b08
+    host2 $ pb run --rm -it sha256/0ebd5d411223e3777db972163a60aa2f45c386db5c2353978e95fabdd1b08b08 echo hello
+    hello
+```
+
 - spike network layer
     - daemon
     - unix domain socket, stream mode
     - broker
+- move rfcs to:
+    - 0000 t7a
+    - 1000 pb/gdo
+    - 2000 cdint
+- start RFC 1004 -- auth&auth
+    - e.g. authorization by key fingerprint should be via encryption, not by us
+- spike pit
+    - accounting
+    - disk is network
+    - unix authentication
+        - this only makes sense if we also own /etc/passwd and /etc/group
+        - but access control is only needed in cases of data
+          purchase/xfer
+    - move stream to trader?
+    - XXX
 - non-trivial dsl spike candidates:
     - `harness`
         - calls docker 
@@ -73,7 +91,8 @@ x split into multiple files or packages
         - we implement syscall-like primitives in Go, upper layers in DSL
             - fork -- run container with config and args
             - pull -- fetch object from remote
-            - 
+            - push? probably ad or quote
+            - confirm?
             - commit -- add transaction to ledger
 - make a tool to make hash updates easier
     - `pb mv`
