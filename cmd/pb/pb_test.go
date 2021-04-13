@@ -18,7 +18,10 @@ func TestCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts.KeepRootDirs = true
+	debug := os.Getenv("DEBUG")
+	if debug == "1" {
+		ts.KeepRootDirs = true
+	}
 	srcdir, err := os.Getwd()
 	if err != nil {
 		panic(err)

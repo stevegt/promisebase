@@ -78,13 +78,13 @@ func TestChunker(t *testing.T) {
 
 func TestPutStreamBig(t *testing.T) {
 	stream := genstream(t, 100*miB)
-	db := newdb(nil)
+	db := setup(t, nil)
 	testPutStream(t, db, stream)
 }
 
 func TestPutStreamSmall(t *testing.T) {
 	stream := &testStream{Data: mkbuf("apple bob carol dave echo foxtrot golf hotel india juliet kilo lima mike november oscar pear something ")}
-	db := newdb(&Db{MinSize: 10, MaxSize: 20})
+	db := setup(t, &Db{MinSize: 10, MaxSize: 20})
 	testPutStream(t, db, stream)
 }
 

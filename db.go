@@ -31,6 +31,7 @@ type Db struct {
 }
 
 // Open loads an existing db object from dir.
+// XXX Open should be a db method
 func Open(dir string) (db *Db, err error) {
 	dir = filepath.Clean(dir)
 
@@ -73,6 +74,7 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 }
 
 // Create initializes a db directory and its contents
+// XXX Create should call Open
 func (db Db) Create() (out *Db, err error) {
 	defer Return(&err)
 

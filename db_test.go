@@ -6,7 +6,7 @@ import (
 )
 
 func TestGetBlob(t *testing.T) {
-	db := setup(t)
+	db := setup(t, nil)
 	val := mkbuf("somevalue")
 	path, err := pathFromBuf(db, "blob", "sha256", val)
 	if err != nil {
@@ -29,7 +29,7 @@ func TestGetBlob(t *testing.T) {
 }
 
 func TestRm(t *testing.T) {
-	db := setup(t)
+	db := setup(t, nil)
 	buf := mkbuf("somevalue")
 	blob, err := db.PutBlob("sha256", buf)
 	if err != nil {

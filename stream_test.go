@@ -58,7 +58,7 @@ func TestRandStream(t *testing.T) {
 }
 
 func TestTreeStream(t *testing.T) {
-	db := setup(t)
+	db := setup(t, nil)
 
 	// setup
 	buf1 := mkbuf("blob1value")

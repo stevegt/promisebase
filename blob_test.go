@@ -6,7 +6,7 @@ import (
 )
 
 func TestBlob(t *testing.T) {
-	db := setup(t)
+	db := setup(t, nil)
 
 	hash := "d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
 	canpath := "blob/sha256/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"

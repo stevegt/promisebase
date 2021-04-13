@@ -3,7 +3,6 @@ package pitbase
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +12,7 @@ import (
 	. "github.com/stevegt/goadapt"
 )
 
-var testDbDir string
+const testDbDirPrefix = "pitbase"
 
 func asString(input interface{}) (out string) {
 	out = fmt.Sprintf("%v", input)
@@ -39,30 +38,6 @@ func mkpath(t *testing.T, db *Db, class, s string) (path *Path) {
 	return
 }
 */
-
-func newdb(db *Db) *Db {
-
-	if db == nil {
-		db = &Db{}
-	}
-
-	// create Dir if needed
-	// (if db.Dir is already set, then assume the caller has done mkdir)
-	var err error
-	if db.Dir == "" {
-		db.Dir, err = ioutil.TempDir("", "pitbase")
-		Ck(err)
-	}
-	db, err = db.Create()
-	Ck(err)
-
-	// XXX test other depths
-	// db, err = Db{Depth: 4}.Create(dir)
-
-	fmt.Println(db.Dir)
-	testDbDir = db.Dir
-	return db
-}
 
 func nonMissingErr(err error) error {
 	switch err.(type) {
@@ -116,14 +91,37 @@ func pathFromString(db *Db, class, algo, s string) (path *Path, err error) {
 	return pathFromBuf(db, class, algo, buf)
 }
 
-func setup(t *testing.T) (db *Db) {
-	db, err := Open(testDbDir)
-	if err != nil {
-		log.Printf("db err: %v", err)
-		t.Fatal(err)
+func setup(t *testing.T, db *Db) *Db {
+	// XXX test other depths
+	// db, err = Db{Depth: 4}.Create(dir)
+
+	var err error
+	var dir string
+
+	if db == nil {
+		db = &Db{}
 	}
+	Assert(db.Dir == "")
+
+	debug := os.Getenv("DEBUG")
+	if debug == "1" {
+		dir, err = ioutil.TempDir("", testDbDirPrefix)
+		Ck(err)
+		fmt.Println(dir)
+		// no cleanup
+	} else {
+		dir = t.TempDir()
+		// automatically cleaned up
+	}
+	db.Dir = dir
+
+	db, err = db.Create()
+	Ck(err)
+	db, err = Open(dir)
+	Ck(err)
 	tassert(t, db != nil, "db is nil")
-	return
+
+	return db
 }
 
 func shell(path string, args ...string) (out []byte, err error) {
@@ -131,6 +129,25 @@ func shell(path string, args ...string) (out []byte, err error) {
 	out, err = cmd.CombinedOutput()
 	return
 }
+
+/*
+func rmdb(db *Db) {
+	// remove symlinks and '..'
+	dir, err := filepath.Abs(db.Dir)
+	Ck(err)
+	dir, err = filepath.EvalSymlinks(dir)
+	Ck(err)
+	// make sure dir starts with /tmp/pitbase*
+	Assert(len(testDbDirPrefix) > 0)
+	pattern := fmt.Sprintf("/tmp/%s*", testDbDirPrefix)
+	match, err := filepath.Match(pattern, dir)
+	Assert(err == nil, err)
+	Assert(match)
+	// rm -rf
+	err = os.RemoveAll(dir)
+	Ck(err)
+}
+*/
 
 // test boolean condition
 func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
@@ -175,15 +192,14 @@ func TestHash(t *testing.T) {
 	//tassert(t, err == expecterr, "expected %q got %q", err, expecterr)
 }
 
+/*
 func TestMain(m *testing.M) {
-
-	newdb(nil)
 	rc := m.Run()
 	if rc == 0 {
-		// XXX rmdb()
 	}
 	os.Exit(rc)
 }
+*/
 
 // XXX add chattr for failure test
 func TestMkdir(t *testing.T) {

@@ -3,7 +3,7 @@ package pitbase
 import "testing"
 
 func TestTree(t *testing.T) {
-	db := setup(t)
+	db := setup(t, nil)
 	// setup
 	buf1 := mkbuf("blob1value")
 	child1, err := db.PutBlob("sha256", buf1)
