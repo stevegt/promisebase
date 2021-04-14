@@ -71,8 +71,9 @@ func (tree Tree) Read(buf []byte) (n int, err error) {
 	default:
 		panic(fmt.Sprintf("unhandled type %T", entry))
 	}
-	Assert(false)
-	return
+	// unreachable, otherwise we would:
+	// Assert(false)
+	// return
 }
 
 // AppendBlob puts a blob in the database, appends it to the node's

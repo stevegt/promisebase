@@ -1,6 +1,11 @@
 package pitbase
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+
+	"github.com/hlubek/readercomp"
+)
 
 func TestTree(t *testing.T) {
 	db := setup(t, nil)
@@ -47,6 +52,63 @@ func TestTree(t *testing.T) {
 	}
 	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
 	tassert(t, tree.Txt() == gottree.Txt(), "tree %v mismatch: expect %v got %v", tree.Path.Abs, tree.Txt(), gottree.Txt())
+
+}
+
+func TestTreeRead(t *testing.T) {
+	db := setup(t, nil)
+
+	// setup
+	buf1 := mkbuf("blob1value")
+	blob1, err := db.PutBlob("sha256", buf1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf2 := mkbuf("blob2value")
+	blob2, err := db.PutBlob("sha256", buf2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf3 := mkbuf("blob3value")
+	blob3, err := db.PutBlob("sha256", buf3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// put
+	tree1, err := db.PutTree("sha256", blob1, blob2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree1 == nil {
+		t.Fatal("tree1 is nil")
+	}
+	tree2, err := db.PutTree("sha256", tree1, blob3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree2 == nil {
+		t.Fatal("tree2 is nil")
+	}
+
+	// read
+	file, err := File{}.New(db, tree2.Path)
+	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
+	t2 := Tree{}.New(db, file)
+	expect := bytes.NewReader([]byte("blob1valueblob2valueblob3value"))
+	ok, err := readercomp.Equal(expect, t2, 5) // XXX try different sizes
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "tree.Read mismatch")
+
+	// XXX test rewind
+	// XXX test seek
+
+	// file, err := File{}.New(db, tree2.Path)
+	// tassert(t, err == nil)
+	// rd, err := Tree{}.New(db, file)
+	// tassert(t, err == nil)
+	// ok, err := readercomp.Equal(src, cmp, 4096)
+
 }
 
 func TestVerify(t *testing.T) {
