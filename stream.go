@@ -18,10 +18,7 @@ type Stream struct {
 	RootNode *Tree
 	Label    string
 	Path     *Path
-	// the following are to support stream.Seek() XXX but it's not implemented yet
-	chunker     *Rabin
-	currentBlob *Blob
-	posInBlob   int64
+	// chunker     *Rabin
 }
 
 func (stream Stream) New(db *Db, label string, rootnode *Tree) *Stream {

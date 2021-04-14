@@ -3,10 +3,12 @@ package pitbase
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
 	"github.com/google/renameio"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	. "github.com/stevegt/goadapt"
 )
@@ -15,13 +17,52 @@ import (
 type Tree struct {
 	Db *Db
 	*File
-	entries *[]Object
+	entries      *[]Object // XXX shouldn't this be a slice of pointers instead?
+	currentEntry int64
+	posInBlob    int64
 }
 
 func (tree Tree) New(db *Db, file *File) *Tree {
 	tree.Db = db
 	tree.File = file
 	return &tree
+}
+
+// Read fills buf with the next chunk of data from tree's leaf nodes,
+// recursing as needed to reach all the leaf nodes.
+func (tree Tree) Read(buf []byte) (n int, err error) {
+	defer Return(&err)
+	// objects, err := tree.traverse(false)
+	// Ck(err)
+
+	if tree.currentEntry >= len(tree.entries) {
+		return
+	}
+
+	// iterate over tree.entries
+	obj := tree.entries[tree.currentEntry]
+	switch entry := obj.(type) {
+	case *Tree:
+		// if entry is a tree, then recurse
+		tree.currentEntry++
+		return entry.Read(buf)
+	case *Blob:
+		_, err := entry.Seek(tree.posInBlob, 0)
+		Ck(err)
+		n, err = entry.Read(buf)
+		if errors.Cause(err) == io.EOF {
+			tree.currentEntry++
+			XXX
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+	default:
+		panic(fmt.Sprintf("unhandled type %T", child))
+	}
+
+	// else, fill buf and save our position in posInBlob
 }
 
 // AppendBlob puts a blob in the database, appends it to the node's

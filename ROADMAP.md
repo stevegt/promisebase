@@ -49,7 +49,7 @@ x split into multiple files or packages
     x close out `streaming`, make a new `split` branch
     x db, tree, stream, blob, and util
     x tests also
-- clean up test directories
+x clean up test directories
 - clean up streaming enough to support `pb run`
 - make this work:
 
