@@ -44,32 +44,35 @@ func (tree Tree) Read(buf []byte) (n int, err error) {
 	// implementing a state machine in the following switch{}, using
 	// tree.currentEntry and tree.posInBlob to track current state as
 	// we traverse the tree.
-	if tree.currentEntry >= len(tree.entries) {
+	if tree.currentEntry >= int64(len(*tree.entries)) {
 		return
 	}
-	obj := tree.entries[tree.currentEntry]
+	obj := (*tree.entries)[tree.currentEntry]
 	switch entry := obj.(type) {
 	case *Tree:
 		// if entry is a tree, then recurse
 		tree.currentEntry++
+		Assert(tree.posInBlob == 0)
 		return entry.Read(buf)
 	case *Blob:
-		_, err := entry.Seek(tree.posInBlob, 0)
+		// else, load bytes into buf and save our position in posInBlob
+		_, err = entry.Seek(tree.posInBlob, 0)
 		Ck(err)
 		n, err = entry.Read(buf)
 		if errors.Cause(err) == io.EOF {
 			tree.currentEntry++
-			XXX
-			break
+			tree.posInBlob = 0
+			return
 		}
-		if err != nil {
-			return nil, err
-		}
+		Ck(err)
+		// there is still more to read from current blob
+		tree.posInBlob += int64(n)
+		return
 	default:
-		panic(fmt.Sprintf("unhandled type %T", child))
+		panic(fmt.Sprintf("unhandled type %T", entry))
 	}
-
-	// else, fill buf and save our position in posInBlob
+	Assert(false)
+	return
 }
 
 // AppendBlob puts a blob in the database, appends it to the node's
