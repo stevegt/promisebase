@@ -19,7 +19,6 @@ type Tree struct {
 	*File
 	_entries     []Object
 	currentEntry int64
-	posInBlob    int64
 }
 
 func (tree Tree) New(db *Db, file *File) *Tree {
@@ -40,7 +39,7 @@ func (tree *Tree) Entries() []Object {
 
 // Read fills buf with the next chunk of data from tree's leaf nodes,
 // recursing as needed to reach all the leaf nodes.
-func (tree Tree) Read(buf []byte) (n int, err error) {
+func (tree *Tree) Read(buf []byte) (n int, err error) {
 	defer Return(&err)
 	// objects, err := tree.traverse(false)
 	// Ck(err)
@@ -55,35 +54,19 @@ func (tree Tree) Read(buf []byte) (n int, err error) {
 	// tree.currentEntry and tree.posInBlob to track current state as
 	// we traverse the tree.
 	if tree.currentEntry >= int64(len(tree.Entries())) {
-		return
+		return 0, io.EOF
 	}
+
 	obj := (tree.Entries())[tree.currentEntry]
-	switch entry := obj.(type) {
-	case *Tree:
-		// if entry is a tree, then recurse
+	n, err = obj.Read(buf)
+	if errors.Cause(err) == io.EOF {
 		tree.currentEntry++
-		Assert(tree.posInBlob == 0)
-		return entry.Read(buf)
-	case *Blob:
-		// else, load bytes into buf and save our position in posInBlob
-		_, err = entry.Seek(tree.posInBlob, 0)
-		Ck(err)
-		n, err = entry.Read(buf)
-		if errors.Cause(err) == io.EOF {
-			tree.currentEntry++
-			tree.posInBlob = 0
-			return
-		}
-		Ck(err)
-		// there is still more to read from current blob
-		tree.posInBlob += int64(n)
-		return
-	default:
-		panic(fmt.Sprintf("unhandled type %T", entry))
+		Assert(n == 0)
+		return 0, nil
 	}
-	// unreachable, otherwise we would:
-	// Assert(false)
-	// return
+	Ck(err)
+
+	return
 }
 
 // AppendBlob puts a blob in the database, appends it to the node's

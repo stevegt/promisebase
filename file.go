@@ -63,7 +63,7 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 func (file *File) ckopen() (err error) {
 	defer Return(&err)
 
-	if file.fh != nil {
+	if file.IsOpen() {
 		return
 	}
 	if !file.Readonly {
@@ -99,6 +99,7 @@ func (file *File) ckopen() (err error) {
 func (file *File) Close() (err error) {
 	if file.Readonly {
 		err = file.fh.Close()
+		file.fh = nil
 		return
 	}
 
@@ -132,15 +133,21 @@ func (file *File) Close() (err error) {
 		return
 	}
 
+	file.fh = nil
 	return
 }
 
+func (file *File) IsOpen() (ok bool) {
+	if file.fh == nil {
+		return false
+	}
+	_, err := file.fh.Seek(0, io.SeekCurrent)
+	// _, nok := err.(*fs.PathError)
+	return err == nil
+}
+
 // Read reads from the file and puts the data into `buf`, returning n
-// as the number of bytes read.  If `buf` is too small to fit all of
-// the data, we update b.pos so the next Read() can continue where we
-// left off.  Returns io.EOF err when all data has already been
-// returned by previous Read() calls.  Supports the io.Reader
-// interface.
+// as the number of bytes read.  Supports the io.Reader interface.
 func (file *File) Read(buf []byte) (n int, err error) {
 	defer Return(&err)
 	file.Readonly = true

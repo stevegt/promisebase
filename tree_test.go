@@ -2,6 +2,7 @@ package pitbase
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/hlubek/readercomp"
@@ -91,23 +92,37 @@ func TestTreeRead(t *testing.T) {
 		t.Fatal("tree2 is nil")
 	}
 
-	// read
+	expect := []byte("blob1valueblob2valueblob3value")
+
+	// read explicitly
 	file, err := File{}.New(db, tree2.Path)
 	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
-	t2 := Tree{}.New(db, file)
-	expect := bytes.NewReader([]byte("blob1valueblob2valueblob3value"))
-	ok, err := readercomp.Equal(expect, t2, 5) // XXX try different sizes
+	tree2a := Tree{}.New(db, file)
+	gotbuf := make([]byte, 99)
+	gotbufn := 0
+	for i := 0; i < 99; i++ {
+		n, err := tree2a.Read(gotbuf[gotbufn:len(gotbuf)])
+		if err == io.EOF {
+			tassert(t, n == 0, "n %v", n)
+			break
+		}
+		tassert(t, err == nil, "err %#v", err)
+		gotbufn += n
+	}
+	tassert(t, len(expect) == gotbufn, "expect %v got %v", len(expect), gotbufn)
+	tassert(t, bytes.Compare(expect, gotbuf[:gotbufn]) == 0, "expect %q got %q", string(expect), string(gotbuf[:gotbufn]))
+
+	// read as stream
+	file, err = File{}.New(db, tree2.Path)
+	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
+	tree2b := Tree{}.New(db, file)
+	expectrd := bytes.NewReader(expect)
+	ok, err := readercomp.Equal(expectrd, tree2b, 5) // XXX try different sizes
 	tassert(t, err == nil, "readercomp.Equal: %v", err)
 	tassert(t, ok, "tree.Read mismatch")
 
 	// XXX test rewind
 	// XXX test seek
-
-	// file, err := File{}.New(db, tree2.Path)
-	// tassert(t, err == nil)
-	// rd, err := Tree{}.New(db, file)
-	// tassert(t, err == nil)
-	// ok, err := readercomp.Equal(src, cmp, 4096)
 
 }
 

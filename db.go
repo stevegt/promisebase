@@ -278,9 +278,11 @@ func (db *Db) PutTree(algo string, children ...Object) (tree *Tree, err error) {
 	Ck(err)
 	tree = Tree{}.New(db, file)
 
-	// concatenate all relpaths together (include the full canpath with
-	// the 'blob/' or 'tree/' prefix to help protect against preimage
-	// attacks)
+	// populate the entries field (this is a write of a new tree, so
+	// we can't call loadEntries() here)
+	tree._entries = children
+
+	// concatenate entry paths together
 	// XXX refactor for streaming
 	buf := []byte(tree.Txt())
 
