@@ -52,11 +52,17 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 
 }
 
+/*
 // Cat concatenates all of the leaf node content in World and returns
 // it as a pointer to a byte slice.
 // XXX return io.Reader instead of buf
 func (stream *Stream) Cat() (buf []byte, err error) {
 	return stream.RootNode.Cat()
+}
+*/
+
+func (stream *Stream) Read(buf []byte) (n int, err error) {
+	return stream.RootNode.Read(buf)
 }
 
 // Ls lists all of the leaf nodes in a stream and optionally both

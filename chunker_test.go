@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/hlubek/readercomp"
 	"github.com/pkg/errors"
 )
 
@@ -77,18 +78,19 @@ func TestChunker(t *testing.T) {
 }
 
 func TestPutStreamBig(t *testing.T) {
-	stream := genstream(t, 100*miB)
+	stream := RandStream(100 * miB)
 	db := setup(t, nil)
 	testPutStream(t, db, stream)
 }
 
 func TestPutStreamSmall(t *testing.T) {
-	stream := &testStream{Data: mkbuf("apple bob carol dave echo foxtrot golf hotel india juliet kilo lima mike november oscar pear something ")}
+	// stream := &testStream{Data: mkbuf("apple bob carol dave echo foxtrot golf hotel india juliet kilo lima mike november oscar pear something ")}
+	stream := RandStream(100)
 	db := setup(t, &Db{MinSize: 10, MaxSize: 20})
 	testPutStream(t, db, stream)
 }
 
-func testPutStream(t *testing.T, db *Db, stream *testStream) {
+func testPutStream(t *testing.T, db *Db, stream *randStream) {
 
 	tree, err := db.PutStream("sha256", stream)
 	tassert(t, err == nil, "PutStream(): %v", err)
@@ -96,14 +98,12 @@ func testPutStream(t *testing.T, db *Db, stream *testStream) {
 
 	// fmt.Printf("root %s\n", tree.Path.Abs)
 
-	gotbuf, err := tree.Cat()
-	tassert(t, err == nil, "tree.Cat(): %v", err)
-
-	if len(stream.Data) < 200 && len(gotbuf) < 200 {
-		tassert(t, bytes.Compare(stream.Data, gotbuf) == 0, "expected %v\n=================\ngot %v", string(stream.Data), string(gotbuf))
-	}
-	tassert(t, len(stream.Data) == len(gotbuf), "size: expected %d got %d", len(stream.Data), len(gotbuf))
-	tassert(t, bytes.Compare(stream.Data, gotbuf) == 0, "stream vs. gotbuf mismatch")
+	// expectrd := bytes.NewReader(expect)
+	stream.Rewind()
+	tassert(t, err == nil, "rewind: %v", err)
+	ok, err := readercomp.Equal(stream, tree, 4096) // XXX try different sizes
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "stream mismatch")
 
 }
 

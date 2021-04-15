@@ -41,18 +41,7 @@ func (tree *Tree) Entries() []Object {
 // recursing as needed to reach all the leaf nodes.
 func (tree *Tree) Read(buf []byte) (n int, err error) {
 	defer Return(&err)
-	// objects, err := tree.traverse(false)
-	// Ck(err)
 
-	// Iterate over tree.entries:
-	//
-	// We are typically called repeatedly from within a caller's for{}
-	// loop.  But we need to act like a nested set of for{} loops
-	// instead; one loop to track current blob and another loop to
-	// track seek() position in the blob.  We accomplish this by
-	// implementing a state machine in the following switch{}, using
-	// tree.currentEntry and tree.posInBlob to track current state as
-	// we traverse the tree.
 	if tree.currentEntry >= int64(len(tree.Entries())) {
 		return 0, io.EOF
 	}
@@ -89,10 +78,11 @@ func (tree *Tree) AppendBlob(algo string, buf []byte) (newrootnode *Tree, err er
 	return
 }
 
+/*
 // Cat concatenates all of the leaf node content in node's tree and returns
 // it all as a pointer to a byte slice.
 // XXX return io.Reader instead of buf
-func (tree *Tree) Cat() (buf []byte, err error) {
+func (tree *Tree) XXXCat() (buf []byte, err error) {
 	defer Return(&err)
 
 	// db := tree.Db
@@ -119,6 +109,7 @@ func (tree *Tree) Cat() (buf []byte, err error) {
 	}
 	return
 }
+*/
 
 func (tree *Tree) GetPath() *Path {
 	return tree.Path

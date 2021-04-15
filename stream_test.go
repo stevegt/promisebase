@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"testing"
+
+	"github.com/hlubek/readercomp"
 )
 
 // randStream supports the io.Reader interface -- see the RandStream
@@ -39,6 +41,11 @@ func (s *randStream) Read(p []byte) (n int, err error) {
 	}
 	s.nextPos += int64(n)
 	return
+}
+
+func (rs *randStream) Rewind() {
+	rs = &randStream{Size: rs.Size}
+	rand.Seed(42)
 }
 
 // RandStream supports the io.Reader interface.  It returns a stream
@@ -123,6 +130,13 @@ func TestTreeStream(t *testing.T) {
 
 	gotobjs = objs2str(objects)
 	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
+
+	// expectrd := bytes.NewReader(expect)
+	stream1.Rewind()
+	tassert(t, err == nil, "rewind: %v", err)
+	ok, err := readercomp.Equal(stream, tree, 4096) // XXX try different sizes
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "stream mismatch")
 
 	// catstream
 	gotbuf, err := stream1.Cat()

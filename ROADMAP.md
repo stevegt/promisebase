@@ -51,7 +51,7 @@ x split into multiple files or packages
     x tests also
 x clean up test directories
 - clean up streaming enough to support `pb run`
-    - write test case for tree.Read()
+    x write test case for tree.Read()
     - convert tree.Cat() and stream.Cat()
     - look around for anywhere else a buf is being returned
 - make this work:
