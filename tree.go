@@ -17,7 +17,7 @@ import (
 type Tree struct {
 	Db *Db
 	*File
-	entries      *[]Object // XXX shouldn't this be a slice of pointers instead?
+	_entries     []Object
 	currentEntry int64
 	posInBlob    int64
 }
@@ -26,6 +26,16 @@ func (tree Tree) New(db *Db, file *File) *Tree {
 	tree.Db = db
 	tree.File = file
 	return &tree
+}
+
+func (tree *Tree) Entries() []Object {
+	if tree._entries == nil {
+		err := tree.loadEntries()
+		// we might panic here
+		// it's up to callers to recover() if they want to continue operation
+		Ck(err)
+	}
+	return tree._entries
 }
 
 // Read fills buf with the next chunk of data from tree's leaf nodes,
@@ -44,10 +54,10 @@ func (tree Tree) Read(buf []byte) (n int, err error) {
 	// implementing a state machine in the following switch{}, using
 	// tree.currentEntry and tree.posInBlob to track current state as
 	// we traverse the tree.
-	if tree.currentEntry >= int64(len(*tree.entries)) {
+	if tree.currentEntry >= int64(len(tree.Entries())) {
 		return
 	}
-	obj := (*tree.entries)[tree.currentEntry]
+	obj := (tree.Entries())[tree.currentEntry]
 	switch entry := obj.(type) {
 	case *Tree:
 		// if entry is a tree, then recurse
@@ -151,6 +161,10 @@ func (tree *Tree) loadEntries() (err error) {
 	defer Return(&err)
 
 	Assert(tree.File != nil)
+	Assert(tree.File.Path != nil)
+	if tree.File.Path.Abs == "" {
+		return
+	}
 	file := tree.File
 	scanner := bufio.NewScanner(file)
 	var content []byte
@@ -169,9 +183,9 @@ func (tree *Tree) loadEntries() (err error) {
 		content = append(content, '\n')
 	}
 	err = scanner.Err()
-	Ck(err)
+	Ck(err, "%v: %q", err, file.Path.Abs)
 
-	tree.entries = &entries
+	tree._entries = entries
 
 	/*
 		// XXX merge this with Verify
@@ -191,13 +205,12 @@ func (tree *Tree) loadEntries() (err error) {
 		}
 	*/
 
-	log.Debugf("getTree tree.entries %#v", tree.entries)
 	return
 }
 
 // Txt returns the concatenated tree entries
 func (tree *Tree) Txt() (out string) {
-	for _, entry := range *tree.entries {
+	for _, entry := range tree.Entries() {
 		out += strings.TrimSpace(entry.GetPath().Canon) + "\n"
 	}
 	return
@@ -247,17 +260,12 @@ func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 		tree.File = file
 	}
 
-	if tree.entries == nil {
-		err = tree.loadEntries()
-		Ck(err)
-	}
-
 	if all {
 		objects = append(objects, tree)
 	}
 
 	log.Debugf("traverse tree %#v", tree)
-	for _, obj := range *tree.entries {
+	for _, obj := range tree.Entries() {
 		log.Debugf("traverse obj %#v", obj)
 		switch child := obj.(type) {
 		case *Tree:

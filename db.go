@@ -278,8 +278,6 @@ func (db *Db) PutTree(algo string, children ...Object) (tree *Tree, err error) {
 	Ck(err)
 	tree = Tree{}.New(db, file)
 
-	// populate the entries field
-	tree.entries = &children
 	// concatenate all relpaths together (include the full canpath with
 	// the 'blob/' or 'tree/' prefix to help protect against preimage
 	// attacks)

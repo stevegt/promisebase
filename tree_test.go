@@ -121,7 +121,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, child := range *tree.entries {
+	for i, child := range tree.Entries() {
 		switch i {
 		case 0:
 			expect := "tree/sha256/606/1c8/6061c8eb4f00c1039c0922f1cfb73233b7353b371227fd0a5cd380104ba58a7b"
