@@ -43,9 +43,10 @@ func (s *randStream) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (rs *randStream) Rewind() {
+func (rs *randStream) Rewind() error {
 	rs = &randStream{Size: rs.Size}
 	rand.Seed(42)
+	return nil
 }
 
 // RandStream supports the io.Reader interface.  It returns a stream
@@ -131,33 +132,36 @@ func TestTreeStream(t *testing.T) {
 	gotobjs = objs2str(objects)
 	tassert(t, expect == gotobjs, "expected %v got %v", expect, gotobjs)
 
-	// expectrd := bytes.NewReader(expect)
-	stream1.Rewind()
-	tassert(t, err == nil, "rewind: %v", err)
-	ok, err := readercomp.Equal(stream, tree, 4096) // XXX try different sizes
-	tassert(t, err == nil, "readercomp.Equal: %v", err)
-	tassert(t, ok, "stream mismatch")
-
 	// catstream
-	gotbuf, err := stream1.Cat()
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectbuf := mkbuf("blob1valueblob2valueblob3value")
-	tassert(t, bytes.Compare(expectbuf, gotbuf) == 0, "expected %v got %v", string(expectbuf), string(gotbuf))
-
+	/*
+		gotbuf, err := stream1.Cat()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectbuf := mkbuf("blob1valueblob2valueblob3value")
+		tassert(t, bytes.Compare(expectbuf, gotbuf) == 0, "expected %v got %v", string(expectbuf), string(gotbuf))
+	*/
 	// append
 	blob4 := mkbuf("blob4value")
 	stream1, err = stream1.AppendBlob("sha256", blob4)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotbuf, err = stream1.Cat()
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectbuf = mkbuf("blob1valueblob2valueblob3valueblob4value")
-	tassert(t, bytes.Compare(expectbuf, gotbuf) == 0, "expected %v got %v", string(expectbuf), string(gotbuf))
+	/*
+		gotbuf, err = stream1.Cat()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectbuf := mkbuf("blob1valueblob2valueblob3valueblob4value")
+		tassert(t, bytes.Compare(expectbuf, gotbuf) == 0, "expected %v got %v", string(expectbuf), string(gotbuf))
+	*/
+	expectbuf := mkbuf("blob1valueblob2valueblob3valueblob4value")
+	expectrd := bytes.NewReader(expectbuf)
+	stream1.Rewind()
+	tassert(t, err == nil, "rewind: %v", err)
+	ok, err := readercomp.Equal(expectrd, stream1, 4096) // XXX try different sizes
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "stream mismatch")
 
 }
 

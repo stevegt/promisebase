@@ -65,6 +65,10 @@ func (stream *Stream) Read(buf []byte) (n int, err error) {
 	return stream.RootNode.Read(buf)
 }
 
+func (stream *Stream) Rewind() error {
+	return stream.RootNode.Rewind()
+}
+
 // Ls lists all of the leaf nodes in a stream and optionally both
 // leaf and inner
 func (stream *Stream) Ls(all bool) (objects []Object, err error) {

@@ -174,6 +174,11 @@ func (file *File) ReadAll() (buf []byte, err error) {
 	return
 }
 
+func (file *File) Rewind() error {
+	_, err := file.Seek(0, 0)
+	return err
+}
+
 // Seek moves the cursor position `b.pos` to `n`, using
 // os.File.Seek():  Seek sets the offset for the next Read
 // or Write on file to offset, interpreted according to `whence`: 0

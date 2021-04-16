@@ -28,34 +28,13 @@ func (tree Tree) New(db *Db, file *File) *Tree {
 }
 
 func (tree *Tree) Entries() []Object {
-	if tree._entries == nil {
+	if len(tree._entries) == 0 {
 		err := tree.loadEntries()
 		// we might panic here
 		// it's up to callers to recover() if they want to continue operation
 		Ck(err)
 	}
 	return tree._entries
-}
-
-// Read fills buf with the next chunk of data from tree's leaf nodes,
-// recursing as needed to reach all the leaf nodes.
-func (tree *Tree) Read(buf []byte) (n int, err error) {
-	defer Return(&err)
-
-	if tree.currentEntry >= int64(len(tree.Entries())) {
-		return 0, io.EOF
-	}
-
-	obj := (tree.Entries())[tree.currentEntry]
-	n, err = obj.Read(buf)
-	if errors.Cause(err) == io.EOF {
-		tree.currentEntry++
-		Assert(n == 0)
-		return 0, nil
-	}
-	Ck(err)
-
-	return
 }
 
 // AppendBlob puts a blob in the database, appends it to the node's
@@ -180,6 +159,33 @@ func (tree *Tree) loadEntries() (err error) {
 	*/
 
 	return
+}
+
+// Read fills buf with the next chunk of data from tree's leaf nodes,
+// recursing as needed to reach all the leaf nodes.
+func (tree *Tree) Read(buf []byte) (n int, err error) {
+	defer Return(&err)
+
+	if tree.currentEntry >= int64(len(tree.Entries())) {
+		return 0, io.EOF
+	}
+
+	obj := (tree.Entries())[tree.currentEntry]
+	n, err = obj.Read(buf)
+	if errors.Cause(err) == io.EOF {
+		tree.currentEntry++
+		Assert(n == 0)
+		return 0, nil
+	}
+	Ck(err)
+
+	return
+}
+
+func (tree *Tree) Rewind() error {
+	tree.currentEntry = 0
+	tree._entries = []Object{}
+	return nil
 }
 
 // Txt returns the concatenated tree entries
