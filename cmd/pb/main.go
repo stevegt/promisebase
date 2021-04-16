@@ -11,11 +11,11 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/docopt/docopt-go"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase"
-
-	"github.com/docopt/docopt-go"
 )
 
 func init() {
@@ -88,6 +88,14 @@ func main() {
 }
 
 func run() (rc int) {
+	var err error
+	defer func() {
+		Return(&err)
+		if err != nil {
+			log.Error(err)
+			rc = 1
+		}
+	}()
 
 	usage := `pitbase
 
@@ -114,7 +122,7 @@ Options:
 	parser := &docopt.Parser{OptionsFirst: false}
 	o, _ := parser.ParseArgs(usage, os.Args[1:], "0.0")
 	var opts Opts
-	err := o.Bind(&opts)
+	err = o.Bind(&opts)
 	if err != nil {
 		log.Error(err)
 		return 22
@@ -197,27 +205,24 @@ Options:
 		}
 		fmt.Println(strings.Join(canpaths, "\n"))
 	case opts.Catstream:
-		buf, err := catStream(opts.Name)
+		stream, err := catStream(opts.Name)
 		if err != nil {
 			log.Error(err)
 			return 42
 		}
 		if opts.Out {
-			err = ioutil.WriteFile(opts.Filename, buf, 0644)
-			if err != nil {
-				log.Error(err)
-				return 43
-			}
+			fh, err := os.OpenFile(opts.Filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644) // XXX perms
+			_, err = io.Copy(fh, stream)
+			Ck(err)
 		} else {
-			fmt.Print(string(buf))
+			_, err = io.Copy(os.Stdout, stream)
+			Ck(err)
 		}
 	case opts.Cattree:
-		buf, err := catTree(opts.Canpath)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
-		fmt.Print(string(buf))
+		tree, err := catTree(opts.Canpath)
+		Ck(err)
+		_, err = io.Copy(os.Stdout, tree)
+		Ck(err)
 	case opts.Putstream:
 		stream, err := putStream(opts.Algo, opts.Name, os.Stdin)
 		if err != nil {
@@ -395,14 +400,11 @@ func linkStream(canpath, name string) (stream *pb.Stream, err error) {
 }
 
 func getStream(name string) (stream *pb.Stream, err error) {
+	defer Return(&err)
 	db, err := opendb()
-	if err != nil {
-		return
-	}
+	Ck(err)
 	stream, err = db.OpenStream(name)
-	if err != nil {
-		return
-	}
+	Ck(err)
 	return
 }
 
@@ -424,32 +426,22 @@ func lsStream(name string, all bool) (canpaths []string, err error) {
 	return
 }
 
-func catStream(name string) (buf []byte, err error) {
-	w, err := getStream(name)
-	if err != nil {
-		return
-	}
-	buf, err = w.Cat()
-	if err != nil {
-		return
-	}
+func catStream(name string) (stream *pb.Stream, err error) {
+	defer Return(&err)
+	stream, err = getStream(name)
+	Ck(err)
 	return
 }
 
-func catTree(canpath string) (buf []byte, err error) {
+func catTree(canpath string) (tree *pb.Tree, err error) {
+	defer Return(&err)
 	db, err := opendb()
 	if err != nil {
 		return
 	}
 	path := pb.Path{}.New(db, canpath)
-	tree, err := db.GetTree(path)
-	if err != nil {
-		return
-	}
-	buf, err = tree.Cat()
-	if err != nil {
-		return
-	}
+	tree, err = db.GetTree(path)
+	Ck(err)
 	return
 }
 
@@ -541,27 +533,24 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 }
 
 func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc int, err error) {
+	defer Return(&err)
 	db, err := opendb()
-	if err != nil {
-		return
-	}
+	Ck(err)
 
-	// cat the interpreter tree to get the interpreter code
+	// open a temporary file for the interpreter code
+	fh, err := ioutil.TempFile("", "*")
+	Ck(err)
+	tempfn := fh.Name()
+
+	// copy the interpreter into the temp file
 	tree, err := db.GetTree(interpreterPath)
-	if err != nil {
-		return
-	}
-	txt, err := tree.Cat()
-	if err != nil {
-		return
-	}
-	// fmt.Println(string(*txt))
-
-	// save interpreter code in temporary file
-	tempfn, err := WriteTempFile(txt, 0700)
-	if err != nil {
-		return
-	}
+	Ck(err)
+	_, err = io.Copy(fh, tree)
+	Ck(err)
+	err = fh.Close()
+	Ck(err)
+	err = os.Chmod(tempfn, 0700)
+	Ck(err)
 
 	// XXX do not uncomment the defer() below
 	// XXX redo the xeq api to have more of a io.Reader and Writer interface
@@ -574,18 +563,12 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 	// hash_of_interpreter hash_of_script arg1 arg2 arg3
 	cmd := exec.Command(tempfn, args...)
 	stdout, err = cmd.StdoutPipe()
-	if err != nil {
-		return
-	}
+	Ck(err)
 	stderr, err = cmd.StderrPipe()
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	err = cmd.Start()
-	if err != nil {
-		return
-	}
+	Ck(err)
 
 	return
 }

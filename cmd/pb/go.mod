@@ -10,5 +10,6 @@ require (
 	github.com/google/go-cmdtest v0.3.0
 	github.com/pkg/fileutils v0.0.0-20181114200823-d734b7f202ba
 	github.com/sirupsen/logrus v1.7.0
+	github.com/stevegt/goadapt v0.0.1
 	github.com/t7a/pitbase v0.0.0-00010101000000-000000000000
 )
