@@ -44,7 +44,7 @@ func (s *randStream) Read(p []byte) (n int, err error) {
 }
 
 func (rs *randStream) Rewind() error {
-	rs = &randStream{Size: rs.Size}
+	*rs = randStream{Size: rs.Size}
 	rand.Seed(42)
 	return nil
 }
