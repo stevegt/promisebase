@@ -54,6 +54,7 @@ x clean up test directories
     x write test case for tree.Read()
     - convert tree.Cat() and stream.Cat()
     - look around for anywhere else a buf is being returned
+    - test pb with ulimit 
 - write some test cases where we change the working directory
     - should help make macOS work
 - setup a linux VM for Matt
