@@ -11,15 +11,16 @@ tmpdir=/tmp/stresstest.$$
 # seed rng
 #RANDOM=42
 
-for i in {10..1}
+for i in {22..1}
 do
 	echo i is $i
-	ulimit -v $(( $i * 100 * 1024  )) # kilobytes
+	ulimit -v $(( $i * 100 * 1024 )) # kilobytes
 	ulimit -v
 
 	mkdir -p $tmpdir
 	cd $tmpdir
-	size=$(( $RANDOM * $RANDOM / 1024 ))
+	#size=$(( $RANDOM * $RANDOM / 1024 ))
+    size=$(( 1024 * 1024 ))
 
 	$pb init 
 

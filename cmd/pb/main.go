@@ -146,16 +146,8 @@ Options:
 		Ck(err)
 		fmt.Println(blob.Path.Canon)
 	case opts.Getblob:
-		buf, err := getBlob(opts.Canpath)
-		if err != nil || buf == nil {
-			log.Error(err)
-			return 42
-		}
-		_, err = os.Stdout.Write(buf)
-		if err != nil {
-			log.Error(err)
-			return 25
-		}
+		err := getBlob(opts.Canpath, os.Stdout)
+		Ck(err)
 	case opts.Puttree:
 		tree, err := putTree(opts.Algo, opts.Canpaths)
 		if err != nil {
@@ -322,7 +314,24 @@ func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
 	return
 }
 
-func getBlob(canpath string) (buf []byte, err error) {
+func getBlob(canpath string, wr io.Writer) (err error) {
+	db, err := opendb()
+	Ck(err)
+	path := pb.Path{}.New(db, canpath)
+	// XXX from here on down is the same as in putBlob and should be
+	// moved to a common ioBlob(dst, src) (err error) {} function
+	file, err := pb.File{}.New(db, path)
+	Ck(err)
+	blob := pb.Blob{}.New(db, file)
+	_, err = io.Copy(wr, blob)
+	Ck(err)
+	err = blob.Close()
+	Ck(err)
+	return
+}
+
+/*
+func XXXgetBlob(canpath string) (buf []byte, err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -339,6 +348,7 @@ func getBlob(canpath string) (buf []byte, err error) {
 	}
 	return
 }
+*/
 
 func putTree(algo string, canpaths []string) (tree *pb.Tree, err error) {
 	db, err := opendb()
