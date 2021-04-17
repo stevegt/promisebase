@@ -156,6 +156,7 @@ func (file *File) Read(buf []byte) (n int, err error) {
 	return file.fh.Read(buf)
 }
 
+// XXX deprecate
 func (file *File) ReadAll() (buf []byte, err error) {
 	defer Return(&err)
 	err = file.ckopen()

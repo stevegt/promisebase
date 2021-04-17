@@ -9,9 +9,9 @@ go build
 tmpdir=/tmp/stresstest.$$
 
 # seed rng
-RANDOM=42
+#RANDOM=42
 
-for i in {22..1}
+for i in {10..1}
 do
 	echo i is $i
 	ulimit -v $(( $i * 100 * 1024  )) # kilobytes
@@ -23,9 +23,9 @@ do
 
 	$pb init 
 
-	dd if=/dev/urandom bs=1024 count=$size | $pb putblob sha256
+    canpath=$(dd if=/dev/urandom bs=1024 count=$size | $pb putblob sha256)
+	$pb getblob $canpath > /dev/null
 
-	# pb getblob <canpath>
 	# pb puttree <algo> <canpaths>... 
 	# pb gettree <canpath>
 	# pb linkstream <canpath> <name>

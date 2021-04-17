@@ -142,16 +142,8 @@ Options:
 		}
 		fmt.Println(msg)
 	case opts.Putblob:
-		buf, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			log.Error(err)
-			return 5
-		}
-		blob, err := putBlob(opts.Algo, buf)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		blob, err := putBlob(opts.Algo, os.Stdin)
+		Ck(err)
 		fmt.Println(blob.Path.Canon)
 	case opts.Getblob:
 		buf, err := getBlob(opts.Canpath)
@@ -316,15 +308,17 @@ func opendb() (db *pb.Db, err error) {
 	return
 }
 
-func putBlob(algo string, buf []byte) (blob *pb.Blob, err error) {
+func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
 	db, err := opendb()
-	if err != nil {
-		return
-	}
-	blob, err = db.PutBlob(algo, buf)
-	if err != nil {
-		return
-	}
+	Ck(err)
+	path := &pb.Path{Algo: algo, Class: "blob"}
+	file, err := pb.File{}.New(db, path)
+	Ck(err)
+	blob = pb.Blob{}.New(db, file)
+	_, err = io.Copy(blob, rd)
+	Ck(err)
+	err = blob.Close()
+	Ck(err)
 	return
 }
 
