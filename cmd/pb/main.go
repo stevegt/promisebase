@@ -97,8 +97,8 @@ func run() (rc int) {
 }
 
 func _run() (rc int, err error) {
-	defer Return(&rc)
 	defer Return(&err)
+	defer Return(&rc)
 
 	usage := `pitbase
 
