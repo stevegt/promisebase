@@ -22,7 +22,7 @@ this is blob1
 # put blob with bad hash algo
 $ fecho badblob1 this is badblob1
 $ pb putblob sha257 < badblob1 --> FAIL
-#not implemented: sha257 
+function not implemented: sha257
 
 # put nonexistent blob
 $ pb putblob sha256 < badblob2 --> FAIL

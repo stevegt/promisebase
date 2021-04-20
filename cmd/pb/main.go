@@ -89,16 +89,15 @@ func main() {
 }
 
 func run() (rc int) {
-	rc, err := _run()
-	if err != nil {
-		log.Error(err)
+	rc, msg := _run()
+	if len(msg) > 0 {
+		fmt.Fprintf(os.Stderr, msg)
 	}
 	return rc
 }
 
-func _run() (rc int, err error) {
-	defer Return(&err)
-	defer Return(&rc)
+func _run() (rc int, msg string) {
+	defer Halt(&rc, &msg)
 
 	usage := `pitbase
 
@@ -125,7 +124,7 @@ Options:
 	parser := &docopt.Parser{OptionsFirst: false}
 	o, _ := parser.ParseArgs(usage, os.Args[1:], "0.0")
 	var opts Opts
-	err = o.Bind(&opts)
+	err := o.Bind(&opts)
 	Ck(err)
 	log.Debug(opts)
 	// fmt.Printf("speed is a %T", arguments["--speed"])
@@ -145,6 +144,7 @@ Options:
 		fmt.Println(blob.Path.Canon)
 	case opts.Getblob:
 		err := getBlob(opts.Canpath, os.Stdout)
+		ExitIf(err, syscall.EINVAL)
 		Ck(err)
 	case opts.Puttree:
 		tree, err := putTree(opts.Algo, opts.Canpaths)
@@ -212,7 +212,7 @@ Options:
 		Ck(err)
 		_ = rc // XXX
 	}
-	return 0, nil
+	return 0, ""
 }
 
 func dbdir() (dir string) {
@@ -389,6 +389,7 @@ func lsStream(name string, all bool) (canpaths []string, err error) {
 func catStream(name string) (stream *pb.Stream, err error) {
 	defer Return(&err)
 	stream, err = getStream(name)
+	ExitIf(err, syscall.ENOENT)
 	Ck(err)
 	return
 }

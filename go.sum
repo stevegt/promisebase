@@ -30,6 +30,8 @@ github.com/stevegt/goadapt v0.0.6 h1:0sV8ZWxsEFBNT1fNZ2I9EiBP8R+eNfGOcv/RnQLR7jU
 github.com/stevegt/goadapt v0.0.6/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
 github.com/stevegt/goadapt v0.0.7 h1:hwm+SVJtqzcmprKvPaESW7BB1Fc950/GclOqVgxXjnw=
 github.com/stevegt/goadapt v0.0.7/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
+github.com/stevegt/goadapt v0.0.8 h1:g2P7DROTPT1YQy6s5RxIcKJ76Om0RHlaojEoBJtMMC4=
+github.com/stevegt/goadapt v0.0.8/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

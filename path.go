@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"syscall"
+
+	. "github.com/stevegt/goadapt"
 )
 
 type Path struct {
@@ -36,8 +39,9 @@ func (path Path) New(db *Db, raw string) (res *Path) {
 	// split into parts
 	parts := strings.Split(clean, "/")
 	if len(parts) < 2 {
-		panic(fmt.Errorf("malformed path: %s", raw))
+		Ck(fmt.Errorf("%w: malformed path: %s", syscall.Errno(syscall.EINVAL), raw))
 	}
+	// Assert(len(parts) >= 2, syscall.EINVAL, "malformed path: %s", raw)
 	path.Class = parts[0]
 	if path.Class == "stream" {
 		path.Label = filepath.Join(parts[1:]...)
@@ -45,9 +49,7 @@ func (path Path) New(db *Db, raw string) (res *Path) {
 		path.Abs = filepath.Join(path.Db.Dir, path.Rel)
 		path.Canon = path.Rel
 	} else {
-		if len(parts) < 3 {
-			panic(fmt.Errorf("malformed path: %s", raw))
-		}
+		Assert(len(parts) >= 3, "malformed path: %s", raw)
 		path.Algo = parts[1]
 		// the last part of the path should always be the full hash,
 		// regardless of whether we were given the full or canonical
