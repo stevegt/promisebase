@@ -1,6 +1,6 @@
 #!/usr/bin/env bash 
 
-set -ex
+# set -x
 
 pb=$PWD/cmd/pb/pb
 cd cmd/pb
@@ -9,32 +9,47 @@ go build
 basename=/tmp/stresstest
 tmpdir=$basename.$$
 
-# seed rng
-#RANDOM=42
+calc() 
+{ 
+    echo "$1" | bc
+}
 
-for i in {10..1}
+compare()
+{
+    [ $(calc "$1") -eq 1 ]
+}
+
+limit=$(calc "1 * 1024^3")
+delta=$(calc "$limit * .5")
+
+while true
 do
-	echo i is $i
-	ulimit -v $(( $i * 100 * 1024 )) # kilobytes
-	ulimit -v
+    echo limit $(calc "$limit / 1024^2") megabytes
 
-	mkdir -p $tmpdir
-	cd $tmpdir
-	#size=$(( $RANDOM * $RANDOM / 1024 ))
-    size=$(( 512 * 1024 ))
+    mkdir -p $tmpdir
+    cd $tmpdir
+
+    (
+	set -e
+
+	ulimit -v $(calc "$limit / 1024") # ulimit uses kilobytes
+	ulimit -v
 
 	$pb init 
 
-    blobpath1=$(dd if=/dev/urandom bs=1024 count=$size | $pb putblob sha256)
+	size=$(calc "100 * 1024^2")
+	count=$(calc "$size / 1024")
+
+	blobpath1=$(dd if=/dev/urandom bs=1024 count=$count | $pb putblob sha256)
 	$pb getblob $blobpath1 > /dev/null
 
-    blobpath2=$(dd if=/dev/urandom bs=1024 count=$size | $pb putblob sha256)
-    treepath1=$($pb puttree sha256 $blobpath1 $blobpath2)
+	blobpath2=$(dd if=/dev/urandom bs=1024 count=$count | $pb putblob sha256)
+	treepath1=$($pb puttree sha256 $blobpath1 $blobpath2)
 
-    # for j in {1..8000000}
-    # do
-        # XXX this will not work because we cant put 8 million
-        # canpaths on the puttree command line
+	# for j in {1..8000000}
+	# do
+	# XXX this will not work because we can't put 8 million
+	# canpaths on the puttree command line
 
 	# pb gettree <canpath>
 	# pb linkstream <canpath> <name>
@@ -43,11 +58,39 @@ do
 	# pb catstream <name> [-o <filename>] 
 	# pb cattree <canpath>
 	# pb putstream [-q] <algo> <name>
+    )
+    rc=$?
 
-	[ -n "$tmpdir" ]
+    cd -
+    [ -n "$tmpdir" ]
     echo $tmpdir | grep $basename
-	rm -rf $tmpdir
+    rm -rf $tmpdir
+
+    absdelta=$(calc "sqrt($delta^2)")
+    if [ $rc -ne 0 ] && compare "$absdelta < 50*1024*1024"
+    then
+	break
+    fi
+
+    if [ $rc -eq 0 ] 
+    then
+	echo limit $(calc "$limit / 1024^2") megabytes PASS
+	# need smaller limit
+	# if delta is positive then reverse else continue
+	compare "$delta > 0" && error=-.5 || error=1
+    else
+	echo limit $(calc "$limit / 1024^2") megabytes FAIL
+	# need larger limit
+	# if delta is negative then reverse else continue
+	compare "$delta < 0" && error=-.5 || error=1
+    fi
+    echo =============================================
+    delta=$(calc "$delta * $error")
+    limit=$(calc "$limit + $delta")
+
+    sleep 1
 done
 
+echo fails at virtual memory ulimit $(calc "$limit / (1024 * 1024)") megabytes
 
 
