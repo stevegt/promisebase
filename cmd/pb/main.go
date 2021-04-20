@@ -140,6 +140,7 @@ Options:
 		fmt.Println(msg)
 	case opts.Putblob:
 		blob, err := putBlob(opts.Algo, os.Stdin)
+		ExitIf(err, syscall.ENOSYS)
 		Ck(err)
 		fmt.Println(blob.Path.Canon)
 	case opts.Getblob:
@@ -165,17 +166,11 @@ Options:
 		fmt.Println(stream.RootNode.Path.Canon)
 	case opts.Lsstream:
 		canpaths, err := lsStream(opts.Name, opts.All)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		fmt.Println(strings.Join(canpaths, "\n"))
 	case opts.Catstream:
 		stream, err := catStream(opts.Name)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		if opts.Out {
 			fh, err := os.OpenFile(opts.Filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644) // XXX perms
 			_, err = io.Copy(fh, stream)
@@ -191,57 +186,33 @@ Options:
 		Ck(err)
 	case opts.Putstream:
 		stream, err := putStream(opts.Algo, opts.Name, os.Stdin)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		gotstream, err := getStream(stream.Label)
-		if err != nil {
-			log.Error(err)
-			return 43
-		}
-		_ = gotstream
+		Ck(err)
 		if !opts.Quiet {
 			fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
 		}
 	case opts.Canon2abs:
 		path, err := canon2abs(opts.Filename)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		fmt.Println(path)
 	case opts.Abs2canon:
 		canon, err := abs2canon(opts.Filename)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		fmt.Println(canon)
 	case opts.Exec:
 		stdout, stderr, rc, err := execute(opts.Filename, opts.Arg...)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 
 		// show stdout, stderr, rc
 		_, err = io.Copy(os.Stdout, stdout)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 
 		_, err = io.Copy(os.Stderr, stderr)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
-		_ = stdout
-		_ = stderr
-		_ = rc
+		Ck(err)
+		_ = rc // XXX
 	}
-	return 0
+	return 0, nil
 }
 
 func dbdir() (dir string) {
@@ -283,11 +254,12 @@ func opendb() (db *pb.Db, err error) {
 }
 
 func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
+	defer Return(&err)
 	db, err := opendb()
 	Ck(err)
 	path := &pb.Path{Algo: algo, Class: "blob"}
 	file, err := pb.File{}.New(db, path)
-	ReturnIf(err, syscall.ENOSYS)
+	ExitIf(err, syscall.ENOSYS)
 	Ck(err)
 	blob = pb.Blob{}.New(db, file)
 	_, err = io.Copy(blob, rd)
@@ -298,6 +270,7 @@ func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
 }
 
 func getBlob(canpath string, wr io.Writer) (err error) {
+	defer Return(&err)
 	db, err := opendb()
 	Ck(err)
 	path := pb.Path{}.New(db, canpath)
