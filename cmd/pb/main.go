@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/docopt/docopt-go"
 	"github.com/sirupsen/logrus"
@@ -88,14 +89,16 @@ func main() {
 }
 
 func run() (rc int) {
-	var err error
-	defer func() {
-		Return(&err)
-		if err != nil {
-			log.Error(err)
-			rc = 1
-		}
-	}()
+	rc, err := _run()
+	if err != nil {
+		log.Error(err)
+	}
+	return rc
+}
+
+func _run() (rc int, err error) {
+	defer Return(&rc)
+	defer Return(&err)
 
 	usage := `pitbase
 
@@ -123,10 +126,7 @@ Options:
 	o, _ := parser.ParseArgs(usage, os.Args[1:], "0.0")
 	var opts Opts
 	err = o.Bind(&opts)
-	if err != nil {
-		log.Error(err)
-		return 22
-	}
+	Ck(err)
 	log.Debug(opts)
 	// fmt.Printf("speed is a %T", arguments["--speed"])
 
@@ -136,10 +136,7 @@ Options:
 	switch true {
 	case opts.Init:
 		msg, err := create()
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		fmt.Println(msg)
 	case opts.Putblob:
 		blob, err := putBlob(opts.Algo, os.Stdin)
@@ -150,36 +147,21 @@ Options:
 		Ck(err)
 	case opts.Puttree:
 		tree, err := putTree(opts.Algo, opts.Canpaths)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		fmt.Println(tree.Path.Canon)
 	case opts.Gettree:
 		tree, err := getTree(opts.Canpath)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		fmt.Println(tree.Txt())
 	case opts.Linkstream:
 		stream, err := linkStream(opts.Canpath, opts.Name)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		gotstream, err := getStream(stream.Label)
-		if err != nil {
-			log.Error(err)
-			return 43
-		}
+		Ck(err)
 		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
 	case opts.Getstream:
 		stream, err := getStream(opts.Name)
-		if err != nil {
-			log.Error(err)
-			return 42
-		}
+		Ck(err)
 		fmt.Println(stream.RootNode.Path.Canon)
 	case opts.Lsstream:
 		canpaths, err := lsStream(opts.Name, opts.All)
@@ -305,6 +287,7 @@ func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
 	Ck(err)
 	path := &pb.Path{Algo: algo, Class: "blob"}
 	file, err := pb.File{}.New(db, path)
+	ReturnIf(err, syscall.ENOSYS)
 	Ck(err)
 	blob = pb.Blob{}.New(db, file)
 	_, err = io.Copy(blob, rd)

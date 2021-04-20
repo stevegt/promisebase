@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/pkg/errors"
 	. "github.com/stevegt/goadapt"
@@ -51,7 +52,7 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 		case "sha512":
 			file.hash = sha512.New()
 		default:
-			err := fmt.Errorf("not implemented: %s", file.Path.Algo)
+			err := fmt.Errorf("%w: %s", syscall.ENOSYS, file.Path.Algo)
 			return nil, err
 		}
 	}

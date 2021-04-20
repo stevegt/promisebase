@@ -150,6 +150,10 @@ github.com/stevegt/goadapt v0.0.0-20210404212556-cdee25eda605 h1:pZtH8emu8nZ2SRS
 github.com/stevegt/goadapt v0.0.0-20210404212556-cdee25eda605/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
 github.com/stevegt/goadapt v0.0.1 h1:3QvZN5WdjCpsSp3dF/4T9O6pNWalj67AxJvTcOrfVxM=
 github.com/stevegt/goadapt v0.0.1/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
+github.com/stevegt/goadapt v0.0.5 h1:CUrd+qhiebkIZzWHaJwgtLo2DfAA5dNmkyJP6lz7qQQ=
+github.com/stevegt/goadapt v0.0.5/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
+github.com/stevegt/goadapt v0.0.6 h1:0sV8ZWxsEFBNT1fNZ2I9EiBP8R+eNfGOcv/RnQLR7jU=
+github.com/stevegt/goadapt v0.0.6/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
