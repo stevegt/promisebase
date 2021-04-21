@@ -55,19 +55,24 @@ x clean up streaming enough to support `pb run`
     x convert tree.Cat() and stream.Cat()
     x look around for anywhere else a buf is being returned
     x test pb with ulimit 
-- write some test cases where we change the working directory
-    - should help make macOS work
-- setup a linux VM for Matt
 - write pb run:
     - see https://docs.docker.com/engine/api/sdk/examples/
+    - https://pspdfkit.com/blog/2019/docker-import-export-vs-load-save/
+    - https://maori.geek.nz/how-to-digest-a-docker-image-ca9fc7630b71
+    - we likely want to use save/load instead of export/import because
+      of https://medium.com/@cminion/quicknote-docker-load-vs-docker-import-ed1367b93721
 
 ```
-    host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-export.tar 
+    host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-save.tar 
     stream/ubuntu -> tree/sha256/0ebd5d411223e3777db972163a60aa2f45c386db5c2353978e95fabdd1b08b08
     host2 $ pb run --rm -it sha256/0ebd5d411223e3777db972163a60aa2f45c386db5c2353978e95fabdd1b08b08 echo hello
     hello
 ```
 
+- containerize tests
+    - this will also provide a linux VM for Matt
+- write some test cases where we change the working directory
+    - should help make macOS work
 - spike network layer
     - daemon
     - unix domain socket, stream mode
