@@ -58,7 +58,8 @@ x clean up streaming enough to support `pb run`
 - write some test cases where we change the working directory
     - should help make macOS work
 - setup a linux VM for Matt
-- make this work:
+- write pb run:
+    - see https://docs.docker.com/engine/api/sdk/examples/
 
 ```
     host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-export.tar 
