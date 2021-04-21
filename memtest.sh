@@ -31,6 +31,7 @@ do
 
     (
 	set -e
+    set -x
 
 	ulimit -v $(calc "$limit / 1024") # ulimit uses kilobytes
 	ulimit -v
@@ -51,13 +52,13 @@ do
 	# XXX this will not work because we can't put 8 million
 	# canpaths on the puttree command line
 
-	# pb gettree <canpath>
-	# pb linkstream <canpath> <name>
-	# pb getstream <name>
-	# pb lsstream [-a] <name>
-	# pb catstream <name> [-o <filename>] 
-	# pb cattree <canpath>
-	# pb putstream [-q] <algo> <name>
+	$pb gettree $treepath1 > /dev/null
+	$pb linkstream $treepath1 gerald 
+	$pb getstream gerald > /dev/null
+	$pb lsstream -a gerald > /dev/null
+	$pb catstream gerald > /dev/null 
+	$pb cattree $treepath1 > /dev/null
+	dd if=/dev/urandom bs=1024 count=$count | $pb putstream sha256 harold
     )
     rc=$?
 

@@ -50,11 +50,11 @@ x split into multiple files or packages
     x db, tree, stream, blob, and util
     x tests also
 x clean up test directories
-- clean up streaming enough to support `pb run`
+x clean up streaming enough to support `pb run`
     x write test case for tree.Read()
-    - convert tree.Cat() and stream.Cat()
-    - look around for anywhere else a buf is being returned
-    - test pb with ulimit 
+    x convert tree.Cat() and stream.Cat()
+    x look around for anywhere else a buf is being returned
+    x test pb with ulimit 
 - write some test cases where we change the working directory
     - should help make macOS work
 - setup a linux VM for Matt
@@ -77,6 +77,8 @@ x clean up test directories
     - 2000 cdint
 - start RFC 1004 -- auth&auth
     - e.g. authorization by key fingerprint should be via encryption, not by us
+- make wide trees streamable
+    - see note in memtest.sh
 - spike pit
     - accounting
     - disk is network
