@@ -2,8 +2,6 @@ module pitbase
 
 go 1.15
 
-replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
-
 require (
 	github.com/google/renameio v1.0.0
 	github.com/hlubek/readercomp v0.0.0-20210106164045-ffcdb292b4e8 // indirect

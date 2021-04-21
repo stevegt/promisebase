@@ -145,6 +145,7 @@ Options:
 	case opts.Getblob:
 		err := getBlob(opts.Canpath, os.Stdout)
 		ExitIf(err, syscall.EINVAL)
+		ExitIf(err, syscall.ENOENT)
 		Ck(err)
 	case opts.Puttree:
 		tree, err := putTree(opts.Algo, opts.Canpaths)
@@ -162,10 +163,12 @@ Options:
 		fmt.Printf("stream/%s -> %s\n", gotstream.Label, gotstream.RootNode.Path.Canon)
 	case opts.Getstream:
 		stream, err := getStream(opts.Name)
+		ExitIf(err, syscall.ENOENT)
 		Ck(err)
 		fmt.Println(stream.RootNode.Path.Canon)
 	case opts.Lsstream:
 		canpaths, err := lsStream(opts.Name, opts.All)
+		ExitIf(err, syscall.ENOENT)
 		Ck(err)
 		fmt.Println(strings.Join(canpaths, "\n"))
 	case opts.Catstream:
@@ -369,14 +372,11 @@ func getStream(name string) (stream *pb.Stream, err error) {
 }
 
 func lsStream(name string, all bool) (canpaths []string, err error) {
+	defer Return(&err)
 	db, err := opendb()
-	if err != nil {
-		return
-	}
+	Ck(err)
 	stream, err := db.OpenStream(name)
-	if err != nil {
-		return
-	}
+	Ck(err)
 	objs, err := stream.Ls(all)
 	for _, obj := range objs {
 		// fmt.Printf("obj %#v\n", obj)

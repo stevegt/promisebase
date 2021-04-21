@@ -4,8 +4,6 @@ go 1.14
 
 replace github.com/t7a/pitbase => ../..
 
-replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
-
 require (
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
 	github.com/ethereum/go-ethereum v1.9.25

@@ -29,6 +29,7 @@ $ pb putblob sha256 < badblob2 --> FAIL
 
 # get nonexistent blob
 $ pb getblob blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000 --> FAIL
+open ${ROOTDIR}/var/blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000: no such file or directory
 
 #open /tmp/cmdtest426797214/var/blob/sha256/a0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908: no such file or directory 
 
@@ -77,6 +78,7 @@ tree/sha256/be20cdac6a4090168bf8a9423ef6ae2c5f027522aee87e06c384a8f9466e992c
 
 # get stream fail
 $ pb getstream stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
 
 # list all of the leaf nodes in a stream 
 $ pb lsstream stream1
@@ -94,7 +96,10 @@ blob/sha256/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd98387708196425ab2
 
 # lsstream fail
 $ pb lsstream stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
+
 $ pb lsstream -a stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
 
 # show a concatenation of all leaf node content in a stream
 $ pb catstream stream1
@@ -128,14 +133,17 @@ this is blob1
 
 # catstream fail
 $ pb catstream stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
 
 # improve coverage
 $ pb putblob lkdsajf --> FAIL
+function not implemented: lkdsajf
 
 $ pb getblob kakajsn --> FAIL
-malformed path: kakajsn
+invalid argument: malformed path: kakajsn
 
 $ pb lsstream lsadkfj --> FAIL
+lstat ${ROOTDIR}/var/stream/lsadkfj: no such file or directory
 
 # putfile
 # create a huge file
