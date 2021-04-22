@@ -57,10 +57,11 @@ x clean up streaming enough to support `pb run`
     x test pb with ulimit 
 - write pb run:
     x see https://docs.docker.com/engine/api/sdk/examples/
-    - we likely want to use save/load instead of export/import because
+    x we likely want to use save/load instead of export/import because
       of https://medium.com/@cminion/quicknote-docker-load-vs-docker-import-ed1367b93721
-    - https://pspdfkit.com/blog/2019/docker-import-export-vs-load-save/
-    - https://maori.geek.nz/how-to-digest-a-docker-image-ca9fc7630b71
+    x https://pspdfkit.com/blog/2019/docker-import-export-vs-load-save/
+    x https://maori.geek.nz/how-to-digest-a-docker-image-ca9fc7630b71
+    - https://pkg.go.dev/github.com/docker/docker/client#Client.ImageLoad
 
 ```
     host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-save.tar 
