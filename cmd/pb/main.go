@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,6 +13,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docopt/docopt-go"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -72,6 +77,7 @@ type Opts struct {
 	Canon2abs  bool
 	Abs2canon  bool
 	Exec       bool
+	Run        bool
 	Algo       string
 	Canpath    string
 	Canpaths   []string
@@ -79,7 +85,9 @@ type Opts struct {
 	All        bool `docopt:"-a"`
 	Out        bool `docopt:"-o"`
 	Filename   string
+	Image      string
 	Arg        []string
+	Cmd        []string
 	Quiet      bool `docopt:"-q"`
 }
 
@@ -116,6 +124,7 @@ Usage:
   pb canon2abs <filename>
   pb abs2canon <filename>
   pb exec <filename> [<arg>...]
+  pb run <image> [<cmd>...]
 
 Options:
   -h --help     Show this screen.
@@ -204,7 +213,8 @@ Options:
 		Ck(err)
 		fmt.Println(canon)
 	case opts.Exec:
-		stdout, stderr, rc, err := execute(opts.Filename, opts.Arg...)
+		var stdout, stderr io.Reader
+		stdout, stderr, rc, err = execute(opts.Filename, opts.Arg...)
 		Ck(err)
 
 		// show stdout, stderr, rc
@@ -213,7 +223,21 @@ Options:
 
 		_, err = io.Copy(os.Stderr, stderr)
 		Ck(err)
-		_ = rc // XXX
+	case opts.Run:
+		var stdout, stderr io.Reader
+		stdout, stderr, rc, err = runContainer(opts.Image, opts.Cmd...)
+		Ck(err)
+
+		// show stdout, stderr, rc
+		/*
+			_, err = io.Copy(os.Stdout, stdout)
+			Ck(err)
+
+			_, err = io.Copy(os.Stderr, stderr)
+			Ck(err)
+		*/
+		_ = stdout
+		_ = stderr
 	}
 	return 0, ""
 }
@@ -571,5 +595,49 @@ func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 		return
 	}
 
+	return
+}
+
+func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error) {
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		panic(err)
+	}
+
+	reader, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
+	if err != nil {
+		panic(err)
+	}
+	io.Copy(os.Stdout, reader)
+
+	resp, err := cli.ContainerCreate(ctx, &container.Config{
+		Image: "alpine",
+		Cmd:   cmd,
+		Tty:   false,
+	}, nil, nil, nil, "")
+	if err != nil {
+		panic(err)
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		panic(err)
+	}
+
+	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			panic(err)
+		}
+	case <-statusCh:
+	}
+
+	out, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
+	if err != nil {
+		panic(err)
+	}
+
+	stdcopy.StdCopy(os.Stdout, os.Stderr, out)
 	return
 }
