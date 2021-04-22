@@ -24,7 +24,6 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stevegt/goadapt v0.0.8
 	github.com/t7a/pitbase v0.0.0-00010101000000-000000000000
-	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
