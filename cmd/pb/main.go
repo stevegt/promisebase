@@ -605,11 +605,21 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 		panic(err)
 	}
 
-	reader, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
-	if err != nil {
-		panic(err)
+	if strings.Index(img, "tree/") == 0 {
+		tree, err := catTree(img)
+		res, err := cli.ImageLoad(ctx, tree, false)
+		if err != nil {
+			panic(err)
+		}
+		io.Copy(os.Stdout, res.Body)
+		// XXX remember to close res.Body
+	} else {
+		reader, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
+		if err != nil {
+			panic(err)
+		}
+		io.Copy(os.Stdout, reader)
 	}
-	io.Copy(os.Stdout, reader)
 
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: "alpine",
