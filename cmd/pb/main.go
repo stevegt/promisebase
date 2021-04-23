@@ -615,11 +615,19 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 		tree, err = catTree(img)
 		// io.Copy(os.Stdout, tree)
 		// return
-		res, err := cli.ImageLoad(ctx, tree, false)
+		// res, err := cli.ImageLoad(ctx, tree, false)
+		pipeReader, pipeWriter := io.Pipe()
+		// io.Copy(os.Stdout, tree)
+		go func() {
+			_, err = io.Copy(pipeWriter, tree)
+			Ck(err)
+		}()
+		res, err := cli.ImageLoad(ctx, pipeReader, false)
 		if err != nil {
 			panic(err)
 		}
-		io.Copy(os.Stdout, res.Body)
+		_, err = io.Copy(os.Stdout, res.Body)
+		Ck(err)
 		// XXX remember to close res.Body
 	} else {
 		reader, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
