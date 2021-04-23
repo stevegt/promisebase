@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	. "github.com/stevegt/goadapt"
 )
 
@@ -100,6 +101,7 @@ func (file *File) ckopen() (err error) {
 func (file *File) Close() (err error) {
 	if file.Readonly {
 		err = file.fh.Close()
+		log.Debugf("file Close() returning %v for %#v", err, file)
 		file.fh = nil
 		return
 	}
@@ -125,15 +127,18 @@ func (file *File) Close() (err error) {
 	dir, _ := filepath.Split(abspath)
 	err = os.MkdirAll(dir, 0755)
 	if err != nil {
+		log.Debugf("file Close() returning %v for mkdir dir %v", err, dir)
 		return
 	}
 
 	// rename temp file to permanent blob file
 	err = os.Rename(file.fh.Name(), abspath)
 	if err != nil {
+		log.Debugf("file Close() returning %v rename %v to %v", err, abspath, file.fh.Name())
 		return
 	}
 
+	log.Debugf("file Close() returning %v for %v", err, file.fh.Name())
 	file.fh = nil
 	return
 }

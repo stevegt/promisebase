@@ -18,8 +18,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docopt/docopt-go"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"github.com/stevegt/debugpipe"
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase"
 )
@@ -30,15 +30,15 @@ func init() {
 	if debug == "1" {
 		log.SetLevel(log.DebugLevel)
 	}
-	logrus.SetReportCaller(true)
-	formatter := &logrus.TextFormatter{
+	log.SetReportCaller(true)
+	formatter := &log.TextFormatter{
 		CallerPrettyfier: caller(),
-		FieldMap: logrus.FieldMap{
-			logrus.FieldKeyFile: "caller",
+		FieldMap: log.FieldMap{
+			log.FieldKeyFile: "caller",
 		},
 	}
 	formatter.TimestampFormat = "15:04:05.999999999"
-	logrus.SetFormatter(formatter)
+	log.SetFormatter(formatter)
 }
 
 // caller returns string presentation of log caller which is formatted as
@@ -99,7 +99,7 @@ func main() {
 func run() (rc int) {
 	rc, msg := _run()
 	if len(msg) > 0 {
-		fmt.Fprintf(os.Stderr, msg)
+		fmt.Fprintf(os.Stderr, msg+"\n")
 	}
 	return rc
 }
@@ -135,7 +135,7 @@ Options:
 	var opts Opts
 	err := o.Bind(&opts)
 	Ck(err)
-	log.Debug(opts)
+	log.Debugf("%#v", opts)
 	// fmt.Printf("speed is a %T", arguments["--speed"])
 
 	//putblob := optsBool("putblob")
@@ -611,26 +611,32 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 	if strings.Index(img, "tree/") == 0 {
 		// fh, err := os.Open("/tmp/foo.save")
 		// res, err := cli.ImageLoad(ctx, fh, true)
-		var tree io.Reader
+		var tree io.ReadCloser
 		tree, err = catTree(img)
-		// io.Copy(os.Stdout, tree)
-		// return
-		// res, err := cli.ImageLoad(ctx, tree, false)
-		pipeReader, pipeWriter := io.Pipe()
-		// io.Copy(os.Stdout, tree)
-		go func() {
-			_, err = io.Copy(pipeWriter, tree)
+
+		var res types.ImageLoadResponse
+		if true {
+			res, err = cli.ImageLoad(ctx, tree, false)
 			Ck(err)
-			err = pipeWriter.Close()
+			err = tree.Close()
 			Ck(err)
-		}()
-		res, err := cli.ImageLoad(ctx, pipeReader, false)
-		if err != nil {
-			panic(err)
+		} else {
+			// pipeReader, pipeWriter := io.Pipe()
+			pipeReader, pipeWriter := debugpipe.Pipe()
+			go func() {
+				_, err = io.Copy(pipeWriter, tree)
+				Ck(err)
+				err = pipeWriter.Close()
+				Ck(err)
+			}()
+			res, err = cli.ImageLoad(ctx, pipeReader, false)
+			Ck(err)
 		}
+
 		_, err = io.Copy(os.Stdout, res.Body)
 		Ck(err)
 		// XXX remember to close res.Body
+
 	} else {
 		reader, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
 		if err != nil {

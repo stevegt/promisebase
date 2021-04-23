@@ -166,19 +166,27 @@ func (tree *Tree) loadEntries() (err error) {
 func (tree *Tree) Read(buf []byte) (n int, err error) {
 	defer Return(&err)
 
-	if tree.currentEntry >= int64(len(tree.Entries())) {
-		return 0, io.EOF
+	for {
+		if tree.currentEntry >= int64(len(tree.Entries())) {
+			log.Debugf("tree.Read() returning 0, io.EOF")
+			return 0, io.EOF
+		}
+
+		obj := (tree.Entries())[tree.currentEntry]
+		n, err = obj.Read(buf)
+		if errors.Cause(err) == io.EOF {
+			err = obj.Close()
+			Ck(err)
+			Assert(n == 0)
+			tree.currentEntry++
+			log.Debugf("tree.Read() advancing to entry %v", tree.currentEntry)
+			continue
+		}
+		Ck(err)
+		break
 	}
 
-	obj := (tree.Entries())[tree.currentEntry]
-	n, err = obj.Read(buf)
-	if errors.Cause(err) == io.EOF {
-		tree.currentEntry++
-		Assert(n == 0)
-		return 0, nil
-	}
-	Ck(err)
-
+	log.Debugf("tree.Read() entry %d returning %d, %v", tree.currentEntry, n, err)
 	return
 }
 

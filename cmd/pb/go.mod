@@ -22,6 +22,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pkg/fileutils v0.0.0-20181114200823-d734b7f202ba
 	github.com/sirupsen/logrus v1.7.0
+	github.com/stevegt/debugpipe v0.0.2 // indirect
 	github.com/stevegt/goadapt v0.0.8
 	github.com/t7a/pitbase v0.0.0-00010101000000-000000000000
 	golang.org/x/text v0.3.3 // indirect

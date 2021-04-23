@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,15 +21,15 @@ func init() {
 	if debug == "1" {
 		log.SetLevel(log.DebugLevel)
 	}
-	logrus.SetReportCaller(true)
-	formatter := &logrus.TextFormatter{
+	log.SetReportCaller(true)
+	formatter := &log.TextFormatter{
 		CallerPrettyfier: caller(),
-		FieldMap: logrus.FieldMap{
-			logrus.FieldKeyFile: "caller",
+		FieldMap: log.FieldMap{
+			log.FieldKeyFile: "caller",
 		},
 	}
 	formatter.TimestampFormat = "15:04:05.999999999"
-	logrus.SetFormatter(formatter)
+	log.SetFormatter(formatter)
 }
 
 // bin2hex converts byte slice into hex string
