@@ -599,6 +599,9 @@ func WriteTempFile(data []byte, mode os.FileMode) (filename string, err error) {
 }
 
 func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error) {
+
+	/// trace, debug := trace()
+
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -606,7 +609,12 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 	}
 
 	if strings.Index(img, "tree/") == 0 {
-		tree, err := catTree(img)
+		// fh, err := os.Open("/tmp/foo.save")
+		// res, err := cli.ImageLoad(ctx, fh, true)
+		var tree io.Reader
+		tree, err = catTree(img)
+		// io.Copy(os.Stdout, tree)
+		// return
 		res, err := cli.ImageLoad(ctx, tree, false)
 		if err != nil {
 			panic(err)
