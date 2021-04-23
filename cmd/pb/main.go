@@ -621,6 +621,8 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 		go func() {
 			_, err = io.Copy(pipeWriter, tree)
 			Ck(err)
+			err = pipeWriter.Close()
+			Ck(err)
 		}()
 		res, err := cli.ImageLoad(ctx, pipeReader, false)
 		if err != nil {
