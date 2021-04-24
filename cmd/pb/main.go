@@ -609,19 +609,14 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 	}
 
 	if strings.Index(img, "tree/") == 0 {
-		// fh, err := os.Open("/tmp/foo.save")
-		// res, err := cli.ImageLoad(ctx, fh, true)
-		var tree io.ReadCloser
-		tree, err = catTree(img)
+		tree, err := catTree(img)
+		defer tree.Close()
 
 		var res types.ImageLoadResponse
 		if true {
 			res, err = cli.ImageLoad(ctx, tree, false)
 			Ck(err)
-			err = tree.Close()
-			Ck(err)
 		} else {
-			// pipeReader, pipeWriter := io.Pipe()
 			pipeReader, pipeWriter := debugpipe.Pipe()
 			go func() {
 				_, err = io.Copy(pipeWriter, tree)
@@ -635,8 +630,7 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 
 		_, err = io.Copy(os.Stdout, res.Body)
 		Ck(err)
-		// XXX remember to close res.Body
-
+		defer res.Body.Close()
 	} else {
 		reader, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
 		if err != nil {

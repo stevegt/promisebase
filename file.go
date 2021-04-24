@@ -101,21 +101,20 @@ func (file *File) ckopen() (err error) {
 func (file *File) Close() (err error) {
 	if file.Readonly {
 		if file.fh == nil {
-			// XXX find the source of the nil fh
-			// XXX we had to put this here to make pb run work
 			return
 		}
-		err = file.fh.Close()
-		log.Debugf("file Close() returning %v for %#v", err, file)
-		// log.Debugf(string(debug.Stack()))
+		// no err check needed because readonly
+		file.fh.Close()
+		// log.Debugf("file Close() returning %v for %#v", err, file)
 		file.fh = nil
 		return
 	}
 
-	// move tmpfile to perm
+	Assert(file.fh != nil, "writeable file handle is nil: %#v %#v\n", file, file.Path)
 
-	// close disk file
-	file.fh.Close()
+	// this one was writeable, so check err
+	err = file.fh.Close()
+	Ck(err)
 
 	// finish computing hash
 	binhash := file.hash.Sum(nil)
@@ -143,6 +142,7 @@ func (file *File) Close() (err error) {
 		log.Debugf("file Close() returning %v rename %v to %v", err, abspath, file.fh.Name())
 		return
 	}
+	file.Readonly = true
 
 	log.Debugf("file Close() returning %v for %v", err, file.fh.Name())
 	file.fh = nil
