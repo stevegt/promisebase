@@ -61,7 +61,7 @@ x clean up streaming enough to support `pb run`
       of https://medium.com/@cminion/quicknote-docker-load-vs-docker-import-ed1367b93721
     x https://pspdfkit.com/blog/2019/docker-import-export-vs-load-save/
     x https://maori.geek.nz/how-to-digest-a-docker-image-ca9fc7630b71
-    - https://pkg.go.dev/github.com/docker/docker/client#Client.ImageLoad
+    x https://pkg.go.dev/github.com/docker/docker/client#Client.ImageLoad
 
 ```
     host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-save.tar 
@@ -70,6 +70,8 @@ x clean up streaming enough to support `pb run`
     hello
 ```
 
+- track down source of the multiple closes on file handles
+    - figure out why we can't uncomment tree.go:178
 - fix pb run so that it runs the container in a goroutine with stdio in channels
 - containerize tests
     - this will also provide a linux VM for Matt

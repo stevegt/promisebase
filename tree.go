@@ -175,8 +175,9 @@ func (tree *Tree) Read(buf []byte) (n int, err error) {
 		obj := (tree.Entries())[tree.currentEntry]
 		n, err = obj.Read(buf)
 		if errors.Cause(err) == io.EOF {
-			err = obj.Close()
-			Ck(err)
+			// XXX is go's runtime closing these files for us when obj is out of scope?
+			// err = obj.Close()
+			// Ck(err)
 			Assert(n == 0)
 			tree.currentEntry++
 			log.Debugf("tree.Read() advancing to entry %v", tree.currentEntry)
