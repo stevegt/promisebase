@@ -100,8 +100,14 @@ func (file *File) ckopen() (err error) {
 
 func (file *File) Close() (err error) {
 	if file.Readonly {
+		if file.fh == nil {
+			// XXX find the source of the nil fh
+			// XXX we had to put this here to make pb run work
+			return
+		}
 		err = file.fh.Close()
 		log.Debugf("file Close() returning %v for %#v", err, file)
+		// log.Debugf(string(debug.Stack()))
 		file.fh = nil
 		return
 	}
