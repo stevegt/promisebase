@@ -4,15 +4,15 @@ package pitbase
 
 type Blob struct {
 	Db *Db
-	*File
+	*WORM
 }
 
 func (blob *Blob) GetPath() *Path {
 	return blob.Path
 }
 
-func (blob Blob) New(db *Db, file *File) *Blob {
+func (blob Blob) New(db *Db, file *WORM) *Blob {
 	blob.Db = db
-	blob.File = file
+	blob.WORM = file
 	return &blob
 }

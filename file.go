@@ -15,26 +15,36 @@ import (
 	. "github.com/stevegt/goadapt"
 )
 
-type File struct {
+// file modes
+const (
+	NEW   = 0
+	READ  = 0444
+	WRITE = 0644
+)
+
+type WORM struct {
 	Db *Db
 	*Path
-	Readonly bool
-	fh       *os.File
-	hash     hash.Hash
+	_mode os.FileMode
+	fh    *os.File
+	hash  hash.Hash
 }
 
-func (file File) New(db *Db, path *Path) (*File, error) {
+func (file WORM) New(db *Db, path *Path) (*WORM, error) {
 	file.Db = db
 	file.Path = path
 	if file.Path == nil {
 		// we don't call Path.New() here 'cause we don't want it to
 		// try to parse the empty Raw field
 		file.Path = &Path{}
+		Assert(file.Mode() == NEW)
+		file.Mode(WRITE)
 	}
 	if file.Path.Algo == "" {
 		// we default to "sha256" here, but callers can e.g. specify algo
 		// for a new blob via something like Blob{File{Path{Algo: "sha512"}}}
 		// XXX default should come from a DefaultAlgo field in Db config
+		Assert(file.Mode() == WRITE)
 		file.Path.Algo = "sha256"
 	}
 
@@ -44,8 +54,10 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 	// new data blocks into the hash algorithm.
 	if len(file.Path.Abs) > 0 && exists(file.Path.Abs) {
 		// use existing file
-		file.Readonly = true
+		file.Mode(READ)
 	} else {
+		Assert(file.Mode() == NEW)
+		file.Mode(WRITE)
 		// we're creating a new file -- initialize hash engine
 		switch file.Path.Algo {
 		case "sha256":
@@ -58,17 +70,19 @@ func (file File) New(db *Db, path *Path) (*File, error) {
 		}
 	}
 
+	Assert(file.Mode() != NEW)
 	return &file, nil
 }
 
 // gets called by Read(), Write(), etc.
-func (file *File) ckopen() (err error) {
+func (file *WORM) ckopen() (err error) {
 	defer Return(&err)
 
 	if file.IsOpen() {
 		return
 	}
-	if !file.Readonly {
+	switch file.Mode() {
+	case WRITE:
 		// open temporary file
 		file.fh, err = file.Db.tmpFile()
 		Ck(err)
@@ -82,7 +96,7 @@ func (file *File) ckopen() (err error) {
 		n, err = file.hash.Write(header)
 		Ck(err)
 		Assert(n == len(header))
-	} else {
+	case READ:
 		// open existing file
 		file.fh, err = os.Open(file.Path.Abs)
 		Ck(err)
@@ -94,12 +108,16 @@ func (file *File) ckopen() (err error) {
 		if n != len(header) || string(buf) != header {
 			return fmt.Errorf("malformed header: %s file: %s", string(buf), file.Path.Abs)
 		}
+	default:
+		Assert(false)
 	}
 	return
 }
 
-func (file *File) Close() (err error) {
-	if file.Readonly {
+func (file *WORM) Close() (err error) {
+	defer Return(&err)
+	switch file.Mode() {
+	case NEW, READ:
 		if file.fh == nil {
 			return
 		}
@@ -108,68 +126,75 @@ func (file *File) Close() (err error) {
 		// log.Debugf("file Close() returning %v for %#v", err, file)
 		file.fh = nil
 		return
-	}
+	case WRITE:
+		Assert(file.fh != nil, "writeable file handle is nil: %#v %#v\n", file, file.Path)
 
-	Assert(file.fh != nil, "writeable file handle is nil: %#v %#v\n", file, file.Path)
+		// this one was writeable, so check err
+		err = file.fh.Close()
+		Ck(err)
 
-	// this one was writeable, so check err
-	err = file.fh.Close()
-	Ck(err)
+		// finish computing hash
+		binhash := file.hash.Sum(nil)
+		hexhash := bin2hex(binhash)
 
-	// finish computing hash
-	binhash := file.hash.Sum(nil)
-	hexhash := bin2hex(binhash)
+		// now that we know what the data's hash is, we can replace tmp
+		// Path with permanent Path
+		Assert(file.Path.Class != "")
+		Assert(file.Path.Algo != "")
+		canpath := fmt.Sprintf("%s/%s/%s", file.Path.Class, file.Path.Algo, hexhash)
+		file.Path = Path{}.New(file.Db, canpath)
 
-	// now that we know what the data's hash is, we can replace tmp
-	// Path with permanent Path
-	Assert(file.Path.Class != "")
-	Assert(file.Path.Algo != "")
-	canpath := fmt.Sprintf("%s/%s/%s", file.Path.Class, file.Path.Algo, hexhash)
-	file.Path = Path{}.New(file.Db, canpath)
+		// make sure subdirs exist
+		dir, _ := filepath.Split(file.Path.Abs)
+		err = os.MkdirAll(dir, 0755)
+		Ck(err)
 
-	// make sure subdirs exist
-	abspath := file.Path.Abs
-	dir, _ := filepath.Split(abspath)
-	err = os.MkdirAll(dir, 0755)
-	if err != nil {
-		log.Debugf("file Close() returning %v for mkdir dir %v", err, dir)
+		// rename temp file to permanent blob file
+		err = os.Rename(file.fh.Name(), file.Path.Abs)
+		Ck(err)
+
+		file.Mode(READ)
+
+		log.Debugf("file Close() returning %v for %v", err, file.fh.Name())
+		file.fh = nil
 		return
 	}
-
-	// rename temp file to permanent blob file
-	err = os.Rename(file.fh.Name(), abspath)
-	if err != nil {
-		log.Debugf("file Close() returning %v rename %v to %v", err, abspath, file.fh.Name())
-		return
-	}
-	file.Readonly = true
-
-	log.Debugf("file Close() returning %v for %v", err, file.fh.Name())
-	file.fh = nil
 	return
 }
 
-func (file *File) IsOpen() (ok bool) {
+func (file *WORM) IsOpen() (ok bool) {
 	if file.fh == nil {
 		return false
 	}
 	_, err := file.fh.Seek(0, io.SeekCurrent)
-	// _, nok := err.(*fs.PathError)
 	return err == nil
+}
+
+func (file *WORM) Mode(newmode ...os.FileMode) (oldmode os.FileMode) {
+	Assert(len(newmode) < 2)
+	oldmode = file._mode
+	if len(newmode) > 0 {
+		file._mode = newmode[0]
+		if exists(file.Path.Abs) {
+			err := os.Chmod(file.Path.Abs, file._mode)
+			Ck(err)
+		}
+	}
+	return
 }
 
 // Read reads from the file and puts the data into `buf`, returning n
 // as the number of bytes read.  Supports the io.Reader interface.
-func (file *File) Read(buf []byte) (n int, err error) {
+func (file *WORM) Read(buf []byte) (n int, err error) {
 	defer Return(&err)
-	file.Readonly = true
+	file.Mode(READ)
 	err = file.ckopen()
 	Ck(err)
 	return file.fh.Read(buf)
 }
 
 // XXX deprecate
-func (file *File) ReadAll() (buf []byte, err error) {
+func (file *WORM) ReadAll() (buf []byte, err error) {
 	defer Return(&err)
 	err = file.ckopen()
 	Ck(err)
@@ -187,7 +212,7 @@ func (file *File) ReadAll() (buf []byte, err error) {
 	return
 }
 
-func (file *File) Rewind() error {
+func (file *WORM) Rewind() error {
 	_, err := file.Seek(0, 0)
 	return err
 }
@@ -204,8 +229,8 @@ func (file *File) Rewind() error {
 // doesn't need to know the size of the file header, and doesn't need
 // to know that the file header exists at all -- these functions
 // operate on the file body data only.
-func (file *File) Seek(n int64, whence int) (nout int64, err error) {
-	file.Readonly = true
+func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
+	file.Mode(READ)
 	err = file.ckopen()
 	if err != nil {
 		return
@@ -227,8 +252,8 @@ func (file *File) Seek(n int64, whence int) (nout int64, err error) {
 	return
 }
 
-func (file *File) Size() (n int64, err error) {
-	file.Readonly = true
+func (file *WORM) Size() (n int64, err error) {
+	file.Mode(READ)
 	info, err := os.Stat(file.Path.Abs)
 	if err != nil {
 		return
@@ -240,7 +265,7 @@ func (file *File) Size() (n int64, err error) {
 
 // Tell returns the current seek position (the current value of
 // `b.pos`) in the file.
-func (file *File) Tell() (n int64, err error) {
+func (file *WORM) Tell() (n int64, err error) {
 	// call Seek(0, 1)
 	return file.Seek(0, io.SeekCurrent)
 }
@@ -248,9 +273,9 @@ func (file *File) Tell() (n int64, err error) {
 // Write takes data from `data` and puts it into the file named
 // file.Path.Abs.  Large blobs can be written using multiple Write()
 // calls.  Supports the io.Writer interface.
-func (file *File) Write(data []byte) (n int, err error) {
+func (file *WORM) Write(data []byte) (n int, err error) {
 
-	if file.Readonly {
+	if file.Mode() == READ {
 		err = fmt.Errorf("cannot write to existing object: %s", file.Path.Abs)
 		return
 	}

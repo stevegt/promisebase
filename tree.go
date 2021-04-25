@@ -16,14 +16,14 @@ import (
 // Tree is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Tree struct {
 	Db *Db
-	*File
+	*WORM
 	_entries     []Object
 	currentEntry int64
 }
 
-func (tree Tree) New(db *Db, file *File) *Tree {
+func (tree Tree) New(db *Db, file *WORM) *Tree {
 	tree.Db = db
-	tree.File = file
+	tree.WORM = file
 	return &tree
 }
 
@@ -113,12 +113,12 @@ func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
 func (tree *Tree) loadEntries() (err error) {
 	defer Return(&err)
 
-	Assert(tree.File != nil)
-	Assert(tree.File.Path != nil)
-	if tree.File.Path.Abs == "" {
+	Assert(tree.WORM != nil)
+	Assert(tree.WORM.Path != nil)
+	if tree.WORM.Path.Abs == "" {
 		return
 	}
-	file := tree.File
+	file := tree.WORM
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -244,10 +244,10 @@ func (tree *Tree) Verify() (ok bool, err error) {
 func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
-	if tree.File == nil {
-		file, err := File{}.New(tree.Db, tree.Path)
+	if tree.WORM == nil {
+		file, err := WORM{}.New(tree.Db, tree.Path)
 		Ck(err)
-		tree.File = file
+		tree.WORM = file
 	}
 
 	if all {

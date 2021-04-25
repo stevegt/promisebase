@@ -285,7 +285,7 @@ func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
 	db, err := opendb()
 	Ck(err)
 	path := &pb.Path{Algo: algo, Class: "blob"}
-	file, err := pb.File{}.New(db, path)
+	file, err := pb.WORM{}.New(db, path)
 	ExitIf(err, syscall.ENOSYS)
 	Ck(err)
 	blob = pb.Blob{}.New(db, file)
@@ -303,7 +303,7 @@ func getBlob(canpath string, wr io.Writer) (err error) {
 	path := pb.Path{}.New(db, canpath)
 	// XXX from here on down is the same as in putBlob and should be
 	// moved to a common ioBlob(dst, src) (err error) {} function
-	file, err := pb.File{}.New(db, path)
+	file, err := pb.WORM{}.New(db, path)
 	Ck(err)
 	blob := pb.Blob{}.New(db, file)
 	_, err = io.Copy(wr, blob)

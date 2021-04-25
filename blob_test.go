@@ -12,7 +12,7 @@ func TestBlob(t *testing.T) {
 	canpath := "blob/sha256/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
 	relpath := "blob/sha256/d2c/71a/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
 	path := Path{}.New(db, canpath)
-	file, err := File{}.New(db, path)
+	file, err := WORM{}.New(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
 	b := Blob{}.New(db, file)
 
@@ -27,7 +27,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "b.Close() err %v", err)
 
 	// re-open readable
-	file, err = File{}.New(db, path)
+	file, err = WORM{}.New(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
 	b = Blob{}.New(db, file)
 	tassert(t, err == nil, "OpenBlob err %v", err)
