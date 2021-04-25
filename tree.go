@@ -245,7 +245,7 @@ func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
 	if tree.WORM == nil {
-		file, err := WORM{}.New(tree.Db, tree.Path)
+		file, err := OpenWORM(tree.Db, tree.Path)
 		Ck(err)
 		tree.WORM = file
 	}

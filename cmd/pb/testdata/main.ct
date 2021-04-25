@@ -29,9 +29,7 @@ $ pb putblob sha256 < badblob2 --> FAIL
 
 # get nonexistent blob
 $ pb getblob blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000 --> FAIL
-open ${ROOTDIR}/var/blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000: no such file or directory
-
-#open /tmp/cmdtest426797214/var/blob/sha256/a0b7f7cb7b484df1b0daa5ec8d038fd2ad605c8018427bc3a3945a431d4ae908: no such file or directory 
+not found: ${ROOTDIR}/var/blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000: no such file or directory
 
 # try a multiline blob
 $ fecho blob2 multiline blob\nthis is line 2
@@ -140,7 +138,7 @@ $ pb putblob lkdsajf --> FAIL
 function not implemented: lkdsajf
 
 $ pb getblob kakajsn --> FAIL
-invalid argument: malformed path: kakajsn
+malformed path: kakajsn: invalid argument
 
 $ pb lsstream lsadkfj --> FAIL
 lstat ${ROOTDIR}/var/stream/lsadkfj: no such file or directory

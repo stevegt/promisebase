@@ -38,9 +38,8 @@ func (path Path) New(db *Db, raw string) (res *Path) {
 
 	// split into parts
 	parts := strings.Split(clean, "/")
-	if len(parts) < 2 {
-		Ck(fmt.Errorf("%w: malformed path: %s", syscall.Errno(syscall.EINVAL), raw))
-	}
+	// Assert(len(parts) >= 2, fmt.Errorf("%w: malformed path: %s", syscall.Errno(syscall.EINVAL), raw))
+	ErrnoIf(len(parts) < 2, syscall.EINVAL, "malformed path: %s", raw)
 	// Assert(len(parts) >= 2, syscall.EINVAL, "malformed path: %s", raw)
 	path.Class = parts[0]
 	if path.Class == "stream" {
@@ -49,7 +48,7 @@ func (path Path) New(db *Db, raw string) (res *Path) {
 		path.Abs = filepath.Join(path.Db.Dir, path.Rel)
 		path.Canon = path.Rel
 	} else {
-		Assert(len(parts) >= 3, "malformed path: %s", raw)
+		ErrnoIf(len(parts) < 3, syscall.EINVAL, "malformed path: %s", raw)
 		path.Algo = parts[1]
 		// the last part of the path should always be the full hash,
 		// regardless of whether we were given the full or canonical

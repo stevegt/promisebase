@@ -4,6 +4,8 @@ go 1.14
 
 replace github.com/t7a/pitbase => ../..
 
+// replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
+
 require (
 	github.com/Microsoft/go-winio v0.4.18 // indirect
 	github.com/containerd/containerd v1.4.4 // indirect
@@ -23,7 +25,7 @@ require (
 	github.com/pkg/fileutils v0.0.0-20181114200823-d734b7f202ba
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stevegt/debugpipe v0.0.2 // indirect
-	github.com/stevegt/goadapt v0.0.8
+	github.com/stevegt/goadapt v0.0.9
 	github.com/t7a/pitbase v0.0.0-00010101000000-000000000000
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect

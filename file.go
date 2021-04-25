@@ -30,48 +30,37 @@ type WORM struct {
 	hash  hash.Hash
 }
 
-func (file WORM) New(db *Db, path *Path) (*WORM, error) {
+func CreateWORM(db *Db, class string, algo string) (file *WORM, err error) {
+	defer Return(&err)
+	file = &WORM{}
+	file.Db = db
+	// we don't call Path.New() here 'cause we don't want it to
+	// try to parse the empty Raw field
+	file.Path = &Path{Class: class, Algo: algo}
+	file.Mode(WRITE)
+	// Set file.hash so file.Write() can feed new data blocks into the
+	// hash algorithm.
+	switch file.Path.Algo {
+	case "sha256":
+		file.hash = sha256.New()
+	case "sha512":
+		file.hash = sha512.New()
+	default:
+		err := fmt.Errorf("%w: %s", syscall.ENOSYS, file.Path.Algo)
+		return nil, err
+	}
+	return
+}
+
+func OpenWORM(db *Db, path *Path) (file *WORM, err error) {
+	defer Return(&err)
+	file = &WORM{}
 	file.Db = db
 	file.Path = path
-	if file.Path == nil {
-		// we don't call Path.New() here 'cause we don't want it to
-		// try to parse the empty Raw field
-		file.Path = &Path{}
-		Assert(file.Mode() == NEW)
-		file.Mode(WRITE)
-	}
-	if file.Path.Algo == "" {
-		// we default to "sha256" here, but callers can e.g. specify algo
-		// for a new blob via something like Blob{File{Path{Algo: "sha512"}}}
-		// XXX default should come from a DefaultAlgo field in Db config
-		Assert(file.Mode() == WRITE)
-		file.Path.Algo = "sha256"
-	}
-
-	// Detect whether this invocation of New is for an existing disk
-	// file, or for a new one that hasn't been written yet.  In the
-	// latter case, we need to set file.hash so file.Write() can feed
-	// new data blocks into the hash algorithm.
-	if len(file.Path.Abs) > 0 && exists(file.Path.Abs) {
-		// use existing file
-		file.Mode(READ)
-	} else {
-		Assert(file.Mode() == NEW)
-		file.Mode(WRITE)
-		// we're creating a new file -- initialize hash engine
-		switch file.Path.Algo {
-		case "sha256":
-			file.hash = sha256.New()
-		case "sha512":
-			file.hash = sha512.New()
-		default:
-			err := fmt.Errorf("%w: %s", syscall.ENOSYS, file.Path.Algo)
-			return nil, err
-		}
-	}
-
-	Assert(file.Mode() != NEW)
-	return &file, nil
+	ErrnoIf(len(file.Path.Abs) == 0, syscall.EINVAL, "empty path")
+	ErrnoIf(!exists(file.Path.Abs), syscall.ENOENT, "not found: %s", file.Path.Abs)
+	file.Mode(READ)
+	return
 }
 
 // gets called by Read(), Write(), etc.

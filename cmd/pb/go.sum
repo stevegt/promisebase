@@ -90,6 +90,8 @@ github.com/stevegt/debugpipe v0.0.2 h1:xE66SvGy42VLKEo04JTebZn9WsHfi5jBiSFcxPB8m
 github.com/stevegt/debugpipe v0.0.2/go.mod h1:I/R40ibR6Phh6UY5+enEyXmYsUURWvN0TZdDJ8LYLuU=
 github.com/stevegt/goadapt v0.0.8 h1:g2P7DROTPT1YQy6s5RxIcKJ76Om0RHlaojEoBJtMMC4=
 github.com/stevegt/goadapt v0.0.8/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
+github.com/stevegt/goadapt v0.0.9 h1:7c4CEERWji3uxrrDqGxNooFL8zw9Agt2qYEX0b52nrA=
+github.com/stevegt/goadapt v0.0.9/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.5.1 h1:nOGnQDM7FYENwehXlg/kFVnos3rEvtKTjRvOWSzb6H4=

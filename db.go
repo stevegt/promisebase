@@ -60,11 +60,11 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 	class := path.Class
 	switch class {
 	case "blob":
-		file, err := WORM{}.New(db, path)
+		file, err := OpenWORM(db, path)
 		Ck(err)
 		return Blob{}.New(db, file), nil
 	case "tree":
-		file, err := WORM{}.New(db, path)
+		file, err := OpenWORM(db, path)
 		Ck(err)
 		return Tree{}.New(db, file), nil
 	default:
@@ -142,12 +142,11 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 
 // GetBlob retrieves an entire blob into buf by reading its file contents.
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
-	file, err := WORM{}.New(db, path)
+	file, err := OpenWORM(db, path)
 	if err != nil {
 		return nil, err
 	}
-	file.Mode(READ)
-	return Blob{}.New(db, file).ReadAll()
+	return file.ReadAll()
 }
 
 // Rm deletes the file associated with a path of any format and returns an error
@@ -224,8 +223,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
 	Assert(db != nil, "db is nil")
 
-	path := &Path{Algo: algo, Class: "blob"}
-	file, err := WORM{}.New(db, path)
+	file, err := CreateWORM(db, "blob", algo)
 	Ck(err)
 	b = Blob{}.New(db, file)
 
@@ -273,8 +271,7 @@ func (db *Db) PutTree(algo string, children ...Object) (tree *Tree, err error) {
 
 	Assert(db != nil, "db is nil")
 
-	path := &Path{Class: "tree", Algo: algo}
-	file, err := WORM{}.New(db, path)
+	file, err := CreateWORM(db, "tree", algo)
 	Ck(err)
 	tree = Tree{}.New(db, file)
 
@@ -306,7 +303,7 @@ func (db *Db) GetTree(path *Path) (tree *Tree, err error) {
 func (db *Db) getTree(path *Path, verify bool) (tree *Tree, err error) {
 	defer Return(&err)
 
-	file, err := WORM{}.New(db, path)
+	file, err := OpenWORM(db, path)
 	Ck(err)
 	defer file.Close()
 

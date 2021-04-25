@@ -95,7 +95,7 @@ func TestTreeRead(t *testing.T) {
 	expect := []byte("blob1valueblob2valueblob3value")
 
 	// read explicitly
-	file, err := WORM{}.New(db, tree2.Path)
+	file, err := OpenWORM(db, tree2.Path)
 	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
 	tree2a := Tree{}.New(db, file)
 	gotbuf := make([]byte, 99)
@@ -113,7 +113,7 @@ func TestTreeRead(t *testing.T) {
 	tassert(t, bytes.Compare(expect, gotbuf[:gotbufn]) == 0, "expect %q got %q", string(expect), string(gotbuf[:gotbufn]))
 
 	// read as stream
-	file, err = WORM{}.New(db, tree2.Path)
+	file, err = OpenWORM(db, tree2.Path)
 	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
 	tree2b := Tree{}.New(db, file)
 	expectrd := bytes.NewReader(expect)
