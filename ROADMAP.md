@@ -55,7 +55,7 @@ x clean up streaming enough to support `pb run`
     x convert tree.Cat() and stream.Cat()
     x look around for anywhere else a buf is being returned
     x test pb with ulimit 
-- write pb run:
+x write pb run:
     x see https://docs.docker.com/engine/api/sdk/examples/
     x we likely want to use save/load instead of export/import because
       of https://medium.com/@cminion/quicknote-docker-load-vs-docker-import-ed1367b93721
@@ -70,23 +70,37 @@ x clean up streaming enough to support `pb run`
     hello
 ```
 
-- track down source of the multiple closes on file handles
-    - figure out why we can't uncomment tree.go:178
-- fix pb run so that it runs the container in a goroutine with stdio in channels
+x track down source of the multiple closes on file handles
+    x figure out why we can't uncomment tree.go:178
+- move runContainer and most other pb functions into client library
+    - write test cases
+    - import client library into pb
+    - run the container in a goroutine with stdio via channels
+- spike network layer
+	- add daemon() to pb 
+		- run daemon with `pb daemon`, 
+	- move or copy pb runContainer into daemon
+		- run the container in a goroutine with stdio via channels
+    - client/broker/member talks to daemon via unix domain socket, stream mode
 - containerize tests
-    - this will also provide a linux VM for Matt
+    - this will also help provide a linux VM for Matt
+- RFC -- UDS protocol
 - write some test cases where we change the working directory
     - should help make macOS work
-- spike network layer
-    - daemon
-    - unix domain socket, stream mode
-    - broker
 - move rfcs to:
     - 0000 t7a
     - 1000 pb/gdo
     - 2000 cdint
-- start RFC 1004 -- auth&auth
+- RFC -- auth&auth
     - e.g. authorization by key fingerprint should be via encryption, not by us
+- RFC -- architecture
+    - db
+    - daemon
+    - counterparty
+    - network
+- RFC -- accounting records
+    - one blob per transaction leg 
+        - per-leg payload in stream
 - make wide trees streamable
     - see note in memtest.sh
 - spike pit
