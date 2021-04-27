@@ -11,9 +11,12 @@ type Msg struct {
 	Args []string
 }
 
+// Parse splits txt returns the parts in a Msg struct.
 func Parse(txt string) (msg Msg, err error) {
 	return
 }
+
+// XXX copy most of the following functions from pb/main.go
 
 func dbdir() (dir string) {
 	return

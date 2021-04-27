@@ -47,6 +47,15 @@ func TestParser(t *testing.T) {
 	tassert(t, msg.Args[1] == "world", "%v", msg)
 }
 
+func TestDispatcher(t *testing.T) {
+	// register a callback for an addr
+
+	// send that address in a message to the dispatcher
+
+	// confirm the callback worked
+
+}
+
 func setupDb(t *testing.T, db *pb.Db) *pb.Db {
 	var err error
 	var dir string

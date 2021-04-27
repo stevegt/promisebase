@@ -72,13 +72,17 @@ x write pb run:
 
 x track down source of the multiple closes on file handles
     x figure out why we can't uncomment tree.go:178
-- write pit library
+- write Go pit library
     - write test cases
         - protocol parser and/or inotify lib first
     - import pit library into pb
     - `pb` is the cmdline utility providing an API for shell scripts
     - move runContainer and most other pb functions into library
         - run the container in a goroutine with stdio via channels
+- POC pit libraries in other languages
+    - bash
+    - python
+    - C++
 - spike network layer
 	- add daemon() to pb 
 		- run daemon with `pb daemon`, 
