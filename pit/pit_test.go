@@ -57,6 +57,12 @@ func TestDispatcher(t *testing.T) {
 		return nil
 	}
 
+	ok1b := false
+	cb1b := func(msg Msg) error {
+		ok1b = true
+		return nil
+	}
+
 	// create some simple callbacks
 	ok2 := false
 	cb2 := func(msg Msg) error {
@@ -68,6 +74,7 @@ func TestDispatcher(t *testing.T) {
 	addr1 := Addr("sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b")
 	txt1 := addr1 + " hello world"
 	dp.Register(cb1, addr1)
+	dp.Register(cb1b, addr1)
 	addr2 := Addr("sha256/4f52047d917c0082d7eaafa55f97afe2b84c306ce2c4e46b0ed1ff238d8d3af0")
 	txt2 := addr2 + " hello again world"
 	dp.Register(cb2, addr2)
@@ -79,6 +86,7 @@ func TestDispatcher(t *testing.T) {
 
 	// confirm the callback worked
 	tassert(t, ok1, "nok")
+	tassert(t, ok1b, "nok")
 	tassert(t, !ok2, "nok")
 
 	// send another address in a message to the dispatcher
@@ -88,6 +96,7 @@ func TestDispatcher(t *testing.T) {
 
 	// confirm the callback worked
 	tassert(t, ok1, "nok")
+	tassert(t, ok1b, "nok")
 	tassert(t, ok2, "nok")
 }
 
