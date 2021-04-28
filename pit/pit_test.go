@@ -15,9 +15,6 @@ const testPitDirPrefix = "pit"
 // test boolean condition
 func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	t.Helper() // cause file:line info to show caller
-	if txt == "" {
-		txt = "tassert failed"
-	}
 	if !cond {
 		t.Fatalf(txt, args...)
 	}
@@ -41,19 +38,32 @@ func TestParser(t *testing.T) {
 	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
 	msg, err := Parse(txt)
 	tassert(t, err == nil, "%#v", err)
-	tassert(t, msg.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%v", msg)
-	tassert(t, len(msg.Args) == 2, "%v", msg)
-	tassert(t, msg.Args[0] == "hello", "%v", msg)
-	tassert(t, msg.Args[1] == "world", "%v", msg)
+	tassert(t, msg.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%#v", msg)
+	tassert(t, len(msg.Args) == 2, "%#v", msg)
+	tassert(t, msg.Args[0] == "hello", "%#v", msg)
+	tassert(t, msg.Args[1] == "world", "%#v", msg)
 }
 
+// client-facing API
 func TestDispatcher(t *testing.T) {
+	dp := NewDispatcher()
+
+	ok := false
 	// register a callback for an addr
+	addr := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b"
+	txt := addr + " hello world"
+	cb := func(msg string) {
+		ok = true
+	}
+	dp.Register(cb, addr)
 
 	// send that address in a message to the dispatcher
+	msg, err := Parse(txt)
+	tassert(t, err == nil, "%#v", err)
+	err = dp.Dispatch(msg)
 
 	// confirm the callback worked
-
+	tassert(t, ok, "nok")
 }
 
 func setupDb(t *testing.T, db *pb.Db) *pb.Db {

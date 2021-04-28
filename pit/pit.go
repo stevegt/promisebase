@@ -12,7 +12,21 @@ type Msg struct {
 }
 
 // Parse splits txt returns the parts in a Msg struct.
-func Parse(txt string) (msg Msg, err error) {
+func Parse(txt string) (msg *Msg, err error) {
+	return
+}
+
+type Dispatcher struct{}
+
+func NewDispatcher() *Dispatcher {
+	return &Dispatcher{}
+}
+
+func (dp *Dispatcher) Register(cb func(string), addr string) {
+	return
+}
+
+func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
 	return
 }
 
