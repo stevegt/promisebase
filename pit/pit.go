@@ -2,19 +2,11 @@ package pit
 
 import (
 	"io"
+	"os"
+	"strings"
 
 	pb "github.com/t7a/pitbase"
 )
-
-type Msg struct {
-	Addr string
-	Args []string
-}
-
-// Parse splits txt returns the parts in a Msg struct.
-func Parse(txt string) (msg *Msg, err error) {
-	return
-}
 
 type Dispatcher struct{}
 
@@ -27,12 +19,29 @@ func (dp *Dispatcher) Register(cb func(string), addr string) {
 }
 
 func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
+}
+
+type Msg struct {
+	Addr string
+	Args []string
+}
+
+// Parse splits txt returns the parts in a Msg struct.
+func Parse(txt string) (msg *Msg, err error) {
+	parts := strings.Split(txt, " ")
+	msg.Addr = parts[0]
+	msg.Args = parts[1:]
 	return
 }
 
 // XXX copy most of the following functions from pb/main.go
 
 func dbdir() (dir string) {
+	dir, _ = os.LookupEnv("PITDIR")
+	if dir == "" {
+		dir, _ = os.Getwd()
+	}
+	// XXX cannot not handle errors in this design. consider revising
 	return
 }
 
