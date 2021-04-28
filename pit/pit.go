@@ -4,7 +4,9 @@ import (
 	"io"
 	"os"
 	"strings"
+	"syscall"
 
+	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase"
 )
 
@@ -19,6 +21,7 @@ func (dp *Dispatcher) Register(cb func(string), addr string) {
 }
 
 func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
+	return
 }
 
 type Msg struct {
@@ -29,6 +32,8 @@ type Msg struct {
 // Parse splits txt returns the parts in a Msg struct.
 func Parse(txt string) (msg *Msg, err error) {
 	parts := strings.Fields(txt)
+	ErrnoIf(len(parts) < 3, syscall.EINVAL, txt)
+	msg = &Msg{}
 	msg.Addr = parts[0]
 	msg.Args = parts[1:]
 	return
@@ -36,12 +41,11 @@ func Parse(txt string) (msg *Msg, err error) {
 
 // XXX copy most of the following functions from pb/main.go
 
-func dbdir() (dir string) {
-	dir, _ = os.LookupEnv("PITDIR")
-	if dir == "" {
-		dir, _ = os.Getwd()
+func dbdir() (dir string, err error) {
+	dir, ok := os.LookupEnv("PITDIR")
+	if !ok {
+		dir, err = os.Getwd()
 	}
-	// XXX cannot not handle errors in this design. consider revising
 	return
 }
 

@@ -23,14 +23,16 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 func TestPitDir(t *testing.T) {
 	err := os.Setenv("PITDIR", "/dev/null")
 	tassert(t, err == nil, "%#v", err)
-	got := dbdir()
+	got, err := dbdir()
+	tassert(t, err == nil, "%#v", err)
 	tassert(t, got == "/dev/null", "got %q", got)
 
 	dir, err := os.Getwd()
 	tassert(t, err == nil, "%#v", err)
 	err = os.Unsetenv("PITDIR")
 	tassert(t, err == nil, "%#v", err)
-	got = dbdir()
+	got, err = dbdir()
+	tassert(t, err == nil, "%#v", err)
 	tassert(t, dir == got, "expected %q got %q", dir, got)
 }
 
