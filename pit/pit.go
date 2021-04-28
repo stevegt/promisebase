@@ -2,6 +2,7 @@ package pit
 
 import (
 	"io"
+	"strings"
 
 	pb "github.com/t7a/pitbase"
 )
@@ -12,7 +13,10 @@ type Msg struct {
 }
 
 // Parse splits txt returns the parts in a Msg struct.
-func Parse(txt string) (msg Msg, err error) {
+func Parse(txt string) (msg *Msg, err error) {
+	parts := strings.Fields(txt)
+	msg.Addr = parts[0]
+	msg.Args = parts[1:]
 	return
 }
 
