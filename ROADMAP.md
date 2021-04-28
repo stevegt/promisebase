@@ -73,12 +73,18 @@ x write pb run:
 x track down source of the multiple closes on file handles
     x figure out why we can't uncomment tree.go:178
 - write Go pit library
+    - figure out API for other language libs 
+        - filesystem?  UDS?  both?  
+    - figure out how a container sends messages
+        - filesystem?  UDS?  both?  
     - write test cases
         - protocol parser and/or inotify lib first
     - import pit library into pb
     - `pb` is the cmdline utility providing an API for shell scripts
     - move runContainer and most other pb functions into library
         - run the container in a goroutine with stdio via channels
+- containerize tests
+    - this will also help provide a linux VM for Matt
 - POC pit libraries in other languages
     - bash
     - python
@@ -89,8 +95,6 @@ x track down source of the multiple closes on file handles
 	- move or copy pb runContainer into daemon
 		- run the container in a goroutine with stdio via channels
     - client/broker/member talks to daemon via unix domain socket, stream mode
-- containerize tests
-    - this will also help provide a linux VM for Matt
 - RFC -- UDS protocol
 - write some test cases where we change the working directory
     - should help make macOS work
