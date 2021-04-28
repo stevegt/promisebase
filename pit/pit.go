@@ -28,7 +28,7 @@ type Msg struct {
 
 // Parse splits txt returns the parts in a Msg struct.
 func Parse(txt string) (msg *Msg, err error) {
-	parts := strings.Split(txt, " ")
+	parts := strings.Fields(txt)
 	msg.Addr = parts[0]
 	msg.Args = parts[1:]
 	return
