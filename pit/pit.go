@@ -10,31 +10,40 @@ import (
 	pb "github.com/t7a/pitbase"
 )
 
-type Dispatcher struct{}
+type Addr string
+type Callback func(Msg) error
+
+type Dispatcher struct {
+	callbacks map[Addr]Callback
+}
 
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{}
 }
 
-func (dp *Dispatcher) Register(cb func(string), addr string) {
+// Register records callback as a function which Dispatch() will later
+// call.
+func (dp *Dispatcher) Register(callback Callback, addr Addr) {
 	return
 }
 
+// Dispatch calls any functions that were previously registered with
+// msg.Addr, passing msg as an argument to each function.
 func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
 	return
 }
 
 type Msg struct {
-	Addr string
+	Addr Addr
 	Args []string
 }
 
 // Parse splits txt returns the parts in a Msg struct.
-func Parse(txt string) (msg *Msg, err error) {
-	parts := strings.Fields(txt)
+func Parse(txt Addr) (msg *Msg, err error) {
+	parts := strings.Fields(string(txt))
 	ErrnoIf(len(parts) < 3, syscall.EINVAL, txt)
 	msg = &Msg{}
-	msg.Addr = parts[0]
+	msg.Addr = Addr(parts[0])
 	msg.Args = parts[1:]
 	return
 }

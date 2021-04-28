@@ -37,7 +37,7 @@ func TestPitDir(t *testing.T) {
 }
 
 func TestParser(t *testing.T) {
-	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
+	txt := Addr("sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world")
 	msg, err := Parse(txt)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, msg.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%#v", msg)
@@ -50,22 +50,45 @@ func TestParser(t *testing.T) {
 func TestDispatcher(t *testing.T) {
 	dp := NewDispatcher()
 
-	ok := false
-	// register a callback for an addr
-	addr := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b"
-	txt := addr + " hello world"
-	cb := func(msg string) {
-		ok = true
+	// create some simple callbacks
+	ok1 := false
+	cb1 := func(msg Msg) error {
+		ok1 = true
+		return nil
 	}
-	dp.Register(cb, addr)
+
+	// create some simple callbacks
+	ok2 := false
+	cb2 := func(msg Msg) error {
+		ok2 = true
+		return nil
+	}
+
+	// register some callbacks
+	addr1 := Addr("sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b")
+	txt1 := addr1 + " hello world"
+	dp.Register(cb1, addr1)
+	addr2 := Addr("sha256/4f52047d917c0082d7eaafa55f97afe2b84c306ce2c4e46b0ed1ff238d8d3af0")
+	txt2 := addr2 + " hello again world"
+	dp.Register(cb2, addr2)
 
 	// send that address in a message to the dispatcher
-	msg, err := Parse(txt)
+	msg, err := Parse(txt1)
 	tassert(t, err == nil, "%#v", err)
 	err = dp.Dispatch(msg)
 
 	// confirm the callback worked
-	tassert(t, ok, "nok")
+	tassert(t, ok1, "nok")
+	tassert(t, !ok2, "nok")
+
+	// send another address in a message to the dispatcher
+	msg, err = Parse(txt2)
+	tassert(t, err == nil, "%#v", err)
+	err = dp.Dispatch(msg)
+
+	// confirm the callback worked
+	tassert(t, ok1, "nok")
+	tassert(t, ok2, "nok")
 }
 
 func setupDb(t *testing.T, db *pb.Db) *pb.Db {
