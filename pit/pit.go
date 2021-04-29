@@ -48,6 +48,13 @@ func Parse(txt Addr) (msg *Msg, err error) {
 	return
 }
 
+// PipeFd takes an io.Reader and returns the read end of a UNIX
+// in-memory pipe -- see `man 2 pipe`.  We spawn a goroutine here to
+// read from the io.Reader and write to the write end of the pipe.
+func PipeFd(rd io.Reader) (fd uintptr) {
+	return
+}
+
 // XXX copy most of the following functions from pb/main.go
 
 func dbdir() (dir string, err error) {

@@ -1,16 +1,13 @@
 package pit
 
 import (
-	"fmt"
-	"io/ioutil"
+	"bytes"
 	"os"
 	"testing"
-
-	. "github.com/stevegt/goadapt"
-	pb "github.com/t7a/pitbase"
+	// . "github.com/stevegt/goadapt"
 )
 
-const testPitDirPrefix = "pit"
+const tmpPitPrefix = "pit"
 
 // test boolean condition
 func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
@@ -91,7 +88,31 @@ func TestDispatcher(t *testing.T) {
 	tassert(t, ok2, "nok")
 }
 
-func setupDb(t *testing.T, db *pb.Db) *pb.Db {
+func TestPipeFd(t *testing.T) {
+	// create an io.Reader
+	rd := bytes.NewReader([]byte("somedata"))
+
+	// convert it to a file descriptor
+	fd := PipeFd(rd)
+
+	// convert it to an os.File
+	file := NewFile(fd, "foo")
+
+	// check the results
+	got := fh.Read()
+	tassert(t, got == "somedata", "got %v", got)
+}
+
+/*
+func TestCreatePit(t *testing.T) {
+	setup(t)
+}
+
+func TestRunC(t *testing.T) {
+
+	runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error)
+
+func setup(t *testing.T, pit *Pit) *Pit {
 	var err error
 	var dir string
 
@@ -112,6 +133,9 @@ func setupDb(t *testing.T, db *pb.Db) *pb.Db {
 	}
 	db.Dir = dir
 
+	err := os.Setenv("PITDIR", "/dev/null")
+	pit := CreatePit()
+
 	db, err = db.Create()
 	Ck(err)
 	db, err = pb.Open(dir)
@@ -120,10 +144,10 @@ func setupDb(t *testing.T, db *pb.Db) *pb.Db {
 
 	return db
 }
+*/
 
 // execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error)
 // xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc int, err error)
-// runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error)
 
 // putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error)
 // getBlob(canpath string, wr io.Writer) (err error)
