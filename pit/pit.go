@@ -3,12 +3,37 @@ package pit
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase"
 )
+
+type Pit struct {
+	Dir string
+}
+
+// Listen on a new UNIX domain socket
+func (pit *Pit) Listen(id string) (socket *Socket, err error) {
+	fn := filepath.Join(pit.Dir, id)
+	_ = fn
+	return
+}
+
+type Socket struct {
+}
+
+// Connect to an existing UNIX domain socket
+func (s *Socket) Connect() (conn io.ReadWriteCloser, err error) {
+	return
+}
+
+// Accept connections on an existing UNIX domain socket
+func (s *Socket) Accept() (conn io.ReadWriteCloser, err error) {
+	return
+}
 
 type Addr string
 type Callback func(Msg) error

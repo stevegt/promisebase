@@ -1,23 +1,20 @@
 msc {
+  app1,
+  fs,
+  app2;
 
-  app1, fs, app2;
-
-
-            fs  <=  app2 [label = "create socket"];
-  app1  <=  fs          [label = "inotify create"];
-  app1  =>  fs          [label = "connect"];
-
-  app1      =>     app2 [label = "hash arg1 arg2"];
-  app1      <-    app2 [label = "stdoutfd, stderrfd"];
-
-  app1 =>   fs          [label = "stdoutfd.read()"];
-  app1 <-  fs;          
-  app1 =>   fs          [label = "stderrfd.read()"];
-  app1 <-  fs;          
-
-  app1      <-    app2 [label = "rc"];
-
-   app1 note app1 [label="pattern repeats multiple times"];
-
-  
+  app1 note app1 [label="app1 creates and listens on socket when it's ready to make requests"];
+  app1 => fs [label="create socket"];
+  fs => app2 [label="inotify create"];
+  app2 note app2 [label="app2 connects to socket when it's ready to receive requests from app1"];
+  fs <= app2 [label="connect"];
+  --- [label="ready for request"];
+  app1 => app2 [label="addr arg1 arg2"];
+  app1 <= app2 [label="stdoutfd, stderrfd"];
+  app1 => fs [label="stdoutfd.read()"];
+  app1 <= fs [label="stdout bytes"];
+  app1 => fs [label="stderrfd.read()"];
+  app1 <= fs [label="stderr bytes"];
+  app1 <= app2 [label="rc"];
+  --- [label="ready for next request"];
 }

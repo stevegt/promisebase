@@ -2,8 +2,11 @@ package pit
 
 import (
 	"bytes"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 	// . "github.com/stevegt/goadapt"
 )
 
@@ -15,6 +18,38 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	if !cond {
 		t.Fatalf(txt, args...)
 	}
+}
+
+func setup(t *testing.T) *Pit {
+	var err error
+	var dir string
+
+	pit := &Pit{}
+
+	debug := os.Getenv("DEBUG")
+	if debug == "1" {
+		dir, err = ioutil.TempDir("", tmpPitPrefix)
+		tassert(t, err == nil, "%#v", err)
+		fmt.Println(dir)
+		// manual cleanup
+	} else {
+		dir = t.TempDir()
+		// automatic cleanup
+	}
+	pit.Dir = dir
+
+	/*
+		err := os.Setenv("PITDIR", "/dev/null")
+		pit := CreatePit()
+
+		db, err = db.Create()
+		Ck(err)
+		db, err = pb.Open(dir)
+		Ck(err)
+		tassert(t, db != nil, "db is nil")
+	*/
+
+	return pit
 }
 
 func TestPitDir(t *testing.T) {
@@ -43,7 +78,6 @@ func TestParser(t *testing.T) {
 	tassert(t, msg.Args[1] == "world", "%#v", msg)
 }
 
-// client-facing API
 func TestDispatcher(t *testing.T) {
 	dp := NewDispatcher()
 
@@ -116,6 +150,33 @@ func TestPipeFd(t *testing.T) {
 	tassert(t, string(buf[:n]) == expect, "got %v", buf[:n])
 }
 
+func TestSocket(t *testing.T) {
+	pit := setup(t)
+	id := "appid"
+
+	socket, err := pit.Listen(id)
+	tassert(t, err == nil, "%#v", err)
+
+	go func() {
+		time.Sleep(time.Second)
+		conn, err := socket.Connect()
+		tassert(t, err == nil, "%#v", err)
+		n, err := conn.Write([]byte("hi"))
+		tassert(t, err == nil, "%#v", err)
+		tassert(t, n == 2, "got %d", n)
+		conn.Close()
+	}()
+
+	conn, err := socket.Accept()
+	tassert(t, err == nil, "%#v", err)
+	buf := make([]byte, 4096)
+	n, err := conn.Read(buf)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, n == 2, "got %d", n)
+	got := string(buf[:n])
+	tassert(t, got == "hi", "got %s", got)
+}
+
 /*
 func TestCreatePit(t *testing.T) {
 	setup(t)
@@ -125,38 +186,6 @@ func TestRunC(t *testing.T) {
 
 	runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error)
 
-func setup(t *testing.T, pit *Pit) *Pit {
-	var err error
-	var dir string
-
-	if db == nil {
-		db = &pb.Db{}
-	}
-	Assert(db.Dir == "")
-
-	debug := os.Getenv("DEBUG")
-	if debug == "1" {
-		dir, err = ioutil.TempDir("", testPitDirPrefix)
-		Ck(err)
-		fmt.Println(dir)
-		// no cleanup
-	} else {
-		dir = t.TempDir()
-		// automatically cleaned up
-	}
-	db.Dir = dir
-
-	err := os.Setenv("PITDIR", "/dev/null")
-	pit := CreatePit()
-
-	db, err = db.Create()
-	Ck(err)
-	db, err = pb.Open(dir)
-	Ck(err)
-	tassert(t, db != nil, "db is nil")
-
-	return db
-}
 */
 
 // execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error)
