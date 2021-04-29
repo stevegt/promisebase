@@ -3,11 +3,9 @@ msc {
   fs,
   app2;
 
-  app1 note app1 [label="app1 creates and listens on socket when it's ready to make requests"];
-  app1 => fs [label="create socket"];
-  fs => app2 [label="inotify create"];
-  app2 note app2 [label="app2 connects to socket when it's ready to receive requests from app1"];
-  fs <= app2 [label="connect"];
+  fs <= app2 [label="create socket"];
+  app1 <= fs [label="inotify create"];
+  app1 => app2 [label="connect"];
   --- [label="ready for request"];
   app1 => app2 [label="addr arg1 arg2"];
   app1 <= app2 [label="stdoutfd, stderrfd"];
