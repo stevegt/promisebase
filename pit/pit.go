@@ -18,22 +18,25 @@ type Dispatcher struct {
 }
 
 func NewDispatcher() *Dispatcher {
-	m := make(map[Addr]Callback)
+
+	m := make(map[Addr][]Callback)
 	return &Dispatcher{callbacks: m}
 }
 
 // Register records callback as a function which Dispatch() will later
 // call.
 func (dp *Dispatcher) Register(callback Callback, addr Addr) {
-	dp.callbacks[addr] = callback
+	// fmt.Printf("before append ADDR: %v\n", dp.callbacks[addr])
+	dp.callbacks[addr] = append(dp.callbacks[addr], callback)
 	return
 }
 
 // Dispatch calls any functions that were previously registered with
 // msg.Addr, passing msg as an argument to each function.
 func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
-	callback := dp.callbacks[msg.Addr]
-	err = callback(*msg)
+	for _, callback := range dp.callbacks[msg.Addr] {
+		err = callback(*msg)
+	}
 	return
 }
 
