@@ -14,22 +14,29 @@ type Addr string
 type Callback func(Msg) error
 
 type Dispatcher struct {
-	callbacks map[Addr]Callback
+	callbacks map[Addr][]Callback
 }
 
 func NewDispatcher() *Dispatcher {
-	return &Dispatcher{}
+
+	m := make(map[Addr][]Callback)
+	return &Dispatcher{callbacks: m}
 }
 
 // Register records callback as a function which Dispatch() will later
 // call.
 func (dp *Dispatcher) Register(callback Callback, addr Addr) {
+	// fmt.Printf("before append ADDR: %v\n", dp.callbacks[addr])
+	dp.callbacks[addr] = append(dp.callbacks[addr], callback)
 	return
 }
 
 // Dispatch calls any functions that were previously registered with
 // msg.Addr, passing msg as an argument to each function.
 func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
+	for _, callback := range dp.callbacks[msg.Addr] {
+		err = callback(*msg)
+	}
 	return
 }
 
