@@ -177,6 +177,17 @@ func TestSocket(t *testing.T) {
 	tassert(t, got == "hi", "got %s", got)
 }
 
+func TestInotify(t *testing.T) {
+	// create a watcher
+
+	// watch a dir
+
+	// create a socket in the dir
+
+	// check for CREATE event
+
+}
+
 /*
 func TestCreatePit(t *testing.T) {
 	setup(t)
