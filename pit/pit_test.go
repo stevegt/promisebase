@@ -99,17 +99,21 @@ func TestDispatcher(t *testing.T) {
 
 func TestPipeFd(t *testing.T) {
 	// create an io.Reader
-	rd := bytes.NewReader([]byte("somedata"))
+	expect := "somedata"
+	rd := bytes.NewReader([]byte(expect))
 
 	// convert it to a file descriptor
 	fd := PipeFd(rd)
 
 	// convert it to an os.File
-	file := NewFile(fd, "foo")
+	file := os.NewFile(fd, "foo")
 
 	// check the results
-	got := fh.Read()
-	tassert(t, got == "somedata", "got %v", got)
+	buf := make([]byte, 32768)
+	n, err := file.Read(buf)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, n == len(expect), "%#v", err)
+	tassert(t, string(buf[:n]) == expect, "got %v", buf[:n])
 }
 
 /*
