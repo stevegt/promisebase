@@ -158,6 +158,7 @@ func TestSocket(t *testing.T) {
 	tassert(t, err == nil, "%#v", err)
 
 	go func() {
+		// sleep to ensure server's Accept() has a chance to start
 		time.Sleep(time.Second)
 		conn, err := socket.Connect()
 		tassert(t, err == nil, "%#v", err)
@@ -167,6 +168,7 @@ func TestSocket(t *testing.T) {
 		conn.Close()
 	}()
 
+	// we block on Accept() while waiting for client goroutine to connect
 	conn, err := socket.Accept()
 	tassert(t, err == nil, "%#v", err)
 	buf := make([]byte, 4096)
