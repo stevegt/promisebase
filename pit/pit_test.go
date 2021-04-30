@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 	// . "github.com/stevegt/goadapt"
 )
 
@@ -24,8 +27,6 @@ func setup(t *testing.T) *Pit {
 	var err error
 	var dir string
 
-	pit := &Pit{}
-
 	debug := os.Getenv("DEBUG")
 	if debug == "1" {
 		dir, err = ioutil.TempDir("", tmpPitPrefix)
@@ -36,18 +37,8 @@ func setup(t *testing.T) *Pit {
 		dir = t.TempDir()
 		// automatic cleanup
 	}
-	pit.Dir = dir
-
-	/*
-		err := os.Setenv("PITDIR", "/dev/null")
-		pit := CreatePit()
-
-		db, err = db.Create()
-		Ck(err)
-		db, err = pb.Open(dir)
-		Ck(err)
-		tassert(t, db != nil, "db is nil")
-	*/
+	pit, err := Create(dir)
+	tassert(t, err == nil, "%#v", err)
 
 	return pit
 }
@@ -184,25 +175,37 @@ func TestSocket(t *testing.T) {
 }
 
 func TestInotify(t *testing.T) {
-	// create a watcher
+	// https://pkg.go.dev/github.com/fsnotify/fsnotify#readme-usage
+	pit := setup(t)
 
-	// watch a dir
-
-	// create a socket in the dir
+	// create a file in the pit dir
+	fn := filepath.Join(pit.Dir, "foo")
+	err := ioutil.WriteFile(fn, []byte(""), 0644)
+	tassert(t, err == nil, "%#v", err)
 
 	// check for CREATE event
+	event, ok := <-pit.Events
+	tassert(t, ok, "%#v", "nok")
+	tassert(t, event.Op&fsnotify.Create > 0, "event %#v", event)
+}
 
+func TestCreatePit(t *testing.T) {
+	setup(t)
+	// XXX
 }
 
 /*
-func TestCreatePit(t *testing.T) {
-	setup(t)
-}
-
 func TestRunC(t *testing.T) {
+	pit := setup()
+
+	// store container image as a stream
+
+	// run container from stream
 
 	runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error)
 
+	// verify stdout, stderr, rc, and err
+}
 */
 
 // execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error)

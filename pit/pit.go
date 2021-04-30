@@ -1,18 +1,88 @@
 package pit
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 
+	"github.com/fsnotify/fsnotify"
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase"
 )
 
-type Pit struct {
+type ExistsError struct {
 	Dir string
+}
+
+func (e *ExistsError) Error() string {
+	return fmt.Sprintf("directory not empty: %s", e.Dir)
+}
+
+type Pit struct {
+	Dir     string
+	Db      string
+	watcher *fsnotify.Watcher
+	Events  chan fsnotify.Event
+}
+
+func Create(dir string) (pit *Pit, err error) {
+	defer Return(&err)
+
+	// if directory exists, make sure it's empty
+	if canstat(dir) {
+		var files []os.FileInfo
+		files, err = ioutil.ReadDir(dir)
+		if len(files) > 0 {
+			return nil, &ExistsError{Dir: dir}
+		}
+		Ck(err)
+	}
+
+	// create pit dir
+	err = mkdir(dir, 1777)
+	Ck(err)
+
+	/*
+		// the ipc dir is where processes create sockets
+		// - needs to be world writeable with sticky bit on
+		err = mkdir(filepath.Join(dir, "ipc"), 1777)
+		Ck(err)
+
+		// create db dir tree
+		dbdir := filepath.Join(dir, "db")
+		db, err := pb.Db{Dir: dbdir}.Create()
+		Ck(err)
+	*/
+
+	return Open(dir)
+}
+
+func Open(dir string) (pit *Pit, err error) {
+	defer Return(&err)
+
+	pit = &Pit{Dir: dir}
+
+	/*
+		db, err = pb.Open(pit.Dir)
+		Ck(err)
+		pit.Db = db
+	*/
+
+	// create a watcher
+	pit.watcher, err = fsnotify.NewWatcher()
+	Ck(err)
+
+	pit.Events = pit.watcher.Events
+
+	// watch the pit dir
+	err = pit.watcher.Add(pit.Dir)
+	Ck(err)
+
+	return pit, nil
 }
 
 // Listen on a new UNIX domain socket
@@ -173,5 +243,26 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 }
 
 func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error) {
+	return
+}
+
+func canstat(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
+}
+
+func mkdir(dir string, mode os.FileMode) (err error) {
+	if _, err = os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, mode)
+		if err != nil {
+			return
+		}
+	}
 	return
 }
