@@ -137,7 +137,8 @@ func TestPipeFd(t *testing.T) {
 	rd := bytes.NewReader([]byte(expect))
 
 	// convert it to a file descriptor
-	fd := PipeFd(rd)
+	fd, status, err := PipeFd(rd)
+	tassert(t, err == nil, "%#v", err)
 
 	// convert it to an os.File
 	file := os.NewFile(fd, "foo")
@@ -148,6 +149,9 @@ func TestPipeFd(t *testing.T) {
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, n == len(expect), "%#v", err)
 	tassert(t, string(buf[:n]) == expect, "got %v", buf[:n])
+
+	copyerr := <-status
+	tassert(t, copyerr == nil, "%#v", copyerr)
 }
 
 func TestSocket(t *testing.T) {
