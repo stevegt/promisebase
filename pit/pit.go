@@ -318,10 +318,10 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 		panic(err)
 	}
 
+	stdout, stdoutw := io.Pipe()
+	stderr, stderrw := io.Pipe()
 	go func() {
-		var stdoutw, stderrw io.Writer
-		stdout, stdoutw = io.Pipe()
-		stderr, stderrw = io.Pipe()
+		// var stdoutw, stderrw io.Writer
 		stdcopy.StdCopy(stdoutw, stderrw, out)
 	}()
 	return
