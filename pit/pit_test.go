@@ -218,6 +218,13 @@ func TestRunHub(t *testing.T) {
 }
 
 /*
+func TestImageCp(t *testing.T) {
+	src := "docker.io/library/alpine"
+
+	// pull container image and store it as a stream
+
+}
+
 
 	// store container image as a stream
 
