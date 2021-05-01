@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/hlubek/readercomp"
 	// . "github.com/stevegt/goadapt"
 )
 
@@ -149,13 +150,13 @@ func TestSocket(t *testing.T) {
 	pit := setup(t)
 	id := "appid"
 
-	socket, err := pit.Listen(id)
+	listener, err := pit.Listen(id)
 	tassert(t, err == nil, "%#v", err)
 
 	go func() {
 		// sleep to ensure server's Accept() has a chance to start
 		time.Sleep(time.Second)
-		conn, err := socket.Connect()
+		conn, err := pit.Connect(id)
 		tassert(t, err == nil, "%#v", err)
 		n, err := conn.Write([]byte("hi"))
 		tassert(t, err == nil, "%#v", err)
@@ -164,7 +165,7 @@ func TestSocket(t *testing.T) {
 	}()
 
 	// we block on Accept() while waiting for client goroutine to connect
-	conn, err := socket.Accept()
+	conn, err := listener.Accept()
 	tassert(t, err == nil, "%#v", err)
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
@@ -194,9 +195,29 @@ func TestCreatePit(t *testing.T) {
 	// XXX
 }
 
+func TestRunHub(t *testing.T) {
+	// pit := setup(t)
+
+	expect := "hello"
+	expectrd := bytes.NewReader([]byte(expect))
+	emptyrd := bytes.NewReader([]byte(""))
+
+	// get the image from docker hub
+	stdout, stderr, rc, err := runContainer("docker.io/library/alpine", "echo "+expect)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, rc == 0, "%#v", rc)
+
+	ok, err := readercomp.Equal(expectrd, stdout, 4096)
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "stream mismatch")
+
+	ok, err = readercomp.Equal(emptyrd, stderr, 4096)
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "stream mismatch")
+
+}
+
 /*
-func TestRunC(t *testing.T) {
-	pit := setup()
 
 	// store container image as a stream
 
