@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,7 @@ func (e *ExistsError) Error() string {
 
 type Pit struct {
 	Dir     string
-	Db      string
+	Db      *pb.Db
 	watcher *fsnotify.Watcher
 	Events  chan fsnotify.Event
 }
@@ -53,7 +54,7 @@ func Create(dir string) (pit *Pit, err error) {
 		Ck(err)
 
 		// create db dir tree
-		dbdir := filepath.Join(dir, "db")
+		dbdir := filepath.Join(dir, "db")  // mode should be 0700
 		db, err := pb.Db{Dir: dbdir}.Create()
 		Ck(err)
 	*/
@@ -86,24 +87,27 @@ func Open(dir string) (pit *Pit, err error) {
 }
 
 // Listen on a new UNIX domain socket
-func (pit *Pit) Listen(id string) (socket *Socket, err error) {
+// https://eli.thegreenplace.net/2019/unix-domain-sockets-in-go/
+func (pit *Pit) Listen(id string) (listener net.Listener, err error) {
 	fn := filepath.Join(pit.Dir, id)
-	_ = fn
+	listener, err = net.Listen("unix", fn)
+	Ck(err)
 	return
-}
-
-type Socket struct {
 }
 
 // Connect to an existing UNIX domain socket
-func (s *Socket) Connect() (conn io.ReadWriteCloser, err error) {
+func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
+	fn := filepath.Join(pit.Dir, id)
+	conn, err = net.Dial("unix", fn)
 	return
 }
 
+/*
 // Accept connections on an existing UNIX domain socket
 func (s *Socket) Accept() (conn io.ReadWriteCloser, err error) {
 	return
 }
+*/
 
 type Addr string
 type Callback func(Msg) error
@@ -243,6 +247,7 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 }
 
 func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error) {
+	// XXX go get the runContainer() code from cmd/pb/main.go
 	return
 }
 

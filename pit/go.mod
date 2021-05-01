@@ -8,6 +8,7 @@ replace github.com/t7a/pitbase => ../
 
 require (
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/hlubek/readercomp v0.0.0-20210106164045-ffcdb292b4e8
 	github.com/stevegt/goadapt v0.0.9
 	github.com/t7a/pitbase v0.0.0-00010101000000-000000000000
 )
