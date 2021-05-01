@@ -203,7 +203,7 @@ func TestRunHub(t *testing.T) {
 	emptyrd := bytes.NewReader([]byte(""))
 
 	// get the image from docker hub
-	stdout, stderr, rc, err := runContainer("docker.io/library/alpine", "echo "+expect)
+	stdout, stderr, rc, err := runContainer("docker.io/library/alpine", "echo", expect)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
