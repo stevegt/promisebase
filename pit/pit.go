@@ -1,6 +1,7 @@
 package pit
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,7 +11,12 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/fsnotify/fsnotify"
+	"github.com/stevegt/debugpipe"
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase"
 )
@@ -160,9 +166,7 @@ func Parse(txt Addr) (msg *Msg, err error) {
 func PipeFd(rd io.Reader) (fd uintptr, status chan error, err error) {
 	defer Return(&err)
 	rfile, wfile, err := os.Pipe()
-	if err != nil {
-		Ck(err)
-	}
+	Ck(err)
 	status = make(chan error)
 	go func() {
 		_, err := io.Copy(wfile, rd)
@@ -248,6 +252,78 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 
 func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error) {
 	// XXX go get the runContainer() code from cmd/pb/main.go
+	/// trace, debug := trace()
+
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		panic(err)
+	}
+
+	if strings.Index(img, "tree/") == 0 {
+		tree, err := catTree(img)
+		defer tree.Close()
+
+		var res types.ImageLoadResponse
+		if true {
+			res, err = cli.ImageLoad(ctx, tree, false)
+			Ck(err)
+		} else {
+			pipeReader, pipeWriter := debugpipe.Pipe()
+			go func() {
+				_, err = io.Copy(pipeWriter, tree)
+				Ck(err)
+				err = pipeWriter.Close()
+				Ck(err)
+			}()
+			res, err = cli.ImageLoad(ctx, pipeReader, false)
+			Ck(err)
+		}
+
+		_, err = io.Copy(os.Stdout, res.Body)
+		Ck(err)
+		defer res.Body.Close()
+	} else {
+		reader, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
+		if err != nil {
+			panic(err)
+		}
+		io.Copy(os.Stdout, reader)
+	}
+
+	resp, err := cli.ContainerCreate(ctx, &container.Config{
+		Image: "alpine",
+		Cmd:   cmd,
+		Tty:   false,
+	}, nil, nil, nil, "")
+	if err != nil {
+		panic(err)
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		panic(err)
+	}
+
+	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			panic(err)
+		}
+	case <-statusCh:
+	}
+
+	out, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		var stdoutw, stderrw io.Writer
+		stdout, stdoutw = io.Pipe()
+		stderr, stderrw = io.Pipe()
+		stdcopy.StdCopy(stdoutw, stderrw, out)
+	}()
 	return
 }
 
