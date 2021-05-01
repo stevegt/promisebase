@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/debugpipe"
 	. "github.com/stevegt/goadapt"
@@ -250,7 +249,18 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 	return
 }
 
-func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error) {
+func imageSave(img string) (tree *pb.Tree, err error) {
+
+	// pull container image
+	// XXX get ImagePull bits from runContainer
+
+	// save image as a stream
+	// XXX use docker's ImageSave() and pitbase PutStream()
+
+	return
+}
+
+func runContainer(img string, cmd ...string) (out io.ReadCloser, rc int, err error) {
 	// XXX go get the runContainer() code from cmd/pb/main.go
 	/// trace, debug := trace()
 
@@ -313,17 +323,11 @@ func runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, 
 	case <-statusCh:
 	}
 
-	out, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
+	out, err = cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
 	if err != nil {
 		panic(err)
 	}
 
-	stdout, stdoutw := io.Pipe()
-	stderr, stderrw := io.Pipe()
-	go func() {
-		// var stdoutw, stderrw io.Writer
-		stdcopy.StdCopy(stdoutw, stderrw, out)
-	}()
 	return
 }
 

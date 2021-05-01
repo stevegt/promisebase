@@ -3,14 +3,18 @@ package pit
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/fsnotify/fsnotify"
-	"github.com/hlubek/readercomp"
+	"github.com/stevegt/readercomp"
 	// . "github.com/stevegt/goadapt"
 )
 
@@ -203,29 +207,52 @@ func TestRunHub(t *testing.T) {
 	emptyrd := bytes.NewReader([]byte(""))
 
 	// get the image from docker hub
-	stdout, stderr, rc, err := runContainer("docker.io/library/alpine", "echo", expect)
+	stdoutr, stdout := io.Pipe()
+	stderrr, stderr := io.Pipe()
+	out, rc, err := runContainer("docker.io/library/alpine", "echo", "-n", expect)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
-	ok, err := readercomp.Equal(expectrd, stdout, 4096)
-	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	go func() {
+		stdcopy.StdCopy(stdout, stderr, out)
+		stdout.Close()
+		stderr.Close()
+	}()
+
+	ok, err := readercomp.Equal(expectrd, stdoutr, 4096)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
-	ok, err = readercomp.Equal(emptyrd, stderr, 4096)
-	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	ok, err = readercomp.Equal(emptyrd, stderrr, 4096)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
+}
+
+func TestImageSave(t *testing.T) {
+	src := "docker.io/library/alpine"
+
+	// pull container image and save it as a stream
+	tree, err := imageSave(src)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, tree != nil, "%v", tree)
+
+	// make sure it's at least a tarball
+	out, err := shellin(tree, "file", "-")
+	tassert(t, err == nil, "%v", err)
+	outstr := string(out)
+	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
+
+}
+
+func shellin(stdin io.Reader, path string, args ...string) (out []byte, err error) {
+	cmd := exec.Command(path, args...)
+	cmd.Stdin = stdin
+	out, err = cmd.CombinedOutput()
+	return
 }
 
 /*
-func TestImageCp(t *testing.T) {
-	src := "docker.io/library/alpine"
-
-	// pull container image and store it as a stream
-
-}
-
-
 	// store container image as a stream
 
 	// run container from stream
