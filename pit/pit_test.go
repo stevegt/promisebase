@@ -232,7 +232,8 @@ func TestRunHub(t *testing.T) {
 func TestImageSave(t *testing.T) {
 	pit := setup(t)
 
-	src := "docker.io/library/alpine"
+	src := "docker.io/library/alpine:3.12.0"
+	addr := "tree/sha256/658ab2dbc592a6e37da9623bc416bfdb5d311e846da7c349eb79a6ed640e08cd"
 
 	// pull container image and save it as a stream
 	tree, err := pit.imageSave("sha256", src)
@@ -244,6 +245,31 @@ func TestImageSave(t *testing.T) {
 	tassert(t, err == nil, "%v", err)
 	outstr := string(out)
 	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
+
+	expect := "hello"
+	expectrd := bytes.NewReader([]byte(expect))
+	emptyrd := bytes.NewReader([]byte(""))
+
+	// get the image from pitbase
+	stdoutr, stdout := io.Pipe()
+	stderrr, stderr := io.Pipe()
+	outrd, rc, err := runContainer(addr, "echo", "-n", expect)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, rc == 0, "%#v", rc)
+
+	go func() {
+		stdcopy.StdCopy(stdout, stderr, outrd)
+		stdout.Close()
+		stderr.Close()
+	}()
+
+	ok, err := readercomp.Equal(expectrd, stdoutr, 4096)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, ok, "stream mismatch")
+
+	ok, err = readercomp.Equal(emptyrd, stderrr, 4096)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, ok, "stream mismatch")
 
 }
 
