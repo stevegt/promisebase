@@ -209,7 +209,7 @@ func TestRunHub(t *testing.T) {
 	// get the image from docker hub
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
-	out, rc, err := runContainer("docker.io/library/alpine", "echo", "-n", expect)
+	out, rc, err := runContainer("docker.io/library/alpine:3.12.0", "echo", "-n", expect)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
@@ -250,7 +250,7 @@ func TestImageSave(t *testing.T) {
 	expectrd := bytes.NewReader([]byte(expect))
 	emptyrd := bytes.NewReader([]byte(""))
 
-	// get the image from pitbase
+	// get the image from the pitbase stream we saved above
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
 	outrd, rc, err := runContainer(addr, "echo", "-n", expect)

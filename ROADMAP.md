@@ -73,16 +73,26 @@ x write pb run:
 x track down source of the multiple closes on file handles
     x figure out why we can't uncomment tree.go:178
 - write Go pit library
-    - figure out API for other language libs 
-        - filesystem?  UDS?  both?  
-    - figure out how a container sends messages
-        - filesystem?  UDS?  both?  
-    - write test cases
-        - protocol parser and/or inotify lib first
-    - import pit library into pb
-    - `pb` is the cmdline utility providing an API for shell scripts
-    - move runContainer and most other pb functions into library
-        - run the container in a goroutine with stdio via channels
+    x figure out API for other language libs 
+        x filesystem?  UDS?  both?  
+    x figure out how a container sends messages
+        x filesystem?  UDS?  both?  
+    x write test cases
+        x protocol parser and/or inotify lib first
+    x copy runContainer into pit library
+        x run the container in a goroutine with stdio via channels
+    - refactor modules
+        - move pitbase/*.go to pitbase/db
+        - cmd/pb imports pitbase/db
+        - pitbase/server imports pitbase/db
+        - cmd/pitd imports pitbase/server
+        - cmd/pit imports pitbase/client
+            - `pit` is the cmdline utility providing an API for shell scripts
+                - copy `pb` to `pit`
+                - remove pitbase import
+                - copy main.ct
+                - get main.ct to pass
+    - merge pitd into pitbase? 
 - containerize tests
     - this will also help provide a linux VM for Matt
 - investigate stargz and the general idea of a FUSE driver for rootfs
