@@ -85,6 +85,8 @@ x track down source of the multiple closes on file handles
         - run the container in a goroutine with stdio via channels
 - containerize tests
     - this will also help provide a linux VM for Matt
+- investigate stargz and the general idea of a FUSE driver for rootfs
+    - https://github.com/containerd/stargz-snapshotter/blob/master/docs/overview.md
 - POC pit libraries in other languages
     - bash
     - python
