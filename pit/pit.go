@@ -251,12 +251,19 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 }
 
 func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
 	// pull container image
-	// XXX get ImagePull bits from runContainer
+	pullrd, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
+	if err != nil {
+		panic(err)
+	}
+	io.Copy(os.Stdout, pullrd)
 
 	// save image as a stream
-	// XXX use docker's ImageSave() and pitbase PutStream()
+	saverd, err := cli.ImageSave(ctx, []string{img})
+	tree, err = pit.Db.PutStream(algo, saverd)
 
 	return
 }
