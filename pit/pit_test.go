@@ -230,10 +230,12 @@ func TestRunHub(t *testing.T) {
 }
 
 func TestImageSave(t *testing.T) {
+	pit := setup(t)
+
 	src := "docker.io/library/alpine"
 
 	// pull container image and save it as a stream
-	tree, err := imageSave(src)
+	tree, err := pit.imageSave("sha256", src)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, tree != nil, "%v", tree)
 
@@ -251,17 +253,6 @@ func shellin(stdin io.Reader, path string, args ...string) (out []byte, err erro
 	out, err = cmd.CombinedOutput()
 	return
 }
-
-/*
-	// store container image as a stream
-
-	// run container from stream
-
-	runContainer(img string, cmd ...string) (stdout, stderr io.Reader, rc int, err error)
-
-	// verify stdout, stderr, rc, and err
-}
-*/
 
 // execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error)
 // xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc int, err error)

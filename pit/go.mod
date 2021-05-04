@@ -5,7 +5,7 @@ go 1.14
 replace github.com/t7a/pitbase => ../
 
 // replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
-replace github.com/stevegt/readercomp => /home/stevegt/lab/readercomp
+// replace github.com/stevegt/readercomp => /home/stevegt/lab/readercomp
 
 require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
@@ -24,7 +24,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/stevegt/debugpipe v0.0.2
 	github.com/stevegt/goadapt v0.0.9
-	github.com/stevegt/readercomp v0.0.0-00010101000000-000000000000
+	github.com/stevegt/readercomp v0.0.1
 	github.com/t7a/pitbase v0.0.0-00010101000000-000000000000
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/grpc v1.37.0 // indirect

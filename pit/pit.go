@@ -53,16 +53,18 @@ func Create(dir string) (pit *Pit, err error) {
 	Ck(err)
 
 	/*
+		XXX turn this on and use it
+		XXX this should be in /var/run
 		// the ipc dir is where processes create sockets
 		// - needs to be world writeable with sticky bit on
 		err = mkdir(filepath.Join(dir, "ipc"), 1777)
 		Ck(err)
-
-		// create db dir tree
-		dbdir := filepath.Join(dir, "db")  // mode should be 0700
-		db, err := pb.Db{Dir: dbdir}.Create()
-		Ck(err)
 	*/
+
+	// create db dir tree
+	dbdir := filepath.Join(dir, "db")
+	_, err = pb.Db{Dir: dbdir}.Create()
+	Ck(err)
 
 	return Open(dir)
 }
@@ -72,11 +74,10 @@ func Open(dir string) (pit *Pit, err error) {
 
 	pit = &Pit{Dir: dir}
 
-	/*
-		db, err = pb.Open(pit.Dir)
-		Ck(err)
-		pit.Db = db
-	*/
+	dbdir := filepath.Join(dir, "db") // XXX dup with Create()
+	db, err := pb.Open(dbdir)
+	Ck(err)
+	pit.Db = db
 
 	// create a watcher
 	pit.watcher, err = fsnotify.NewWatcher()
@@ -84,7 +85,7 @@ func Open(dir string) (pit *Pit, err error) {
 
 	pit.Events = pit.watcher.Events
 
-	// watch the pit dir
+	// watch the pit dir // XXX ipc
 	err = pit.watcher.Add(pit.Dir)
 	Ck(err)
 
@@ -249,7 +250,7 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 	return
 }
 
-func imageSave(img string) (tree *pb.Tree, err error) {
+func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
 
 	// pull container image
 	// XXX get ImagePull bits from runContainer
