@@ -1,0 +1,11 @@
+import (
+    foo sha256/7b1eddc28a03b57e55a02deaab899ab931e24b7dfb312e5e37dad288a7cd30e3  
+    bar sha256/e8245774d2311381615ac8ee96eba0b58c48eaf301edafc30157101740204fb0  
+    )
+
+func main() {
+    xout, xerr, xrc := foo(bar("apple"))
+    yout, yerr, yrc := bar(x)
+    ...
+}
+
