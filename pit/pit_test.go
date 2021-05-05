@@ -200,7 +200,7 @@ func TestCreatePit(t *testing.T) {
 }
 
 func TestRunHub(t *testing.T) {
-	// pit := setup(t)
+	pit := setup(t)
 
 	expect := "hello"
 	expectrd := bytes.NewReader([]byte(expect))
@@ -209,7 +209,7 @@ func TestRunHub(t *testing.T) {
 	// get the image from docker hub
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
-	out, rc, err := runContainer("docker.io/library/alpine:3.12.0", "echo", "-n", expect)
+	out, rc, err := pit.runContainer("docker.io/library/alpine:3.12.0", "echo", "-n", expect)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
@@ -233,8 +233,6 @@ func TestImageSave(t *testing.T) {
 	pit := setup(t)
 
 	src := "docker.io/library/alpine:3.12.0"
-	addr := "tree/sha256/658ab2dbc592a6e37da9623bc416bfdb5d311e846da7c349eb79a6ed640e08cd"
-
 	// pull container image and save it as a stream
 	tree, err := pit.imageSave("sha256", src)
 	tassert(t, err == nil, "%v", err)
@@ -246,6 +244,7 @@ func TestImageSave(t *testing.T) {
 	outstr := string(out)
 	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
 
+	addr := "tree/" + tree.Path.Addr
 	expect := "hello"
 	expectrd := bytes.NewReader([]byte(expect))
 	emptyrd := bytes.NewReader([]byte(""))
@@ -253,7 +252,7 @@ func TestImageSave(t *testing.T) {
 	// get the image from the pitbase stream we saved above
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
-	outrd, rc, err := runContainer(addr, "echo", "-n", expect)
+	outrd, rc, err := pit.runContainer(addr, "echo", "-n", expect)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, rc == 0, "%#v", rc)
 

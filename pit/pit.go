@@ -62,8 +62,7 @@ func Create(dir string) (pit *Pit, err error) {
 	*/
 
 	// create db dir tree
-	dbdir := filepath.Join(dir, "db")
-	_, err = pb.Db{Dir: dbdir}.Create()
+	_, err = pb.Db{Dir: dir}.Create()
 	Ck(err)
 
 	return Open(dir)
@@ -74,8 +73,7 @@ func Open(dir string) (pit *Pit, err error) {
 
 	pit = &Pit{Dir: dir}
 
-	dbdir := filepath.Join(dir, "db") // XXX dup with Create()
-	db, err := pb.Open(dbdir)
+	db, err := pb.Open(dir)
 	Ck(err)
 	pit.Db = db
 
@@ -186,14 +184,6 @@ func dbdir() (dir string, err error) {
 	return
 }
 
-func create() (msg string, err error) {
-	return
-}
-
-func opendb() (db *pb.Db, err error) {
-	return
-}
-
 func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
 	return
 }
@@ -223,10 +213,6 @@ func lsStream(name string, all bool) (canpaths []string, err error) {
 }
 
 func catStream(name string) (stream *pb.Stream, err error) {
-	return
-}
-
-func catTree(canpath string) (tree *pb.Tree, err error) {
 	return
 }
 
@@ -268,7 +254,7 @@ func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
 	return
 }
 
-func runContainer(img string, cmd ...string) (out io.ReadCloser, rc int, err error) {
+func (pit *Pit) runContainer(img string, cmd ...string) (out io.ReadCloser, rc int, err error) {
 	// XXX go get the runContainer() code from cmd/pb/main.go
 	/// trace, debug := trace()
 
@@ -279,7 +265,9 @@ func runContainer(img string, cmd ...string) (out io.ReadCloser, rc int, err err
 	}
 
 	if strings.Index(img, "tree/") == 0 {
-		tree, err := catTree(img)
+		path := pb.Path{}.New(pit.Db, img)
+		tree, err := pit.Db.GetTree(path)
+		Ck(err)
 		defer tree.Close()
 
 		var res types.ImageLoadResponse
