@@ -1,8 +1,8 @@
-module pb
+module github.com/t7a/pitbase/cmd/pb
 
 go 1.14
 
-replace github.com/t7a/pitbase => ../..
+replace github.com/t7a/pitbase/db => ../../db
 
 // replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
 
@@ -24,12 +24,10 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pkg/fileutils v0.0.0-20181114200823-d734b7f202ba
 	github.com/sirupsen/logrus v1.7.0
-	github.com/stevegt/debugpipe v0.0.2 // indirect
+	github.com/stevegt/debugpipe v0.0.2
 	github.com/stevegt/goadapt v0.0.9
-	github.com/t7a/pitbase v0.0.0-00010101000000-000000000000
-	golang.org/x/text v0.3.3 // indirect
+	github.com/t7a/pitbase/db v0.0.0-00010101000000-000000000000
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/grpc v1.37.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect

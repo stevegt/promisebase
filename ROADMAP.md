@@ -81,24 +81,28 @@ x track down source of the multiple closes on file handles
         x protocol parser and/or inotify lib first
     x copy runContainer into pit library
         x run the container in a goroutine with stdio via channels
-    - `pit` is the cmdline utility providing an API for shell scripts
-        - cp -a cmd/pb cmd/pitd
+    - refactor modules
+        x move pitbase/*.go to pitbase/db
+        x cmd/pb imports pitbase/db
+        x pitbase/server imports pitbase/db
+        - cmd/pitd imports pitbase/server
+            x git mv pitbase/pit pitbase/server 
+        - cmd/pit imports pitbase/client
+            - create pitbase/client
+            - `pit` is the cmdline utility providing an API for shell scripts
+        - create cmd/pitd
+            - cp -a cmd/pb cmd/pitd
             - git mv cmd/pitd/main.go cmd/pitd/pitdmain.go
                 - import pitbase/pit // for now
             - git mv cmd/pb/main.go cmd/pb/pbmain.go
-        - cp -a cmd/pb cmd/pit
+        - create cmd/pit
+            - cp -a cmd/pb cmd/pit
             - git mv cmd/pit/main.go cmd/pit/pitmain.go
                 - import pitbase/client
             - git mv cmd/pb/main.go cmd/pb/pbmain.go
-        - remove pitbase import
-        - copy main.ct
-        - get main.ct to pass
-    - refactor modules
-        - move pitbase/*.go to pitbase/db
-        - cmd/pb imports pitbase/db
-        - pitbase/server imports pitbase/db
-        - cmd/pitd imports pitbase/server
-        - cmd/pit imports pitbase/client
+            - remove pitbase import
+            - cp cmd/pb/testdata/pbmain.ct cmd/pit/testdata/pitmain.ct
+            - get pitmain.ct to pass
     - merge pitd into pitbase? 
 - containerize tests
     - this will also help provide a linux VM for Matt

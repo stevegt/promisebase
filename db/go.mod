@@ -1,4 +1,4 @@
-module github.com/t7a/pitbase
+module github.com/t7a/pitbase/db
 
 go 1.15
 

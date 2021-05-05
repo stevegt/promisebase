@@ -8,7 +8,7 @@ minpct=70
 cmd="go test -v -timeout 60s -cover -coverprofile=/tmp/covertest.out -coverpkg=./..."
 
 # dirs=$(find -name go.mod |xargs dirname)
-dirs=". pit cmd/pb" # hardcoded so we can control sequence
+dirs="db server cmd/pb" # hardcoded so we can control sequence
 
 declare -A gotest cover errcheck golint
 

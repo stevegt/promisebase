@@ -17,7 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/debugpipe"
 	. "github.com/stevegt/goadapt"
-	pb "github.com/t7a/pitbase"
+	pb "github.com/t7a/pitbase/db"
 )
 
 type ExistsError struct {

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 
+	pb "github.com/t7a/pitbase/db"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -21,7 +23,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stevegt/debugpipe"
 	. "github.com/stevegt/goadapt"
-	pb "github.com/t7a/pitbase"
 )
 
 func init() {
