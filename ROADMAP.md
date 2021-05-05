@@ -72,38 +72,39 @@ x write pb run:
 
 x track down source of the multiple closes on file handles
     x figure out why we can't uncomment tree.go:178
-- write Go pit library
-    x figure out API for other language libs 
-        x filesystem?  UDS?  both?  
-    x figure out how a container sends messages
-        x filesystem?  UDS?  both?  
-    x write test cases
-        x protocol parser and/or inotify lib first
-    x copy runContainer into pit library
-        x run the container in a goroutine with stdio via channels
-    - refactor modules
-        x move pitbase/*.go to pitbase/db
-        x cmd/pb imports pitbase/db
-        x pitbase/server imports pitbase/db
-        - cmd/pitd imports pitbase/server
-            x git mv pitbase/pit pitbase/server 
-        - cmd/pit imports pitbase/client
-            - create pitbase/client
-            - `pit` is the cmdline utility providing an API for shell scripts
-        - create cmd/pitd
-            - cp -a cmd/pb cmd/pitd
-            - git mv cmd/pitd/main.go cmd/pitd/pitdmain.go
-                - import pitbase/pit // for now
-            - git mv cmd/pb/main.go cmd/pb/pbmain.go
-        - create cmd/pit
-            - cp -a cmd/pb cmd/pit
-            - git mv cmd/pit/main.go cmd/pit/pitmain.go
-                - import pitbase/client
-            - git mv cmd/pb/main.go cmd/pb/pbmain.go
-            - remove pitbase import
-            - cp cmd/pb/testdata/pbmain.ct cmd/pit/testdata/pitmain.ct
-            - get pitmain.ct to pass
-    - merge pitd into pitbase? 
+x figure out API for other language libs 
+    x filesystem?  UDS?  both?  
+x figure out how a container sends messages
+    x filesystem?  UDS?  both?  
+x write test cases
+    x protocol parser and/or inotify lib first
+x copy runContainer into pit library
+    x run the container in a goroutine with stdio via channels
+x refactor modules
+    x move pitbase/*.go to pitbase/db
+    x cmd/pb imports pitbase/db
+    x pitbase/server imports pitbase/db
+    x cmd/pitd imports pitbase/server
+        x git mv pitbase/pit pitbase/server 
+    x cmd/pit imports pitbase/client
+        x create pitbase/client
+    x create cmd/pitd
+        x cp -a cmd/pb cmd/pitd
+        x mv cmd/pitd/main.go cmd/pitd/pitdmain.go
+            x import pitbase/server // for now
+        x git mv cmd/pb/main.go cmd/pb/pbmain.go
+    x create cmd/pit
+        x cp -a cmd/pb cmd/pit
+        x mv cmd/pit/pbmain.go cmd/pit/pitmain.go
+            x import pitbase/client
+        x mv cmd/pit/testdata/main.ct cmd/pit/testdata/pitmain.ct
+- write pitd
+    - refactor server to provide a pit.Serve function
+    - call listener function from pitd
+- write client library
+    - contacts pitd through unix domain socket
+- get pitmain.ct to pass
+    - `pit` is the cmdline utility providing an API for shell scripts
 - containerize tests
     - this will also help provide a linux VM for Matt
 - investigate stargz and the general idea of a FUSE driver for rootfs
