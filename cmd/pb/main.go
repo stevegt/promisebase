@@ -258,9 +258,6 @@ func dbdir() (dir string) {
 
 func create() (msg string, err error) {
 	dir := dbdir()
-	if err != nil {
-		return
-	}
 	db, err := pb.Db{Dir: dir}.Create()
 	if err != nil {
 		return
@@ -270,9 +267,6 @@ func create() (msg string, err error) {
 
 func opendb() (db *pb.Db, err error) {
 	dir := dbdir()
-	if err != nil {
-		return
-	}
 	db, err = pb.Open(dir)
 	if err != nil {
 		return
