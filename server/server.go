@@ -106,12 +106,36 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 	return
 }
 
-/*
-// Accept connections on an existing UNIX domain socket
-func (s *Socket) Accept() (conn io.ReadWriteCloser, err error) {
-	return
+// handle a single connection from a client
+func (pit *Pit) handle(conn *net.Conn) {
+	for {
+		// read message from conn
+
+		// parse message
+
+		// pass msg to runContainer
+
+		// return results to client
+
+	}
 }
-*/
+
+// Serve requests on a UNIX domain socket
+func (pit *Pit) Serve(fn string) (err error) {
+
+	// XXX see TestSocket for ideas for the following
+
+	// listen on socket at fn
+
+	for {
+		// accept connection from client
+
+		// pass conn to handle()
+
+		// go handle(conn)
+	}
+
+}
 
 type Addr string
 type Callback func(Msg) error

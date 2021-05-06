@@ -35,7 +35,7 @@ func setup(t *testing.T) *Pit {
 	debug := os.Getenv("DEBUG")
 	if debug == "1" {
 		dir, err = ioutil.TempDir("", tmpPitPrefix)
-		tassert(t, err == nil, "%#v", err)
+		tassert(t, err == nil, "%v", err)
 		fmt.Println(dir)
 		// manual cleanup
 	} else {
@@ -43,31 +43,31 @@ func setup(t *testing.T) *Pit {
 		// automatic cleanup
 	}
 	pit, err := Create(dir)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 
 	return pit
 }
 
 func TestPitDir(t *testing.T) {
 	err := os.Setenv("PITDIR", "/dev/null")
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	got, err := dbdir()
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, got == "/dev/null", "got %q", got)
 
 	dir, err := os.Getwd()
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	err = os.Unsetenv("PITDIR")
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	got, err = dbdir()
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, dir == got, "expected %q got %q", dir, got)
 }
 
 func TestParser(t *testing.T) {
 	txt := Addr("sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world")
 	msg, err := Parse(txt)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, msg.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%#v", msg)
 	tassert(t, len(msg.Args) == 2, "%#v", msg)
 	tassert(t, msg.Args[0] == "hello", "%#v", msg)
@@ -108,7 +108,7 @@ func TestDispatcher(t *testing.T) {
 
 	// send that address in a message to the dispatcher
 	msg, err := Parse(txt1)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	err = dp.Dispatch(msg)
 
 	// confirm the callback worked
@@ -118,7 +118,7 @@ func TestDispatcher(t *testing.T) {
 
 	// send another address in a message to the dispatcher
 	msg, err = Parse(txt2)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	err = dp.Dispatch(msg)
 
 	// confirm the callback worked
@@ -134,7 +134,7 @@ func TestPipeFd(t *testing.T) {
 
 	// convert it to a file descriptor
 	fd, status, err := PipeFd(rd)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 
 	// convert it to an os.File
 	file := os.NewFile(fd, "foo")
@@ -142,38 +142,49 @@ func TestPipeFd(t *testing.T) {
 	// check the results
 	buf := make([]byte, 32768)
 	n, err := file.Read(buf)
-	tassert(t, err == nil, "%#v", err)
-	tassert(t, n == len(expect), "%#v", err)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, n == len(expect), "%v", err)
 	tassert(t, string(buf[:n]) == expect, "got %v", buf[:n])
 
 	copyerr := <-status
 	tassert(t, copyerr == nil, "%#v", copyerr)
 }
 
+func TestServe(t *testing.T) {
+	pit := setup(t)
+	fn := "pit.sock"
+
+	err := pit.Serve(fn)
+	tassert(t, err == nil, "%v", err)
+
+	// XXX try some client-side stuff here
+}
+
 func TestSocket(t *testing.T) {
 	pit := setup(t)
-	id := "appid"
+	fn := "pit.sock"
 
-	listener, err := pit.Listen(id)
-	tassert(t, err == nil, "%#v", err)
+	listener, err := pit.Listen(fn)
+	tassert(t, err == nil, "%v", err)
 
+	// simulate a client
 	go func() {
 		// sleep to ensure server's Accept() has a chance to start
 		time.Sleep(time.Second)
-		conn, err := pit.Connect(id)
-		tassert(t, err == nil, "%#v", err)
+		conn, err := pit.Connect(fn)
+		tassert(t, err == nil, "%v", err)
 		n, err := conn.Write([]byte("hi"))
-		tassert(t, err == nil, "%#v", err)
+		tassert(t, err == nil, "%v", err)
 		tassert(t, n == 2, "got %d", n)
 		conn.Close()
 	}()
 
 	// we block on Accept() while waiting for client goroutine to connect
 	conn, err := listener.Accept()
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, n == 2, "got %d", n)
 	got := string(buf[:n])
 	tassert(t, got == "hi", "got %s", got)
@@ -186,7 +197,7 @@ func TestInotify(t *testing.T) {
 	// create a file in the pit dir
 	fn := filepath.Join(pit.Dir, "foo")
 	err := ioutil.WriteFile(fn, []byte(""), 0644)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 
 	// check for CREATE event
 	event, ok := <-pit.Events
@@ -210,7 +221,7 @@ func TestRunHub(t *testing.T) {
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
 	out, rc, err := pit.runContainer("docker.io/library/alpine:3.12.0", "echo", "-n", expect)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
 	go func() {
@@ -253,7 +264,7 @@ func TestImageSave(t *testing.T) {
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
 	outrd, rc, err := pit.runContainer(addr, "echo", "-n", expect)
-	tassert(t, err == nil, "%#v", err)
+	tassert(t, err == nil, "%v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
 	go func() {
