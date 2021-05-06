@@ -1,6 +1,7 @@
 package pit
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
+	"github.com/google/shlex"
 	"github.com/stevegt/debugpipe"
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase/db"
@@ -107,34 +109,55 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 }
 
 // handle a single connection from a client
-func (pit *Pit) handle(conn *net.Conn) {
+func (pit *Pit) handle(conn net.Conn) {
+	rd := bufio.NewReader(conn)
 	for {
 		// read message from conn
+		txt, err := rd.ReadString('\n')
+
+		if err == io.EOF {
+			break
+		}
+		Ck(err)
 
 		// parse message
+		msg, err := Parse(txt)
+		Ck(err)
 
 		// pass msg to runContainer
+		out, rc, err := pit.runContainer(string(msg.Addr), []string(msg.Args)...)
+		Ck(err)
 
 		// return results to client
+		_, err = io.Copy(conn, out)
+		Ck(err)
+		_, err = fmt.Fprint(conn, rc)
+		Ck(err)
 
 	}
 }
 
 // Serve requests on a UNIX domain socket
 func (pit *Pit) Serve(fn string) (err error) {
-
-	// XXX see TestSocket for ideas for the following
+	defer Return(&err)
 
 	// listen on socket at fn
+	listener, err := pit.Listen(fn)
+	Ck(err)
 
-	for {
-		// accept connection from client
+	go func() {
 
-		// pass conn to handle()
+		for {
+			// accept connection from client
+			conn, err := listener.Accept()
+			Ck(err)
 
-		// go handle(conn)
-	}
+			// pass conn to handle()
+			go pit.handle(conn)
+		}
 
+	}()
+	return
 }
 
 type Addr string
@@ -172,9 +195,12 @@ type Msg struct {
 	Args []string
 }
 
-// Parse splits txt returns the parts in a Msg struct.
-func Parse(txt Addr) (msg *Msg, err error) {
-	parts := strings.Fields(string(txt))
+// Parse splits txt and returns the parts in a Msg struct.
+func Parse(txt string) (msg *Msg, err error) {
+	defer Return(&err)
+	parts, err := shlex.Split(string(txt))
+	Ck(err)
+	// parts := strings.Fields(string(txt))
 	ErrnoIf(len(parts) < 3, syscall.EINVAL, txt)
 	msg = &Msg{}
 	msg.Addr = Addr(parts[0])

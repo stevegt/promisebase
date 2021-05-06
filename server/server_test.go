@@ -65,7 +65,7 @@ func TestPitDir(t *testing.T) {
 }
 
 func TestParser(t *testing.T) {
-	txt := Addr("sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world")
+	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
 	msg, err := Parse(txt)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, msg.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%#v", msg)
@@ -107,7 +107,7 @@ func TestDispatcher(t *testing.T) {
 	dp.Register(cb2, addr2)
 
 	// send that address in a message to the dispatcher
-	msg, err := Parse(txt1)
+	msg, err := Parse(string(txt1))
 	tassert(t, err == nil, "%v", err)
 	err = dp.Dispatch(msg)
 
@@ -117,7 +117,7 @@ func TestDispatcher(t *testing.T) {
 	tassert(t, !ok2, "nok")
 
 	// send another address in a message to the dispatcher
-	msg, err = Parse(txt2)
+	msg, err = Parse(string(txt2))
 	tassert(t, err == nil, "%v", err)
 	err = dp.Dispatch(msg)
 
@@ -150,6 +150,7 @@ func TestPipeFd(t *testing.T) {
 	tassert(t, copyerr == nil, "%#v", copyerr)
 }
 
+// XXX use this as a starter for pitd
 func TestServe(t *testing.T) {
 	pit := setup(t)
 	fn := "pit.sock"
@@ -158,6 +159,10 @@ func TestServe(t *testing.T) {
 	tassert(t, err == nil, "%v", err)
 
 	// XXX try some client-side stuff here
+	// grab some code from TestSocket and feed in
+	// a message that causes a container to
+	// be run, check output
+	// use this as a starter for `pit`
 }
 
 func TestSocket(t *testing.T) {
