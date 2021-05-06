@@ -9,6 +9,7 @@ replace github.com/t7a/pitbase/db => ../db
 
 require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
+	github.com/alessio/shellescape v1.4.1
 	github.com/containerd/containerd v1.4.4 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v20.10.6+incompatible

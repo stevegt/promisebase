@@ -15,7 +15,9 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/readercomp"
+
 	// . "github.com/stevegt/goadapt"
+	"github.com/alessio/shellescape"
 )
 
 const tmpPitPrefix = "pit"
@@ -162,7 +164,16 @@ func TestServe(t *testing.T) {
 	// grab some code from TestSocket and feed in
 	// a message that causes a container to
 	// be run, check output
-	// use this as a starter for `pit`
+
+	// simulate a client
+	// sleep to ensure server's Accept() has a chance to start
+	time.Sleep(time.Second)
+	conn, err := pit.Connect(fn)
+	tassert(t, err == nil, "%v", err)
+	err = echoTestSocket(t, conn, "docker.io/library/alpine:3.12.0", "hello")
+	tassert(t, err == nil, "%v", err)
+	conn.Close()
+
 }
 
 func TestSocket(t *testing.T) {
@@ -210,22 +221,22 @@ func TestInotify(t *testing.T) {
 	tassert(t, event.Op&fsnotify.Create > 0, "event %#v", event)
 }
 
-func TestCreatePit(t *testing.T) {
-	setup(t)
-	// XXX
-}
-
 func TestRunHub(t *testing.T) {
 	pit := setup(t)
 
-	expect := "hello"
+	// get the image from docker hub
+	err := echoTest(t, pit, "docker.io/library/alpine:3.12.0", "hello")
+	tassert(t, err == nil, "%v", err)
+}
+
+func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
+
 	expectrd := bytes.NewReader([]byte(expect))
 	emptyrd := bytes.NewReader([]byte(""))
 
-	// get the image from docker hub
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
-	out, rc, err := pit.runContainer("docker.io/library/alpine:3.12.0", "echo", "-n", expect)
+	out, rc, err := pit.runContainer(img, "echo", "-n", expect)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
@@ -243,37 +254,26 @@ func TestRunHub(t *testing.T) {
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
+	return
 }
 
-func TestImageSave(t *testing.T) {
-	pit := setup(t)
+// XXX use this as a starter for `client`
+func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (err error) {
 
-	src := "docker.io/library/alpine:3.12.0"
-	// pull container image and save it as a stream
-	tree, err := pit.imageSave("sha256", src)
-	tassert(t, err == nil, "%v", err)
-	tassert(t, tree != nil, "%v", tree)
-
-	// make sure it's at least a tarball
-	out, err := shellin(tree, "file", "-")
-	tassert(t, err == nil, "%v", err)
-	outstr := string(out)
-	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
-
-	addr := "tree/" + tree.Path.Addr
-	expect := "hello"
 	expectrd := bytes.NewReader([]byte(expect))
 	emptyrd := bytes.NewReader([]byte(""))
 
-	// get the image from the pitbase stream we saved above
+	// XXX rehack to use msgpack
+	txt := fmt.Sprintf("%s echo -n %s\n", img, shellescape.Quote(expect))
+	n, err := conn.Write([]byte(txt))
+	tassert(t, err == nil, "%v", err)
+	tassert(t, n == len(txt), "got %d", n)
+
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
-	outrd, rc, err := pit.runContainer(addr, "echo", "-n", expect)
-	tassert(t, err == nil, "%v", err)
-	tassert(t, rc == 0, "%#v", rc)
 
 	go func() {
-		stdcopy.StdCopy(stdout, stderr, outrd)
+		stdcopy.StdCopy(stdout, stderr, conn)
 		stdout.Close()
 		stderr.Close()
 	}()
@@ -285,6 +285,29 @@ func TestImageSave(t *testing.T) {
 	ok, err = readercomp.Equal(emptyrd, stderrr, 4096)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
+
+	return
+}
+
+func TestImageSave(t *testing.T) {
+	pit := setup(t)
+
+	src := "docker.io/library/alpine:3.12.0"
+	// pull container image and save it as a stream
+	tree, err := pit.imageSave("sha256", src)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, tree != nil, "%v", tree)
+
+	// should be a tarball
+	out, err := shellin(tree, "file", "-")
+	tassert(t, err == nil, "%v", err)
+	outstr := string(out)
+	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
+
+	// get the image from the pitbase stream we saved above
+	addr := "tree/" + tree.Path.Addr
+	err = echoTest(t, pit, addr, "hello")
+	tassert(t, err == nil, "%v", err)
 
 }
 

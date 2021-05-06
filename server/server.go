@@ -109,6 +109,7 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 }
 
 // handle a single connection from a client
+// XXX rehack to use msgpack
 func (pit *Pit) handle(conn net.Conn) {
 	rd := bufio.NewReader(conn)
 	for {
@@ -129,10 +130,14 @@ func (pit *Pit) handle(conn net.Conn) {
 		Ck(err)
 
 		// return results to client
+		// XXX demultiplex `out` on server side and repack in msgpack frames
 		_, err = io.Copy(conn, out)
 		Ck(err)
-		_, err = fmt.Fprint(conn, rc)
-		Ck(err)
+
+		// XXX send rc in msgpack frame
+		// _, err = fmt.Fprint(conn, rc)
+		// Ck(err)
+		_ = rc
 
 	}
 }
@@ -198,6 +203,7 @@ type Msg struct {
 // Parse splits txt and returns the parts in a Msg struct.
 func Parse(txt string) (msg *Msg, err error) {
 	defer Return(&err)
+	// XXX rehack to use msgpack
 	parts, err := shlex.Split(string(txt))
 	Ck(err)
 	// parts := strings.Fields(string(txt))
