@@ -203,7 +203,6 @@ type Msg struct {
 // Parse splits txt and returns the parts in a Msg struct.
 func Parse(txt string) (msg *Msg, err error) {
 	defer Return(&err)
-	// XXX rehack to use msgpack
 	parts, err := shlex.Split(string(txt))
 	Ck(err)
 	// parts := strings.Fields(string(txt))
@@ -212,6 +211,21 @@ func Parse(txt string) (msg *Msg, err error) {
 	msg.Addr = Addr(parts[0])
 	msg.Args = parts[1:]
 	return
+}
+
+func (msg *Msg) Compare(b *Msg) (ok bool) {
+	if msg.Addr != b.Addr {
+		return false
+	}
+	if len(msg.Args) != len(b.Args) {
+		return false
+	}
+	for i, arg := range msg.Args {
+		if arg != b.Args[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // PipeFd takes an io.Reader and returns the read end of a UNIX

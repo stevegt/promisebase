@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/readercomp"
+	"github.com/vmihailenco/msgpack"
 
 	// . "github.com/stevegt/goadapt"
 	"github.com/alessio/shellescape"
@@ -48,6 +49,21 @@ func setup(t *testing.T) *Pit {
 	tassert(t, err == nil, "%v", err)
 
 	return pit
+}
+
+func TestMsgPack(t *testing.T) {
+	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
+	msg, err := Parse(txt)
+	tassert(t, err == nil, "%v", err)
+
+	buf, err := msgpack.Marshal(msg)
+	tassert(t, err == nil, "%v", err)
+
+	var got Msg
+	err = msgpack.Unmarshal(buf, &got)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, msg.Compare(&got), "got %#v", got)
+
 }
 
 func TestPitDir(t *testing.T) {
@@ -183,27 +199,34 @@ func TestSocket(t *testing.T) {
 	listener, err := pit.Listen(fn)
 	tassert(t, err == nil, "%v", err)
 
+	msg, err := Parse("some/hash/path echo hello")
+	tassert(t, err == nil, "%v", err)
+
 	// simulate a client
 	go func() {
 		// sleep to ensure server's Accept() has a chance to start
 		time.Sleep(time.Second)
 		conn, err := pit.Connect(fn)
 		tassert(t, err == nil, "%v", err)
-		n, err := conn.Write([]byte("hi"))
+		// the Encode() method takes the msg struct, marshals it into
+		// a msgpack message, and writes it to the conn that we passed
+		// into NewEncoder
+		encoder := msgpack.NewEncoder(conn)
+		err = encoder.Encode(msg)
 		tassert(t, err == nil, "%v", err)
-		tassert(t, n == 2, "got %d", n)
 		conn.Close()
 	}()
 
 	// we block on Accept() while waiting for client goroutine to connect
 	conn, err := listener.Accept()
 	tassert(t, err == nil, "%v", err)
-	buf := make([]byte, 4096)
-	n, err := conn.Read(buf)
+	var got Msg
+	// the Decode() method reads from conn and unmarshals the
+	// msgpack message into msg.
+	decoder := msgpack.NewDecoder(conn)
+	err = decoder.Decode(&got)
 	tassert(t, err == nil, "%v", err)
-	tassert(t, n == 2, "got %d", n)
-	got := string(buf[:n])
-	tassert(t, got == "hi", "got %s", got)
+	tassert(t, msg.Compare(&got), "got %#v", got)
 }
 
 func TestInotify(t *testing.T) {

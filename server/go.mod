@@ -28,6 +28,7 @@ require (
 	github.com/stevegt/goadapt v0.0.9
 	github.com/stevegt/readercomp v0.0.1
 	github.com/t7a/pitbase/db v0.0.0-00010101000000-000000000000
+	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
 	google.golang.org/grpc v1.37.0 // indirect
 	gotest.tools/v3 v3.0.3 // indirect
