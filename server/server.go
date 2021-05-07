@@ -130,11 +130,13 @@ func (pit *Pit) handle(conn net.Conn) {
 		Ck(err)
 
 		// return results to client
-		// XXX demultiplex `out` on server side and repack in msgpack frames
+		// XXX fake stdout and sterr file descriptors for now by using
+		// docker's stdcopy.StdCopy() to demultiplex `out` here on
+		// server side and repack in msgpack Response
 		_, err = io.Copy(conn, out)
 		Ck(err)
 
-		// XXX send rc in msgpack frame
+		// XXX send rc in msgpack Response
 		// _, err = fmt.Fprint(conn, rc)
 		// Ck(err)
 		_ = rc
@@ -195,6 +197,7 @@ func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
 	return
 }
 
+// XXX rename Msg to Request
 type Msg struct {
 	Addr Addr
 	Args []string
@@ -226,6 +229,19 @@ func (msg *Msg) Compare(b *Msg) (ok bool) {
 		}
 	}
 	return true
+}
+
+const (
+	RUNNING = iota
+	DONE
+)
+
+type Response struct {
+	Msg    Msg
+	Stdout io.Writer
+	Stderr io.Writer
+	Rc     int
+	Status int
 }
 
 // PipeFd takes an io.Reader and returns the read end of a UNIX
@@ -325,8 +341,9 @@ func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
 }
 
 func (pit *Pit) runContainer(img string, cmd ...string) (out io.ReadCloser, rc int, err error) {
-	// XXX go get the runContainer() code from cmd/pb/main.go
 	/// trace, debug := trace()
+
+	// XXX rehack to replace docker with containerd
 
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -380,6 +397,7 @@ func (pit *Pit) runContainer(img string, cmd ...string) (out io.ReadCloser, rc i
 		panic(err)
 	}
 
+	// XXX rehack to provide live output while container is still running
 	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
@@ -389,6 +407,7 @@ func (pit *Pit) runContainer(img string, cmd ...string) (out io.ReadCloser, rc i
 	case <-statusCh:
 	}
 
+	// XXX rehack to use msgpack
 	out, err = cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
 	if err != nil {
 		panic(err)

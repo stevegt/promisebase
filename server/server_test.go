@@ -53,16 +53,16 @@ func setup(t *testing.T) *Pit {
 
 func TestMsgPack(t *testing.T) {
 	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
-	msg, err := Parse(txt)
+	req, err := Parse(txt)
 	tassert(t, err == nil, "%v", err)
 
-	buf, err := msgpack.Marshal(msg)
+	buf, err := msgpack.Marshal(req)
 	tassert(t, err == nil, "%v", err)
 
 	var got Msg
 	err = msgpack.Unmarshal(buf, &got)
 	tassert(t, err == nil, "%v", err)
-	tassert(t, msg.Compare(&got), "got %#v", got)
+	tassert(t, req.Compare(&got), "got %#v", got)
 
 }
 
@@ -210,13 +210,14 @@ func TestSocket(t *testing.T) {
 		tassert(t, err == nil, "%v", err)
 		// the Encode() method takes the msg struct, marshals it into
 		// a msgpack message, and writes it to the conn that we passed
-		// into NewEncoder
+		// into NewEncoder.
 		encoder := msgpack.NewEncoder(conn)
 		err = encoder.Encode(msg)
 		tassert(t, err == nil, "%v", err)
-		conn.Close()
+		conn.Close() // XXX test should still work without this close
 	}()
 
+	// server side
 	// we block on Accept() while waiting for client goroutine to connect
 	conn, err := listener.Accept()
 	tassert(t, err == nil, "%v", err)
@@ -283,32 +284,71 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 // XXX use this as a starter for `client`
 func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (err error) {
 
-	// XXX rehack to use msgpack
 	txt := fmt.Sprintf("%s echo -n %s\n", img, shellescape.Quote(expect))
-	n, err := conn.Write([]byte(txt))
+	msg, err := Parse(txt)
 	tassert(t, err == nil, "%v", err)
-	tassert(t, n == len(txt), "got %d", n)
 
-	stdoutr, stdout := io.Pipe()
-	stderrr, stderr := io.Pipe()
+	// the Encode() method takes the msg struct, marshals it into
+	// a msgpack message, and writes it to the conn that we passed
+	// into NewEncoder
+	encoder := msgpack.NewEncoder(conn)
+	err = encoder.Encode(msg)
+	tassert(t, err == nil, "%v", err)
 
+	var outbuf, errbuf []byte
+	// the Decode() method reads from conn and unmarshals the
+	// msgpack message into msg.
+	decoder := msgpack.NewDecoder(conn)
+
+	// We expect two response messages; the first containing
+	// io.Writers for the container's stdout and stderr, and the
+	// second containing those as well as the container's exit code.
+	var res Response
+
+	// get stdio descriptors
+	err := decoder.Decode(&res)
+	tassert(t, err == nil, "%v", err)
+	// because we get io.Writers from Response, we need to convert
+	// those to io.Readers so we can read from them and check the
+	// output.  We do this using a Pip() and Copy() pattern as in
+	// https://gist.github.com/stevegt/6d14dc97731b10b46bd79771d336a390
+	stdout, stdoutw := io.Pipe()
+	stderr, stderrw := io.Pipe()
 	go func() {
-		stdcopy.StdCopy(stdout, stderr, conn)
-		stdout.Close()
-		stderr.Close()
+		_, err := io.Copy(stdoutw, stdout)
+		_, err := io.Copy(stderrw, stderr)
+		stdoutw.Close()
+		stderrw.Close()
 	}()
 
-	outbuf := make([]byte, len(expect))
-	readn, err := stdoutr.Read(outbuf)
-	tassert(t, err == nil, "%v", err)
-	tassert(t, readn == len(expect), "expect %v bytes read, got %v", len(expect), readn)
-	tassert(t, bytes.Compare([]byte(expect), outbuf) == 0, "expect %s, got %v", expect, string(outbuf))
+	// XXX read stdout and stderr into buffers
 
-	// XXX check stderr
-	_ = stderrr
-	// errbuf, err := ioutil.ReadAll(stderrr)
-	// tassert(t, err == nil, "%v", err)
-	// tassert(t, len(errbuf) == 0, "%v", string(errbuf))
+	// XXX get rc Response
+
+	// XXX ensure rc is zero
+
+	// XXX compare stdout buf with expect
+
+	// XXX ensure stderr buf is empty
+
+	/*
+
+		XXX old code from the pre-msgpack version of this function --
+		mine this for e.g. outbuf and errbuf
+
+		outbuf := make([]byte, len(expect))
+		readn, err := stdoutr.Read(outbuf)
+		tassert(t, err == nil, "%v", err)
+		tassert(t, readn == len(expect), "expect %v bytes read, got %v", len(expect), readn)
+		tassert(t, bytes.Compare([]byte(expect), outbuf) == 0, "expect %s, got %v", expect, string(outbuf))
+
+		// XXX check stderr
+		_ = stderrr
+		// errbuf, err := ioutil.ReadAll(stderrr)
+		// tassert(t, err == nil, "%v", err)
+		// tassert(t, len(errbuf) == 0, "%v", string(errbuf))
+	*/
+
 	return
 }
 
