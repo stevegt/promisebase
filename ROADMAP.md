@@ -98,6 +98,8 @@ x refactor modules
         x mv cmd/pit/pbmain.go cmd/pit/pitmain.go
             x import pitbase/client
         x mv cmd/pit/testdata/main.ct cmd/pit/testdata/pitmain.ct
+- rework server to use msgpack for wire protocol
+    - ~/core/u/gdo/msgpack/unix-domain-sockets
 - write pitd
     - refactor server to provide a pit.Serve function
     - call listener function from pitd
