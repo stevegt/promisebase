@@ -295,7 +295,7 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	err = encoder.Encode(msg)
 	tassert(t, err == nil, "%v", err)
 
-	var outbuf, errbuf []byte
+	// var outbuf, errbuf []byte
 	// the Decode() method reads from conn and unmarshals the
 	// msgpack message into msg.
 	decoder := msgpack.NewDecoder(conn)
@@ -306,7 +306,7 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	var res Response
 
 	// get stdio descriptors
-	err := decoder.Decode(&res)
+	err = decoder.Decode(&res)
 	tassert(t, err == nil, "%v", err)
 	// because we get io.Writers from Response, we need to convert
 	// those to io.Readers so we can read from them and check the
@@ -315,8 +315,8 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	stdout, stdoutw := io.Pipe()
 	stderr, stderrw := io.Pipe()
 	go func() {
-		_, err := io.Copy(stdoutw, stdout)
-		_, err := io.Copy(stderrw, stderr)
+		_, err = io.Copy(stdoutw, stdout)
+		_, err = io.Copy(stderrw, stderr)
 		stdoutw.Close()
 		stderrw.Close()
 	}()
