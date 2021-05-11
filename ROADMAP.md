@@ -98,6 +98,30 @@ x refactor modules
         x mv cmd/pit/pbmain.go cmd/pit/pitmain.go
             x import pitbase/client
         x mv cmd/pit/testdata/main.ct cmd/pit/testdata/pitmain.ct
+- containerize tests and prod
+    - this will also help provide a linux VM for Matt
+    - write a Dockerfile 
+    - base on nerdctl?
+    - 
+- migrate to containerd
+    - decision points:
+        - vanilla ubuntu containerd.io .deb wants redis tutorial
+          client to either run as root or to be using rootless
+          configuration
+          - we don't want to run test cases as root
+          - rootless config is a lot of setup on dev or user machines
+            (setup that we would want to avoid)
+          - XXX it's possible that there is an easy change to either
+            redis tutorial or containerd config to not make it want
+            rootless
+        - the `nerdctl` container image is able to run the redis
+          tutorial fine, inside the container:
+            - docker run -it --rm --privileged -v \
+                ~/lab/containerd/client-api-getting-started/:/client-api-getting-started \
+                nerdctl /client-api-getting-started/main
+            - this looks like the best option
+        - can we safely use the docker containerd?
+            - XXX
 - rework server to use msgpack for wire protocol
     - ~/core/u/gdo/msgpack/unix-domain-sockets
 - write pitd
@@ -107,8 +131,6 @@ x refactor modules
     - contacts pitd through unix domain socket
 - get pitmain.ct to pass
     - `pit` is the cmdline utility providing an API for shell scripts
-- containerize tests
-    - this will also help provide a linux VM for Matt
 - investigate stargz and the general idea of a FUSE driver for rootfs
     - https://github.com/containerd/stargz-snapshotter/blob/master/docs/overview.md
 - POC pit libraries in other languages

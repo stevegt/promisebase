@@ -11,7 +11,12 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/oci"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -126,15 +131,15 @@ func (pit *Pit) handle(conn net.Conn) {
 		Ck(err)
 
 		// pass msg to runContainer
-		out, rc, err := pit.runContainer(string(msg.Addr), []string(msg.Args)...)
+		rc, err := pit.runContainer(os.Stdout, os.Stderr, string(msg.Addr), []string(msg.Args)...)
 		Ck(err)
 
 		// return results to client
 		// XXX fake stdout and sterr file descriptors for now by using
 		// docker's stdcopy.StdCopy() to demultiplex `out` here on
 		// server side and repack in msgpack Response
-		_, err = io.Copy(conn, out)
-		Ck(err)
+		// _, err = io.Copy(conn, out)
+		// Ck(err)
 
 		// XXX send rc in msgpack Response
 		// _, err = fmt.Fprint(conn, rc)
@@ -237,7 +242,6 @@ const (
 )
 
 type Response struct {
-	Msg    Msg
 	Stdout io.Writer
 	Stderr io.Writer
 	Rc     int
@@ -257,6 +261,22 @@ func PipeFd(rd io.Reader) (fd uintptr, status chan error, err error) {
 		status <- err
 	}()
 	fd = rfile.Fd()
+	return
+}
+
+// r2w converts an io.Reader to an io.Writer
+func r2w(rd io.ReadCloser) (wr io.WriteCloser, errchan chan error) {
+	errchan = make(chan error)
+	go func() {
+		_, err := io.Copy(wr, rd)
+		if err != nil {
+			errchan <- err
+		}
+		err = wr.Close()
+		if err != nil {
+			errchan <- err
+		}
+	}()
 	return
 }
 
@@ -340,7 +360,115 @@ func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
 	return
 }
 
-func (pit *Pit) runContainer(img string, cmd ...string) (out io.ReadCloser, rc int, err error) {
+func (pit *Pit) runContainer(outstream, errstream io.WriteCloser, img string, cmd ...string) (rc int, err error) {
+	defer Return(&err)
+
+	// create a new client connected to the default socket path for containerd
+	// fn := "/run/docker/containerd/docker-containerd.sock"
+	fn := "/run/containerd/containerd.sock"
+	client, err := containerd.New(fn)
+	Ck(err)
+	defer client.Close()
+
+	// create a new context with a "pit" namespace
+	ctx := namespaces.WithNamespace(context.Background(), "pit")
+
+	var image containerd.Image
+	if strings.Index(img, "tree/") == 0 {
+		// XXX convert to containerd API
+		/*
+			path := pb.Path{}.New(pit.Db, img)
+			tree, err := pit.Db.GetTree(path)
+			Ck(err)
+			defer tree.Close()
+
+			var res types.ImageLoadResponse
+			if true {
+				res, err = cli.ImageLoad(ctx, tree, false)
+				Ck(err)
+			} else {
+				pipeReader, pipeWriter := debugpipe.Pipe()
+				go func() {
+					_, err = io.Copy(pipeWriter, tree)
+					Ck(err)
+					err = pipeWriter.Close()
+					Ck(err)
+				}()
+				res, err = cli.ImageLoad(ctx, pipeReader, false)
+				Ck(err)
+			}
+
+			_, err = io.Copy(os.Stdout, res.Body)
+			Ck(err)
+			defer res.Body.Close()
+		*/
+	} else {
+		// pull the image from DockerHub
+		fmt.Println("pulling")
+		image, err = client.Pull(ctx, img, containerd.WithPullUnpack)
+		Ck(err)
+		fmt.Println("pull done")
+	}
+
+	// create a container
+	name := "test-10" // XXX get a short name
+	container, err := client.NewContainer(
+		ctx,
+		name,
+		containerd.WithImage(image),
+		containerd.WithNewSnapshot(name+"-snapshot", image),
+		containerd.WithNewSpec(oci.WithImageConfigArgs(image, cmd)),
+	)
+	Ck(err)
+	// XXX we do want to delete, right?
+	defer container.Delete(ctx, containerd.WithSnapshotCleanup)
+
+	// create a task from the container
+	// XXX do something with stdin
+	streams := cio.WithStreams(os.Stdin, outstream, errstream)
+	task, err := container.NewTask(ctx, cio.NewCreator(streams))
+	Ck(err)
+	defer task.Delete(ctx)
+
+	fmt.Println("container created")
+	// make sure we wait before calling start
+	// XXX why?
+	exitStatusC, err := task.Wait(ctx)
+	_ = exitStatusC
+	if err != nil {
+		// XXX why not abend?
+		fmt.Println(err)
+	}
+
+	// call start on the task to execute the redis server
+	err = task.Start(ctx)
+	Ck(err)
+
+	fmt.Println("container task started")
+	// sleep for a lil bit to see the logs
+	// XXX get rid of sleep
+	time.Sleep(1 * time.Second)
+
+	// kill the process and get the exit status
+	// XXX no
+	err = task.Kill(ctx, syscall.SIGTERM)
+	Ck(err)
+
+	fmt.Println("container task killed")
+	// wait for the process to fully exit and print out the exit status
+
+	// status := <-exitStatusC
+	// fmt.Println("got status")
+	// code, _, err := status.Result()
+	// Ck(err)
+	// XXX
+	// fmt.Printf("exited with status: %d\n", code)
+	fmt.Println("exiting with no status")
+
+	return
+}
+
+func (pit *Pit) runContainerDocker(img string, cmd ...string) (out io.ReadCloser, rc int, err error) {
 	/// trace, debug := trace()
 
 	// XXX rehack to replace docker with containerd

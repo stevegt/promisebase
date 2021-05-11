@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/readercomp"
 	"github.com/vmihailenco/msgpack"
@@ -260,20 +259,17 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
-	out, rc, err := pit.runContainer(img, "echo", "-n", expect)
+	rc, err := pit.runContainer(stdout, stderr, img, "echo", "-n", expect)
+	fmt.Println("runConatinaer done")
 	tassert(t, err == nil, "%v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
-	go func() {
-		stdcopy.StdCopy(stdout, stderr, out)
-		stdout.Close()
-		stderr.Close()
-	}()
-
+	fmt.Println("starting readercomp stdout")
 	ok, err := readercomp.Equal(expectrd, stdoutr, 4096)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
+	fmt.Println("starting readercomp stderr")
 	ok, err = readercomp.Equal(emptyrd, stderrr, 4096)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
@@ -295,7 +291,6 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	err = encoder.Encode(msg)
 	tassert(t, err == nil, "%v", err)
 
-	// var outbuf, errbuf []byte
 	// the Decode() method reads from conn and unmarshals the
 	// msgpack message into msg.
 	decoder := msgpack.NewDecoder(conn)
@@ -310,7 +305,7 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	tassert(t, err == nil, "%v", err)
 	// because we get io.Writers from Response, we need to convert
 	// those to io.Readers so we can read from them and check the
-	// output.  We do this using a Pip() and Copy() pattern as in
+	// output.  We do this using a Pipe() and Copy() pattern as in
 	// https://gist.github.com/stevegt/6d14dc97731b10b46bd79771d336a390
 	stdout, stdoutw := io.Pipe()
 	stderr, stderrw := io.Pipe()
@@ -322,6 +317,7 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	}()
 
 	// XXX read stdout and stderr into buffers
+	// var outbuf, errbuf []byte
 
 	// XXX get rc Response
 
