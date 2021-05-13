@@ -68,7 +68,7 @@ func (pit *Pit) runContainer(outstream, errstream io.WriteCloser, img string, cm
 	}
 
 	// create a container
-	name := "test-10" // XXX get a short name
+	name := "test-13" // XXX get a short name
 	container, err := client.NewContainer(
 		ctx,
 		name,
@@ -83,6 +83,7 @@ func (pit *Pit) runContainer(outstream, errstream io.WriteCloser, img string, cm
 	// create a task from the container
 	// XXX do something with stdin
 	streams := cio.WithStreams(os.Stdin, outstream, errstream)
+	// streams := cio.WithStreams(os.Stdin, os.Stdout, os.Stderr)
 	task, err := container.NewTask(ctx, cio.NewCreator(streams))
 	Ck(err)
 	defer task.Delete(ctx)
@@ -108,9 +109,12 @@ func (pit *Pit) runContainer(outstream, errstream io.WriteCloser, img string, cm
 
 	// kill the process and get the exit status
 	// XXX no
-	err = task.Kill(ctx, syscall.SIGTERM)
-	Ck(err)
-
+	fmt.Println("killing container task")
+	// err = task.Kill(ctx, syscall.SIGTERM)
+	err = task.Kill(ctx, syscall.SIGKILL)
+	if err != nil {
+		fmt.Println(err)
+	}
 	fmt.Println("container task killed")
 	// wait for the process to fully exit and print out the exit status
 

@@ -254,15 +254,20 @@ func TestRunHub(t *testing.T) {
 
 func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
+	fmt.Println("echoTest starting")
 	expectrd := bytes.NewReader([]byte(expect))
 	emptyrd := bytes.NewReader([]byte(""))
 
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
-	rc, err := pit.runContainer(stdout, stderr, img, "echo", "-n", expect)
-	fmt.Println("runContainer done")
-	tassert(t, err == nil, "%v", err)
-	tassert(t, rc == 0, "%#v", rc)
+
+	go func() {
+		fmt.Println("runContainer starting")
+		rc, err := pit.runContainer(stdout, stderr, img, "echo", "-n", expect)
+		fmt.Println("runContainer done")
+		tassert(t, err == nil, "%v", err)
+		tassert(t, rc == 0, "%#v", rc)
+	}()
 
 	fmt.Println("starting readercomp stdout")
 	ok, err := readercomp.Equal(expectrd, stdoutr, 4096)
