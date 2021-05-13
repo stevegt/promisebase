@@ -260,7 +260,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
 	rc, err := pit.runContainer(stdout, stderr, img, "echo", "-n", expect)
-	fmt.Println("runConatinaer done")
+	fmt.Println("runContainer done")
 	tassert(t, err == nil, "%v", err)
 	tassert(t, rc == 0, "%#v", rc)
 
