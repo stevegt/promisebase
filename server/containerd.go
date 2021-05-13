@@ -4,34 +4,58 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
+	"github.com/docker/docker/pkg/namesgenerator"
 
 	. "github.com/stevegt/goadapt"
 )
 
-func (pit *Pit) runContainer(outstream, errstream io.WriteCloser, img string, cmd ...string) (rc int, err error) {
-	defer Return(&err)
+type ContainerRuntime struct {
+	fn     string
+	client *containerd.Client
+}
 
-	// create a new client connected to the default socket path for containerd
-	// fn := "/run/docker/containerd/docker-containerd.sock"
-	fn := "/run/containerd/containerd.sock"
+// create a new client connected to the default socket path for containerd
+func (pit *Pit) connectRuntime(fn string) (err error) {
+	defer Return(&err)
+	Assert(pit.runtime == nil)
 	client, err := containerd.New(fn)
 	Ck(err)
-	defer client.Close()
+	runtime := &ContainerRuntime{
+		fn:     fn,
+		client: client,
+	}
+	pit.runtime = runtime
+	return
+}
+
+type Container struct {
+	Image  string
+	Args   []string
+	Stdin  io.ReadCloser
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
+	task   containerd.Task
+	ctx    context.Context
+	rc     int
+	err    error
+}
+
+func (pit *Pit) startContainer(cntr *Container) (err error) {
+	defer Return(&err)
 
 	// create a new context with a "pit" namespace
-	ctx := namespaces.WithNamespace(context.Background(), "pit")
+	cntr.ctx = namespaces.WithNamespace(context.Background(), "pit")
+
+	client := pit.runtime.client
 
 	var image containerd.Image
-	if strings.Index(img, "tree/") == 0 {
+	if strings.Index(cntr.Image, "tree/") == 0 {
 		// XXX convert to containerd API
 		/*
 			path := pb.Path{}.New(pit.Db, img)
@@ -61,70 +85,52 @@ func (pit *Pit) runContainer(outstream, errstream io.WriteCloser, img string, cm
 		*/
 	} else {
 		// pull the image from DockerHub
+		// XXX always pull into a tree, run from there
 		fmt.Println("pulling")
-		image, err = client.Pull(ctx, img, containerd.WithPullUnpack)
+		image, err = client.Pull(cntr.ctx, cntr.Image, containerd.WithPullUnpack)
 		Ck(err)
 		fmt.Println("pull done")
 	}
 
 	// create a container
-	name := "test-13" // XXX get a short name
-	container, err := client.NewContainer(
-		ctx,
-		name,
-		containerd.WithImage(image),
-		containerd.WithNewSnapshot(name+"-snapshot", image),
-		containerd.WithNewSpec(oci.WithImageConfigArgs(image, cmd)),
-	)
+	var container containerd.Container
+	for i := 0; i < 10; i++ {
+		// generate name
+		// XXX allow name to be passed in instead
+		name := namesgenerator.GetRandomName(i)
+		container, err = client.NewContainer(
+			cntr.ctx,
+			name,
+			containerd.WithImage(image),
+			// XXX delete or re-use existing snapshot?
+			// XXX use WithSnapshot for tree-based containers
+			containerd.WithNewSnapshot(name+"-snapshot", image),
+			// XXX deal with existing spec
+			containerd.WithNewSpec(oci.WithImageConfigArgs(image, cntr.Args)),
+		)
+		if err != nil {
+			// likely name collision -- retry
+			// XXX actually look at the err instead of blindly
+			// retrying
+			continue
+		}
+	}
 	Ck(err)
-	// XXX we do want to delete, right?
-	defer container.Delete(ctx, containerd.WithSnapshotCleanup)
 
 	// create a task from the container
-	// XXX do something with stdin
-	streams := cio.WithStreams(os.Stdin, outstream, errstream)
-	// streams := cio.WithStreams(os.Stdin, os.Stdout, os.Stderr)
-	task, err := container.NewTask(ctx, cio.NewCreator(streams))
+	streams := cio.WithStreams(cntr.Stdin, cntr.Stdout, cntr.Stderr)
+	cntr.task, err = container.NewTask(cntr.ctx, cio.NewCreator(streams))
 	Ck(err)
-	defer task.Delete(ctx)
 
-	fmt.Println("container created")
-	// make sure we wait before calling start
-	// XXX why?
-	exitStatusC, err := task.Wait(ctx)
-	_ = exitStatusC
-	if err != nil {
-		// XXX why not abend?
-		fmt.Println(err)
-	}
-
-	// call start on the task to execute the redis server
-	err = task.Start(ctx)
+	// call start on the task
+	err = cntr.task.Start(cntr.ctx)
 	Ck(err)
 
 	fmt.Println("container task started")
-	// sleep for a lil bit to see the logs
-	// XXX get rid of sleep
-	time.Sleep(1 * time.Second)
-
-	// kill the process and get the exit status
-	// XXX no
-	fmt.Println("killing container task")
-	// err = task.Kill(ctx, syscall.SIGTERM)
-	err = task.Kill(ctx, syscall.SIGKILL)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("container task killed")
-	// wait for the process to fully exit and print out the exit status
-
-	// status := <-exitStatusC
-	// fmt.Println("got status")
-	// code, _, err := status.Result()
-	// Ck(err)
-	// XXX
-	// fmt.Printf("exited with status: %d\n", code)
-	fmt.Println("exiting with no status")
 
 	return
+}
+
+func (cntr *Container) Delete() {
+	defer cntr.task.Delete(cntr.ctx)
 }

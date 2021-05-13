@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd"
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/readercomp"
 	"github.com/vmihailenco/msgpack"
@@ -254,6 +255,9 @@ func TestRunHub(t *testing.T) {
 
 func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
+	fn := "/run/containerd/containerd.sock"
+	client := pit.connectRuntime(fn)
+
 	fmt.Println("echoTest starting")
 	expectrd := bytes.NewReader([]byte(expect))
 	emptyrd := bytes.NewReader([]byte(""))
@@ -278,6 +282,42 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	ok, err = readercomp.Equal(emptyrd, stderrr, 4096)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
+
+	/*
+		fmt.Println("container created")
+		// make sure we wait before calling start
+		// XXX why?
+		exitStatusC, err := cntr.task.Wait(ctx)
+		_ = exitStatusC
+		if err != nil {
+			// XXX why not abend?
+			fmt.Println(err)
+		}
+
+		// sleep for a lil bit to see the logs
+		// XXX get rid of sleep
+		time.Sleep(1 * time.Second)
+
+		// kill the process and get the exit status
+		// XXX no
+		err = task.Kill(ctx, syscall.SIGTERM)
+		Ck(err)
+
+		fmt.Println("container task killed")
+		// wait for the process to fully exit and print out the exit status
+
+		// status := <-exitStatusC
+		// fmt.Println("got status")
+		// code, _, err := status.Result()
+		// Ck(err)
+		// XXX
+		// fmt.Printf("exited with status: %d\n", code)
+		fmt.Println("exiting with no status")
+
+	*/
+
+	container.Delete(ctx, containerd.WithSnapshotCleanup) //
+	client.Close()
 
 	return
 }

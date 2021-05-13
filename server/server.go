@@ -35,6 +35,7 @@ type Pit struct {
 	Db      *pb.Db
 	watcher *fsnotify.Watcher
 	Events  chan fsnotify.Event
+	runtime *ContainerRuntime
 }
 
 func Create(dir string) (pit *Pit, err error) {
@@ -111,6 +112,7 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 // handle a single connection from a client
 // XXX rehack to use msgpack
 func (pit *Pit) handle(conn net.Conn) {
+	defer ReturnChan(errc)
 	rd := bufio.NewReader(conn)
 	for {
 		// read message from conn
@@ -126,7 +128,7 @@ func (pit *Pit) handle(conn net.Conn) {
 		Ck(err)
 
 		// pass msg to runContainer
-		rc, err := pit.runContainer(os.Stdout, os.Stderr, string(msg.Addr), []string(msg.Args)...)
+		rcc, errc := pit.startContainer(conn, conn, os.Stderr, string(msg.Addr), []string(msg.Args)...)
 		Ck(err)
 
 		// return results to client

@@ -4,7 +4,8 @@ go 1.14
 
 replace github.com/t7a/pitbase/db => ../db
 
-// replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
+replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
+
 // replace github.com/stevegt/readercomp => /home/stevegt/lab/readercomp
 
 require (
