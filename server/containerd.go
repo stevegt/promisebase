@@ -46,7 +46,7 @@ type Container struct {
 	err    error
 }
 
-func (pit *Pit) startContainer(cntr *Container) (err error) {
+func (pit *Pit) startContainer(cntr *Container) (err chan error) {
 	defer Return(&err)
 
 	// create a new context with a "pit" namespace

@@ -4,7 +4,7 @@ go 1.14
 
 replace github.com/t7a/pitbase/db => ../db
 
-replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
+// replace github.com/stevegt/goadapt => /home/stevegt/lab/goadapt
 
 // replace github.com/stevegt/readercomp => /home/stevegt/lab/readercomp
 
@@ -22,7 +22,7 @@ require (
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/stevegt/debugpipe v0.0.2
-	github.com/stevegt/goadapt v0.0.9
+	github.com/stevegt/goadapt v0.0.10
 	github.com/stevegt/readercomp v0.0.1
 	github.com/t7a/pitbase/db v0.0.0-00010101000000-000000000000
 	github.com/vmihailenco/msgpack v4.0.4+incompatible

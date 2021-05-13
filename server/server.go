@@ -111,7 +111,7 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 
 // handle a single connection from a client
 // XXX rehack to use msgpack
-func (pit *Pit) handle(conn net.Conn) {
+func (pit *Pit) handle(conn net.Conn, errc chan error) {
 	defer ReturnChan(errc)
 	rd := bufio.NewReader(conn)
 	for {
