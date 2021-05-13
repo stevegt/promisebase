@@ -98,32 +98,32 @@ x refactor modules
         x mv cmd/pit/pbmain.go cmd/pit/pitmain.go
             x import pitbase/client
         x mv cmd/pit/testdata/main.ct cmd/pit/testdata/pitmain.ct
-- containerize tests and prod
-    - this will also help provide a linux VM for Matt
-    - write a Dockerfile 
-    - base on nerdctl?
-    - 
-- migrate to containerd
-    - decision points:
-        - vanilla ubuntu containerd.io .deb wants redis tutorial
+x migrate to containerd
+    x decision points:
+        x vanilla ubuntu containerd.io .deb wants redis tutorial
           client to either run as root or to be using rootless
           configuration
-          - we don't want to run test cases as root
-          - rootless config is a lot of setup on dev or user machines
+          x we don't want to run test cases as root
+          x rootless config is a lot of setup on dev or user machines
             (setup that we would want to avoid)
-          - XXX it's possible that there is an easy change to either
+          x XXX it's possible that there is an easy change to either
             redis tutorial or containerd config to not make it want
             rootless
-        - the `nerdctl` container image is able to run the redis
+        x the `nerdctl` container image is able to run the redis
           tutorial fine, inside the container:
-            - docker run -it --rm --privileged -v \
+            x docker run -it --rm --privileged -v \
                 ~/lab/containerd/client-api-getting-started/:/client-api-getting-started \
                 nerdctl /client-api-getting-started/main
-            - this looks like the best option
-        - can we safely use the docker containerd?
-            - XXX
+            x this looks like the best option
+        x can we safely use the docker containerd?
+            x let's avoid that due to possible conflicts
 - rework server to use msgpack for wire protocol
     - ~/core/u/gdo/msgpack/unix-domain-sockets
+- containerize tests and prod
+    x this will also help provide a linux VM for Matt
+    x write a Dockerfile 
+    x base on nerdctl?
+    - have `make test` spawn container?
 - write pitd
     - refactor server to provide a pit.Serve function
     - call listener function from pitd
