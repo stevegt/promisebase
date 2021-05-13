@@ -173,8 +173,9 @@ func TestServe(t *testing.T) {
 	pit := setup(t)
 	fn := "pit.sock"
 
-	err := pit.Serve(fn)
-	tassert(t, err == nil, "%v", err)
+	errc := pit.Serve(fn)
+	// XXX check messages on errc
+	_ = errc
 
 	// XXX try some client-side stuff here
 	// grab some code from TestSocket and feed in

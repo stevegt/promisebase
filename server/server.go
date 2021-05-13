@@ -128,7 +128,15 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 		Ck(err)
 
 		// pass msg to runContainer
-		rcc, errc := pit.startContainer(conn, conn, os.Stderr, string(msg.Addr), []string(msg.Args)...)
+		cntr := &Container{
+			Image:  string(msg.Addr),
+			Args:   []string(msg.Args),
+			Stdin:  conn,
+			Stdout: conn,
+			Stderr: os.Stderr,
+		}
+
+		err = pit.startContainer(cntr)
 		Ck(err)
 
 		// return results to client
@@ -141,14 +149,13 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 		// XXX send rc in msgpack Response
 		// _, err = fmt.Fprint(conn, rc)
 		// Ck(err)
-		_ = rc
 
 	}
 }
 
 // Serve requests on a UNIX domain socket
-func (pit *Pit) Serve(fn string) (err error) {
-	defer Return(&err)
+func (pit *Pit) Serve(fn string) (errc chan error) {
+	defer ReturnChan(errc)
 
 	// listen on socket at fn
 	listener, err := pit.Listen(fn)
@@ -162,7 +169,7 @@ func (pit *Pit) Serve(fn string) (err error) {
 			Ck(err)
 
 			// pass conn to handle()
-			go pit.handle(conn)
+			go pit.handle(conn, errc)
 		}
 
 	}()
