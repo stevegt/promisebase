@@ -568,8 +568,9 @@ github.com/spf13/viper v1.4.0/go.mod h1:PTJ7Z/lr49W6bUbkmS1V3by4uWynFiR9p7+dSq/y
 github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980/go.mod h1:AO3tvPzVZ/ayst6UlUKUv6rcPQInYe3IknH3jYhAKu8=
 github.com/stevegt/debugpipe v0.0.2 h1:xE66SvGy42VLKEo04JTebZn9WsHfi5jBiSFcxPB8mmk=
 github.com/stevegt/debugpipe v0.0.2/go.mod h1:I/R40ibR6Phh6UY5+enEyXmYsUURWvN0TZdDJ8LYLuU=
-github.com/stevegt/goadapt v0.0.9 h1:7c4CEERWji3uxrrDqGxNooFL8zw9Agt2qYEX0b52nrA=
 github.com/stevegt/goadapt v0.0.9/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
+github.com/stevegt/goadapt v0.0.10 h1:l5aPfSEV7I6Dd9aSagOqZHIEaMf+nqhxE5Tcfj6Fotk=
+github.com/stevegt/goadapt v0.0.10/go.mod h1:BWNnTsXdIxaseRo0W/MoVgDeLNf+6L4S4fPhyAsBTi0=
 github.com/stevegt/readercomp v0.0.1 h1:IIVK23uDQ/t7QA9FkZKSOwj2IUzhGtcK99kC1JSI674=
 github.com/stevegt/readercomp v0.0.1/go.mod h1:41yLI71CVr5JVwz3fxVNweYL8LHq1Yc6IbxMkj7W/2M=
 github.com/stretchr/objx v0.0.0-20180129172003-8a3f7159479f/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
