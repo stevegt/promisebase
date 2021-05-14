@@ -94,7 +94,8 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	}
 
 	// create a container
-	for i := 0; i < 10; i++ {
+	var i int
+	for i = 0; i < 10; i++ {
 		// generate name
 		// XXX allow name to be passed in instead
 		name := namesgenerator.GetRandomName(i)
@@ -108,18 +109,20 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 			// XXX deal with existing spec
 			containerd.WithNewSpec(oci.WithImageConfigArgs(image, cntr.Args)),
 		)
-		if err != nil {
-			// likely name collision -- retry
-			// XXX actually look at the err instead of blindly
-			// retrying
-			continue
+		if err == nil {
+			break
+		} else {
+			fmt.Printf("i: %v %v", i, err)
 		}
+		// likely name collision -- retry
+		// XXX actually look at the err instead of blindly
+		// retrying
 	}
-	Ck(err)
+	Ck(err, "i: %v", i)
 
 	// create a task from the container
 	streams := cio.WithStreams(cntr.Stdin, cntr.Stdout, cntr.Stderr)
-	cntr.task, err = container.NewTask(cntr.ctx, cio.NewCreator(streams))
+	cntr.task, err = cntr.container.NewTask(cntr.ctx, cio.NewCreator(streams))
 	Ck(err)
 
 	// call start on the task

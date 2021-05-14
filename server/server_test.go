@@ -256,7 +256,9 @@ func TestRunHub(t *testing.T) {
 func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 	fn := "/run/containerd/containerd.sock"
-	client := pit.connectRuntime(fn)
+	err = pit.connectRuntime(fn)
+	tassert(t, err == nil, "%v", err)
+	client := pit.runtime.client
 
 	fmt.Println("echoTest starting")
 	expectrd := bytes.NewReader([]byte(expect))
@@ -280,27 +282,17 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 	fmt.Println("container started")
 
-	fmt.Println("starting readercomp stdout")
-	ok, err := readercomp.Equal(expectrd, stdoutr, 4096)
-	tassert(t, err == nil, "%v", err)
-	tassert(t, ok, "stream mismatch")
-
-	fmt.Println("starting readercomp stderr")
-	ok, err = readercomp.Equal(emptyrd, stderrr, 4096)
-	tassert(t, err == nil, "%v", err)
-	tassert(t, ok, "stream mismatch")
+	// make sure we wait before calling start
+	// XXX why?
+	exitStatusC, err := cntr.task.Wait(cntr.ctx)
+	_ = exitStatusC
+	if err != nil {
+		// XXX why not abend?
+		fmt.Println(err)
+	}
+	fmt.Println("wait done")
 
 	/*
-		fmt.Println("container created")
-		// make sure we wait before calling start
-		// XXX why?
-		exitStatusC, err := cntr.task.Wait(ctx)
-		_ = exitStatusC
-		if err != nil {
-			// XXX why not abend?
-			fmt.Println(err)
-		}
-
 		// sleep for a lil bit to see the logs
 		// XXX get rid of sleep
 		time.Sleep(1 * time.Second)
@@ -313,17 +305,28 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 		fmt.Println("container task killed")
 		// wait for the process to fully exit and print out the exit status
 
-		// status := <-exitStatusC
-		// fmt.Println("got status")
-		// code, _, err := status.Result()
-		// Ck(err)
-		// XXX
-		// fmt.Printf("exited with status: %d\n", code)
-		fmt.Println("exiting with no status")
-
 	*/
+	status := <-exitStatusC
+	fmt.Println("got status")
+	code, _, err := status.Result()
+	tassert(t, err == nil, "%v", err)
+	fmt.Printf("exited with status: %d\n", code)
+	tassert(t, code == 0, "%v", code)
+	// fmt.Println("exiting with no status")
 
-	defer cntr.task.Delete(cntr.ctx)
+	stdout.Close()
+	stderr.Close()
+	fmt.Println("starting readercomp stdout")
+	ok, err := readercomp.Equal(expectrd, stdoutr, 1024)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, ok, "stream mismatch")
+
+	fmt.Println("starting readercomp stderr")
+	ok, err = readercomp.Equal(emptyrd, stderrr, 1024)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, ok, "stream mismatch")
+
+	cntr.task.Delete(cntr.ctx)
 	client.Close()
 
 	return
