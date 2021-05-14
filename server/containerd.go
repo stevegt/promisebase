@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
@@ -94,6 +96,7 @@ func (pit *Pit) startContainer(cntr *Container) (statusChan <-chan containerd.Ex
 	}
 
 	// create a container
+	rand.Seed(time.Now().UnixNano())
 	var i int
 	for i = 0; i < 10; i++ {
 		// generate name
