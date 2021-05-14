@@ -294,8 +294,8 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 		fmt.Println("container task killed")
 		// wait for the process to fully exit and print out the exit status
-
 	*/
+
 	status := <-statusChan
 	fmt.Println("got status")
 	code, _, err := status.Result()
@@ -304,8 +304,11 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	tassert(t, code == 0, "%v", code)
 	// fmt.Println("exiting with no status")
 
+	// XXX why do we need to do this?  why aren't these being closed
+	// for us when the container exits?
 	stdout.Close()
 	stderr.Close()
+
 	fmt.Println("starting readercomp stdout")
 	ok, err := readercomp.Equal(expectrd, stdoutr, 1024)
 	tassert(t, err == nil, "%v", err)
