@@ -47,7 +47,7 @@ type Container struct {
 	err       error
 }
 
-func (pit *Pit) startContainer(cntr *Container) (err error) {
+func (pit *Pit) startContainer(cntr *Container) (statusChan <-chan containerd.ExitStatus, err error) {
 	defer Return(&err)
 
 	// create a new context with a "pit" namespace
@@ -112,7 +112,7 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 		if err == nil {
 			break
 		} else {
-			fmt.Printf("i: %v %v", i, err)
+			fmt.Printf("i: %v %v\n", i, err)
 		}
 		// likely name collision -- retry
 		// XXX actually look at the err instead of blindly
@@ -122,8 +122,19 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 
 	// create a task from the container
 	streams := cio.WithStreams(cntr.Stdin, cntr.Stdout, cntr.Stderr)
+	// streams := cio.WithStreams(cntr.Stdin, os.Stdout, cntr.Stderr)
 	cntr.task, err = cntr.container.NewTask(cntr.ctx, cio.NewCreator(streams))
 	Ck(err)
+	fmt.Println("newtask done")
+
+	// make sure we wait before calling start
+	// XXX why?
+	statusChan, err = cntr.task.Wait(cntr.ctx)
+	if err != nil {
+		// XXX why not abend?
+		fmt.Println(err)
+	}
+	fmt.Println("wait done")
 
 	// call start on the task
 	err = cntr.task.Start(cntr.ctx)

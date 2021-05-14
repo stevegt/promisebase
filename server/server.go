@@ -136,10 +136,12 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 			Stderr: os.Stderr,
 		}
 
-		err = pit.startContainer(cntr)
+		statusChan, err := pit.startContainer(cntr)
 		Ck(err)
 
+		_ = statusChan
 		// return results to client
+		// status := <-statusChan
 		// XXX fake stdout and sterr file descriptors for now by using
 		// docker's stdcopy.StdCopy() to demultiplex `out` here on
 		// server side and repack in msgpack Response

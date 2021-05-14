@@ -276,21 +276,11 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	}
 
 	fmt.Println("container starting")
-	err = pit.startContainer(cntr)
+	statusChan, err := pit.startContainer(cntr)
 
 	tassert(t, err == nil, "%v", err)
 
 	fmt.Println("container started")
-
-	// make sure we wait before calling start
-	// XXX why?
-	exitStatusC, err := cntr.task.Wait(cntr.ctx)
-	_ = exitStatusC
-	if err != nil {
-		// XXX why not abend?
-		fmt.Println(err)
-	}
-	fmt.Println("wait done")
 
 	/*
 		// sleep for a lil bit to see the logs
@@ -306,7 +296,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 		// wait for the process to fully exit and print out the exit status
 
 	*/
-	status := <-exitStatusC
+	status := <-statusChan
 	fmt.Println("got status")
 	code, _, err := status.Result()
 	tassert(t, err == nil, "%v", err)
