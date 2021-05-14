@@ -35,18 +35,19 @@ func (pit *Pit) connectRuntime(fn string) (err error) {
 }
 
 type Container struct {
-	Image  string
-	Args   []string
-	Stdin  io.ReadCloser
-	Stdout io.WriteCloser
-	Stderr io.WriteCloser
-	task   containerd.Task
-	ctx    context.Context
-	rc     int
-	err    error
+	Image     string
+	Args      []string
+	Stdin     io.ReadCloser
+	Stdout    io.WriteCloser
+	Stderr    io.WriteCloser
+	container containerd.Container
+	task      containerd.Task
+	ctx       context.Context
+	rc        int
+	err       error
 }
 
-func (pit *Pit) startContainer(cntr *Container) (err chan error) {
+func (pit *Pit) startContainer(cntr *Container) (err error) {
 	defer Return(&err)
 
 	// create a new context with a "pit" namespace
@@ -93,12 +94,11 @@ func (pit *Pit) startContainer(cntr *Container) (err chan error) {
 	}
 
 	// create a container
-	var container containerd.Container
 	for i := 0; i < 10; i++ {
 		// generate name
 		// XXX allow name to be passed in instead
 		name := namesgenerator.GetRandomName(i)
-		container, err = client.NewContainer(
+		cntr.container, err = client.NewContainer(
 			cntr.ctx,
 			name,
 			containerd.WithImage(image),
@@ -132,5 +132,5 @@ func (pit *Pit) startContainer(cntr *Container) (err chan error) {
 }
 
 func (cntr *Container) Delete() {
-	defer cntr.task.Delete(cntr.ctx)
+	cntr.container.Delete(cntr.ctx, containerd.WithSnapshotCleanup)
 }

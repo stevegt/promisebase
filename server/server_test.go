@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containerd/containerd"
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/readercomp"
 	"github.com/vmihailenco/msgpack"
@@ -266,13 +265,20 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	stdoutr, stdout := io.Pipe()
 	stderrr, stderr := io.Pipe()
 
-	go func() {
-		fmt.Println("runContainer starting")
-		rc, err := pit.runContainer(stdout, stderr, img, "echo", "-n", expect)
-		fmt.Println("runContainer done")
-		tassert(t, err == nil, "%v", err)
-		tassert(t, rc == 0, "%#v", rc)
-	}()
+	cntr := &Container{
+		Image:  img,
+		Args:   []string{"echo", "-n", expect},
+		Stdin:  nil,
+		Stdout: stdout,
+		Stderr: stderr,
+	}
+
+	fmt.Println("container starting")
+	err = pit.startContainer(cntr)
+
+	tassert(t, err == nil, "%v", err)
+
+	fmt.Println("container started")
 
 	fmt.Println("starting readercomp stdout")
 	ok, err := readercomp.Equal(expectrd, stdoutr, 4096)
@@ -317,7 +323,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 	*/
 
-	container.Delete(ctx, containerd.WithSnapshotCleanup) //
+	defer cntr.task.Delete(cntr.ctx)
 	client.Close()
 
 	return
