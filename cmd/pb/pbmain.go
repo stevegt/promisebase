@@ -549,6 +549,8 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 	err = cmd.Start()
 	Ck(err)
 
+	// XXX wait, then rc = cmd.ProcessState.ExitCode()
+
 	return
 }
 

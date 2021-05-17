@@ -100,7 +100,7 @@ func (pit *Pit) startContainer(cntr *Container) (statusChan <-chan containerd.Ex
 	var i int
 	for i = 0; i < 10; i++ {
 		// generate name
-		// XXX allow name to be passed in instead
+		// XXX allow name to be passed in as an option
 		name := namesgenerator.GetRandomName(i)
 		cntr.container, err = client.NewContainer(
 			cntr.ctx,
