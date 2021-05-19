@@ -276,7 +276,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	}
 
 	fmt.Println("container starting")
-	statusChan, err := pit.startContainer(cntr)
+	err = pit.startContainer(cntr)
 
 	tassert(t, err == nil, "%v", err)
 
@@ -296,14 +296,15 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 		// wait for the process to fully exit and print out the exit status
 	*/
 
-	status := <-statusChan
-	fmt.Println("got status")
-	code, _, err := status.Result()
-	tassert(t, err == nil, "%v", err)
-	fmt.Printf("exited with status: %d\n", code)
-	tassert(t, code == 0, "%v", code)
-	// fmt.Println("exiting with no status")
-
+	/*
+		status := <-statusChan
+		fmt.Println("got status")
+		code, _, err := status.Result()
+		tassert(t, err == nil, "%v", err)
+		fmt.Printf("exited with status: %d\n", code)
+		tassert(t, code == 0, "%v", code)
+		// fmt.Println("exiting with no status")
+	*/
 	// XXX why do we need to do this?  why aren't these being closed
 	// for us when the container exits?
 	stdout.Close()

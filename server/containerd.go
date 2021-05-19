@@ -1,18 +1,14 @@
 package pit
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"math/rand"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/cio"
-	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/oci"
-	"github.com/docker/docker/pkg/namesgenerator"
 
 	. "github.com/stevegt/goadapt"
 )
@@ -37,117 +33,97 @@ func (pit *Pit) connectRuntime(fn string) (err error) {
 }
 
 type Container struct {
-	Image     string
-	Args      []string
-	Stdin     io.ReadCloser
-	Stdout    io.WriteCloser
-	Stderr    io.WriteCloser
-	container containerd.Container
-	task      containerd.Task
-	ctx       context.Context
-	rc        int
-	err       error
+	Image  string
+	Args   []string
+	Cid    string
+	Name   string
+	Stdin  io.ReadCloser
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
+	rc     int
+	Errc   chan error
 }
 
-func (pit *Pit) startContainer(cntr *Container) (statusChan <-chan containerd.ExitStatus, err error) {
+func (pit *Pit) startContainer(cntr *Container) (err error) {
 	defer Return(&err)
 
-	// create a new context with a "pit" namespace
-	cntr.ctx = namespaces.WithNamespace(context.Background(), "pit")
-
-	client := pit.runtime.client
-
-	var image containerd.Image
-	if strings.Index(cntr.Image, "tree/") == 0 {
-		// XXX convert to containerd API
-		/*
-			path := pb.Path{}.New(pit.Db, img)
-			tree, err := pit.Db.GetTree(path)
-			Ck(err)
-			defer tree.Close()
-
-			var res types.ImageLoadResponse
-			if true {
-				res, err = cli.ImageLoad(ctx, tree, false)
-				Ck(err)
-			} else {
-				pipeReader, pipeWriter := debugpipe.Pipe()
-				go func() {
-					_, err = io.Copy(pipeWriter, tree)
-					Ck(err)
-					err = pipeWriter.Close()
-					Ck(err)
-				}()
-				res, err = cli.ImageLoad(ctx, pipeReader, false)
-				Ck(err)
-			}
-
-			_, err = io.Copy(os.Stdout, res.Body)
-			Ck(err)
-			defer res.Body.Close()
-		*/
-	} else {
-		// pull the image from DockerHub
-		// XXX always pull into a tree, run from there
-		fmt.Println("pulling")
-		image, err = client.Pull(cntr.ctx, cntr.Image, containerd.WithPullUnpack)
-		Ck(err)
-		fmt.Println("pull done")
-	}
-
-	// create a container
-	rand.Seed(time.Now().UnixNano())
-	var i int
-	for i = 0; i < 10; i++ {
-		// generate name
-		// XXX allow name to be passed in as an option
-		name := namesgenerator.GetRandomName(i)
-		cntr.container, err = client.NewContainer(
-			cntr.ctx,
-			name,
-			containerd.WithImage(image),
-			// XXX delete or re-use existing snapshot?
-			// XXX use WithSnapshot for tree-based containers
-			containerd.WithNewSnapshot(name+"-snapshot", image),
-			// XXX deal with existing spec
-			containerd.WithNewSpec(oci.WithImageConfigArgs(image, cntr.Args)),
-		)
-		if err == nil {
-			break
-		} else {
-			fmt.Printf("i: %v %v\n", i, err)
-		}
-		// likely name collision -- retry
-		// XXX actually look at the err instead of blindly
-		// retrying
-	}
-	Ck(err, "i: %v", i)
-
-	// create a task from the container
-	streams := cio.WithStreams(cntr.Stdin, cntr.Stdout, cntr.Stderr)
-	// streams := cio.WithStreams(cntr.Stdin, os.Stdout, cntr.Stderr)
-	cntr.task, err = cntr.container.NewTask(cntr.ctx, cio.NewCreator(streams))
+	// XXX correct dir?
+	err = os.Chdir(pit.Dir)
 	Ck(err)
-	fmt.Println("newtask done")
 
-	// make sure we wait before calling start
-	// XXX why?
-	statusChan, err = cntr.task.Wait(cntr.ctx)
+	spec := exec.Command("runc", "spec")
+	err = spec.Start()
+	Ck(err)
+	err = spec.Wait()
+	Ck(err)
+
+	create := exec.Command("docker", "create", cntr.Image)
+	createOut, err := create.StdoutPipe()
+	Ck(err)
+	err = create.Start()
+	Ck(err)
+	containerId, err := ioutil.ReadAll(createOut)
+	Ck(err)
+	err = create.Wait()
+	Ck(err)
+	cntr.Cid = strings.TrimSpace(string(containerId))
+	fmt.Fprintf(os.Stderr, "container id: %q\n", cntr.Cid)
+
+	export := exec.Command("docker", "export", cntr.Cid)
+	export.Stderr = os.Stderr
+
+	tar := exec.Command("tar", "-C", "rootfs", "-xvf", "-")
+	tar.Stdout = os.Stdout
+	tar.Stderr = os.Stderr
+
+	tarpipe, err := tar.StdinPipe()
+	Ck(err)
+	export.Stdout = tarpipe
+
+	fmt.Fprintf(os.Stderr, "starting tar\n")
+	err = tar.Start()
+	Ck(err)
+
+	fmt.Fprintf(os.Stderr, "starting export\n")
+	err = export.Start()
+	Ck(err)
+
+	fmt.Fprintf(os.Stderr, "export waiting\n")
+	err = export.Wait()
 	if err != nil {
-		// XXX why not abend?
-		fmt.Println(err)
+		fmt.Fprintf(os.Stderr, "export: %v\n", err)
 	}
-	fmt.Println("wait done")
 
-	// call start on the task
-	err = cntr.task.Start(cntr.ctx)
+	tarpipe.Close()
+
+	fmt.Fprintf(os.Stderr, "tar waiting\n")
+	err = tar.Wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tar: %v\n", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "starting container\n")
+	// XXX what should the container be named instead of foo?
+	runc := exec.Command("sudo", "runc", "run", cntr.Name)
+	runc.Stdin = os.Stdin
+	runc.Stdout = os.Stdout
+	runc.Stderr = os.Stderr
+	err = runc.Start()
+	Ck(err)
+	err = runc.Wait()
 	Ck(err)
 
-	fmt.Println("container task started")
+	_ = runc.ProcessState.ExitCode()
+	fmt.Println("container started")
 
 	return
 }
 
-func (cntr *Container) Delete() {
-	cntr.container.Delete(cntr.ctx, containerd.WithSnapshotCleanup)
+func (cntr *Container) Delete() (err error) {
+	runc := exec.Command("sudo", "runc", "delete", cntr.Name)
+	err = runc.Start()
+	Ck(err)
+	err = runc.Wait()
+	Ck(err)
+	return
 }
