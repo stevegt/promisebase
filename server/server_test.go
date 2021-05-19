@@ -268,11 +268,13 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	stderrr, stderr := io.Pipe()
 
 	cntr := &Container{
-		Image:  img,
-		Args:   []string{"echo", "-n", expect},
-		Stdin:  nil,
-		Stdout: stdout,
-		Stderr: stderr,
+		Image: img,
+		Cmd: &exec.Cmd{
+			Args:   []string{"echo", "-n", expect},
+			Stdin:  nil,
+			Stdout: stdout,
+			Stderr: stderr,
+		},
 	}
 
 	fmt.Println("container starting")

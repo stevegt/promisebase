@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -129,11 +130,13 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 
 		// pass msg to runContainer
 		cntr := &Container{
-			Image:  string(msg.Addr),
-			Args:   []string(msg.Args),
-			Stdin:  conn,
-			Stdout: conn,
-			Stderr: os.Stderr,
+			Image: string(msg.Addr),
+			Cmd: &exec.Cmd{
+				Args:   []string(msg.Args),
+				Stdin:  conn,
+				Stdout: conn,
+				Stderr: os.Stderr,
+			},
 		}
 
 		err = pit.startContainer(cntr)

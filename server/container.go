@@ -2,7 +2,6 @@ package pit
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -33,16 +32,13 @@ func (pit *Pit) connectRuntime(fn string) (err error) {
 }
 
 type Container struct {
-	Image  string
-	Args   []string
-	Cid    string
-	Name   string
-	Stdin  io.ReadCloser
-	Stdout io.WriteCloser
-	Stderr io.WriteCloser
-	rc     int
-	Errc   chan error
-	Cmd    *exec.Cmd
+	Image string
+	Args  []string
+	Cid   string
+	Name  string
+	rc    int
+	Errc  chan error
+	*exec.Cmd
 }
 
 func (pit *Pit) startContainer(cntr *Container) (err error) {
