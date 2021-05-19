@@ -320,7 +320,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
-	cntr.task.Delete(cntr.ctx)
+	cntr.Delete()
 	client.Close()
 
 	return
