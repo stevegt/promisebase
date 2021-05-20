@@ -255,10 +255,10 @@ func TestRunHub(t *testing.T) {
 
 func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
-	fn := "/run/containerd/containerd.sock"
-	err = pit.connectRuntime(fn)
+	// fn := "/run/containerd/containerd.sock"
+	// err = pit.connectRuntime(fn)
 	tassert(t, err == nil, "%v", err)
-	client := pit.runtime.client
+	// client := pit.runtime.client
 
 	fmt.Println("echoTest starting")
 	expectrd := bytes.NewReader([]byte(expect))
@@ -277,12 +277,8 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 		},
 	}
 
-	fmt.Println("container starting")
 	err = pit.startContainer(cntr)
-
 	tassert(t, err == nil, "%v", err)
-
-	fmt.Println("container started")
 
 	/*
 		// sleep for a lil bit to see the logs
@@ -323,7 +319,6 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	tassert(t, ok, "stream mismatch")
 
 	cntr.Delete()
-	client.Close()
 
 	return
 }

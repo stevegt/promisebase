@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/containerd/containerd"
@@ -41,15 +42,20 @@ type Container struct {
 	*exec.Cmd
 }
 
+// XXX only handles docker images, cant handle trees yet
 func (pit *Pit) startContainer(cntr *Container) (err error) {
 	defer Return(&err)
 
 	// XXX correct dir?
-	dir, err := ioutil.TempDir("", cntr.Name)
+	dir, err := ioutil.TempDir("", "pitd")
 	Ck(err)
 	// log.Debugf(os.Stderr, "bundle dir: %s\n", dir)
 	err = os.Chdir(dir)
 	Ck(err)
+
+	if cntr.Name == "" {
+		_, cntr.Name = filepath.Split(dir)
+	}
 
 	spec := exec.Command("runc", "spec")
 	err = spec.Start()
@@ -107,10 +113,6 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 
 	fmt.Fprintf(os.Stderr, "starting container\n")
 
-	cntr.Cmd = exec.Command("sudo", "runc", "run", cntr.Name)
-	cntr.Cmd.Stdin = os.Stdin
-	cntr.Cmd.Stdout = os.Stdout
-	cntr.Cmd.Stderr = os.Stderr
 	err = cntr.Cmd.Start()
 	Ck(err)
 	fmt.Println("container started")
