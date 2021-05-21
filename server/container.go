@@ -126,7 +126,7 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 
 	fmt.Fprintf(os.Stderr, "starting container\n")
 
-	err = cntr.Cmd.Start()
+	err = cntr.Start()
 	Ck(err)
 	fmt.Println("container started")
 
