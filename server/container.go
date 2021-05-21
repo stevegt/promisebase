@@ -57,7 +57,20 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 		_, cntr.Name = filepath.Split(dir)
 	}
 
-	spec := exec.Command("runc", "spec")
+	cntr.Cmd = &exec.Cmd{
+		Path: "sudo",
+		Args: []string{"runc", "run", cntr.Name},
+	}
+
+	spec := &exec.Cmd{
+		Path: "oci-runtime-tool",
+		Args: []string{"generate"},
+	}
+	for _, s := range cntr.Args {
+		spec.Args = append(spec.Args, "--args", s)
+	}
+
+	fmt.Printf("%v\n", spec.Args)
 	err = spec.Start()
 	Ck(err)
 	err = spec.Wait()

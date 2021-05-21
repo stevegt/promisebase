@@ -269,13 +269,15 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 	cntr := &Container{
 		Image: img,
+		Args:  []string{"sudo", "runc", "run", "foo"},
 		Cmd: &exec.Cmd{
-			Args:   []string{"echo", "-n", expect},
+			Args:   []string{},
 			Stdin:  nil,
 			Stdout: stdout,
 			Stderr: stderr,
 		},
 	}
+	fmt.Printf("%q\n", expect)
 
 	err = pit.startContainer(cntr)
 	tassert(t, err == nil, "%v", err)
