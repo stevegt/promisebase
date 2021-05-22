@@ -261,20 +261,20 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	// client := pit.runtime.client
 
 	fmt.Println("echoTest starting")
-	expectrd := bytes.NewReader([]byte(expect))
-	emptyrd := bytes.NewReader([]byte(""))
+	expectrd := bytes.NewReader([]byte(expect + "\n"))
+	// emptyrd := bytes.NewReader([]byte(""))
 
 	stdoutr, stdout := io.Pipe()
-	stderrr, stderr := io.Pipe()
+	// _, stderr := io.Pipe()
 
 	cntr := &Container{
 		Image: img,
-		Args:  []string{"sudo", "runc", "run", "foo"},
+		Args:  []string{"echo", expect},
 		Cmd: &exec.Cmd{
-			Args:   []string{},
 			Stdin:  nil,
 			Stdout: stdout,
-			Stderr: stderr,
+			// Stderr: stderr,
+			Stderr: os.Stderr,
 		},
 	}
 	fmt.Printf("%q\n", expect)
@@ -307,18 +307,25 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	*/
 	// XXX why do we need to do this?  why aren't these being closed
 	// for us when the container exits?
-	stdout.Close()
-	stderr.Close()
+	// stdout.Close()
+	// stderr.Close()
 
 	fmt.Println("starting readercomp stdout")
 	ok, err := readercomp.Equal(expectrd, stdoutr, 1024)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
-	fmt.Println("starting readercomp stderr")
-	ok, err = readercomp.Equal(emptyrd, stderrr, 1024)
-	tassert(t, err == nil, "%v", err)
-	tassert(t, ok, "stream mismatch")
+	/*
+		fmt.Println("starting readercomp stderr")
+		ok, err = readercomp.Equal(emptyrd, stderrr, 1024)
+		tassert(t, err == nil, "%v", err)
+		tassert(t, ok, "stream mismatch")
+	*/
+
+	fmt.Println("starting wait")
+	err = cntr.Wait()
+	tassert(t, err == nil, "%#v", err)
+	fmt.Println("wait done")
 
 	cntr.Delete()
 
