@@ -62,7 +62,7 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	cnfg := &exec.Cmd{
 		// XXX quick workaround because oci-runtime-tool is not in the path for some reason
 		Path:   filepath.Join(os.Getenv("HOME"), "/.goenv/shims/oci-runtime-tool"),
-		Args:   []string{"oci-runtime-tool", "generate"},
+		Args:   []string{"oci-runtime-tool", "generate", "--process-terminal"},
 		Stderr: os.Stderr,
 	}
 	for _, s := range cntr.Args {

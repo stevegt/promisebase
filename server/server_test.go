@@ -274,7 +274,8 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 			Stdin:  nil,
 			Stdout: stdout,
 			// Stderr: stderr,
-			Stderr: os.Stderr,
+			// Stderr: os.Stderr,
+			Stderr: nil,
 		},
 	}
 	fmt.Printf("%q\n", expect)
@@ -310,8 +311,10 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	// stdout.Close()
 	// stderr.Close()
 
+	time.Sleep(time.Second)
+	// stdout.Close()
 	fmt.Println("starting readercomp stdout")
-	ok, err := readercomp.Equal(expectrd, stdoutr, 1024)
+	ok, err := readercomp.Equal(expectrd, stdoutr, 128)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
