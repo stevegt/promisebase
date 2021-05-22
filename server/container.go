@@ -2,6 +2,7 @@ package pit
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -37,7 +38,7 @@ type Container struct {
 	Args  []string
 	Cid   string
 	Name  string
-	rc    int
+	Rc    int
 	Errc  chan error
 	*exec.Cmd
 }
@@ -57,23 +58,33 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 		_, cntr.Name = filepath.Split(dir)
 	}
 
-	cntr.Cmd = &exec.Cmd{
-		Path: "sudo",
-		Args: []string{"runc", "run", cntr.Name},
-	}
-
-	spec := &exec.Cmd{
-		Path: "oci-runtime-tool",
-		Args: []string{"generate"},
+	// generate args that will go into config.json
+	cnfg := &exec.Cmd{
+		// XXX quick workaround because oci-runtime-tool is not in the path for some reason
+		Path:   filepath.Join(os.Getenv("HOME"), "/.goenv/shims/oci-runtime-tool"),
+		Args:   []string{"oci-runtime-tool", "generate", "--process-terminal"},
+		Stderr: os.Stderr,
 	}
 	for _, s := range cntr.Args {
-		spec.Args = append(spec.Args, "--args", s)
+		cnfg.Args = append(cnfg.Args, "--args", s)
 	}
-
-	fmt.Printf("%v\n", spec.Args)
-	err = spec.Start()
+	stdout, err := cnfg.StdoutPipe()
 	Ck(err)
-	err = spec.Wait()
+	fmt.Printf("config args: %v\n", cnfg.Args)
+
+	// create config file and set permissions
+	configw, err := os.OpenFile("config.json", os.O_RDWR|os.O_CREATE, 0755)
+	Ck(err)
+
+	// start config
+	fmt.Printf("PATH=%s\n", os.Getenv("PATH"))
+	err = cnfg.Start()
+	Ck(err)
+	_, err = io.Copy(configw, stdout)
+	Ck(err)
+	err = cnfg.Wait()
+	Ck(err)
+	err = configw.Close()
 	Ck(err)
 
 	err = os.MkdirAll("rootfs", 0755)
@@ -125,7 +136,8 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	}
 
 	fmt.Fprintf(os.Stderr, "starting container\n")
-
+	cntr.Cmd.Path = "/usr/bin/sudo"
+	cntr.Cmd.Args = []string{"sudo", "runc", "run", cntr.Name}
 	err = cntr.Start()
 	Ck(err)
 	fmt.Println("container started")
@@ -144,7 +156,6 @@ func (cntr *Container) Delete() (err error) {
 
 func (cntr *Container) Wait() (err error) {
 	err = cntr.Cmd.Wait()
-	Ck(err)
-	_ = cntr.Cmd.ProcessState.ExitCode()
+	cntr.Rc = cntr.Cmd.ProcessState.ExitCode()
 	return
 }
