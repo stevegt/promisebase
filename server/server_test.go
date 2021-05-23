@@ -264,38 +264,25 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	expectrd := bytes.NewReader([]byte(expect + "\n"))
 	// emptyrd := bytes.NewReader([]byte(""))
 
-	stdoutr, stdout := io.Pipe()
+	// stdoutr, stdout := io.Pipe()
 	// _, stderr := io.Pipe()
 
 	cntr := &Container{
 		Image: img,
 		Args:  []string{"echo", expect},
 		Cmd: &exec.Cmd{
-			Stdin:  nil,
-			Stdout: stdout,
+			Stdin: nil,
+			// Stdout: stdout,
 			// Stderr: stderr,
-			// Stderr: os.Stderr,
-			Stderr: nil,
+			Stderr: os.Stderr,
+			// Stderr: nil,
 		},
 	}
-	fmt.Printf("%q\n", expect)
+	stdout, err := cntr.Cmd.StdoutPipe()
+	tassert(t, err == nil, "%v", err)
 
 	err = pit.startContainer(cntr)
 	tassert(t, err == nil, "%v", err)
-
-	/*
-		// sleep for a lil bit to see the logs
-		// XXX get rid of sleep
-		time.Sleep(1 * time.Second)
-
-		// kill the process and get the exit status
-		// XXX no
-		err = task.Kill(ctx, syscall.SIGTERM)
-		Ck(err)
-
-		fmt.Println("container task killed")
-		// wait for the process to fully exit and print out the exit status
-	*/
 
 	/*
 		status := <-statusChan
@@ -314,7 +301,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	time.Sleep(time.Second)
 	// stdout.Close()
 	fmt.Println("starting readercomp stdout")
-	ok, err := readercomp.Equal(expectrd, stdoutr, 128)
+	ok, err := readercomp.Equal(expectrd, stdout, 128)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, ok, "stream mismatch")
 
@@ -330,7 +317,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	tassert(t, err == nil, "%#v", err)
 	fmt.Println("wait done")
 
-	cntr.Delete()
+	// cntr.Delete()
 
 	return
 }

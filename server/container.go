@@ -146,11 +146,16 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 }
 
 func (cntr *Container) Delete() (err error) {
+	// XXX check to see if container is already gone
 	runc := exec.Command("sudo", "runc", "delete", cntr.Name)
+	// XXX log?
+	runc.Stdout = os.Stdout
+	runc.Stderr = os.Stderr
 	err = runc.Start()
 	Ck(err)
 	err = runc.Wait()
 	Ck(err)
+	// XXX remove bundle dir
 	return
 }
 
