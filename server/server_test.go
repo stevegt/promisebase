@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -253,19 +254,26 @@ func TestRunHub(t *testing.T) {
 	tassert(t, err == nil, "%v", err)
 }
 
-func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
+func TestRunTree(t *testing.T) {
+	pit := setup(t)
 
-	// fn := "/run/containerd/containerd.sock"
-	// err = pit.connectRuntime(fn)
+	src := "docker.io/library/alpine:3.12.0"
+	// pull container image and save it as a stream
+	tree, err := pit.imageSave("sha256", src)
 	tassert(t, err == nil, "%v", err)
-	// client := pit.runtime.client
+	tassert(t, tree != nil, "%v", tree)
+
+	// run the image from the pitbase stream
+	addr := "tree/" + tree.Path.Addr
+	err = echoTest(t, pit, addr, "hello")
+	tassert(t, err == nil, "%v", err)
+}
+
+func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 	fmt.Println("echoTest starting")
 	expectrd := bytes.NewReader([]byte(expect + "\n"))
-	// emptyrd := bytes.NewReader([]byte(""))
-
-	// stdoutr, stdout := io.Pipe()
-	// _, stderr := io.Pipe()
+	emptyrd := bytes.NewReader([]byte(""))
 
 	cntr := &Container{
 		Image: img,
@@ -274,45 +282,41 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 			Stdin: nil,
 			// Stdout: stdout,
 			// Stderr: stderr,
-			Stderr: os.Stderr,
+			// Stderr: os.Stderr,
 			// Stderr: nil,
 		},
 	}
 	stdout, err := cntr.Cmd.StdoutPipe()
 	tassert(t, err == nil, "%v", err)
+	stderr, err := cntr.Cmd.StderrPipe()
+	tassert(t, err == nil, "%v", err)
 
 	err = pit.startContainer(cntr)
 	tassert(t, err == nil, "%v", err)
 
-	/*
-		status := <-statusChan
-		fmt.Println("got status")
-		code, _, err := status.Result()
-		tassert(t, err == nil, "%v", err)
-		fmt.Printf("exited with status: %d\n", code)
-		tassert(t, code == 0, "%v", code)
-		// fmt.Println("exiting with no status")
-	*/
-	// XXX why do we need to do this?  why aren't these being closed
-	// for us when the container exits?
-	// stdout.Close()
-	// stderr.Close()
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	time.Sleep(time.Second)
-	// stdout.Close()
-	fmt.Println("starting readercomp stdout")
-	ok, err := readercomp.Equal(expectrd, stdout, 128)
-	tassert(t, err == nil, "%v", err)
-	tassert(t, ok, "stream mismatch")
-
-	/*
-		fmt.Println("starting readercomp stderr")
-		ok, err = readercomp.Equal(emptyrd, stderrr, 1024)
+	go func() {
+		fmt.Println("starting readercomp stdout")
+		ok, err := readercomp.Equal(expectrd, stdout, 128)
 		tassert(t, err == nil, "%v", err)
 		tassert(t, ok, "stream mismatch")
-	*/
+		wg.Done()
+	}()
 
-	fmt.Println("starting wait")
+	go func() {
+		fmt.Println("starting readercomp stderr")
+		ok, err := readercomp.Equal(emptyrd, stderr, 128)
+		tassert(t, err == nil, "%v", err)
+		tassert(t, ok, "stream mismatch")
+		wg.Done()
+	}()
+
+	fmt.Println("starting wg.Wait")
+	wg.Wait()
+
+	fmt.Println("starting cntr.Wait")
 	err = cntr.Wait()
 	tassert(t, err == nil, "%#v", err)
 	fmt.Println("wait done")
@@ -407,11 +411,6 @@ func TestImageSave(t *testing.T) {
 	tassert(t, err == nil, "%v", err)
 	outstr := string(out)
 	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
-
-	// get the image from the pitbase stream we saved above
-	addr := "tree/" + tree.Path.Addr
-	err = echoTest(t, pit, addr, "hello")
-	tassert(t, err == nil, "%v", err)
 
 }
 
