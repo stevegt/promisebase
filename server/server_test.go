@@ -277,7 +277,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 
 	cntr := &Container{
 		Image: img,
-		Args:  []string{"echo", expect},
+		Args:  []string{"/bin/echo", expect},
 		Cmd: &exec.Cmd{
 			Stdin: nil,
 			// Stdout: stdout,

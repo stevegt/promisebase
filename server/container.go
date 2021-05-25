@@ -90,6 +90,7 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	err = os.MkdirAll("rootfs", 0755)
 	Ck(err)
 
+	// create docker image
 	create := exec.Command("docker", "create", cntr.Image)
 	createOut, err := create.StdoutPipe()
 	Ck(err)
