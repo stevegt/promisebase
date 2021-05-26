@@ -21,6 +21,7 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/opencontainers/runtime-tools v0.0.0-20181011054405-1d69bd0f9c39
 	github.com/stevegt/debugpipe v0.0.2
 	github.com/stevegt/goadapt v0.0.10
 	github.com/stevegt/readercomp v0.0.1

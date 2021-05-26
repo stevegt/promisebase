@@ -2,7 +2,6 @@ package pit
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd"
+	"github.com/opencontainers/runtime-tools/generate"
 
 	. "github.com/stevegt/goadapt"
 )
@@ -58,33 +58,20 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 		_, cntr.Name = filepath.Split(dir)
 	}
 
-	// generate args that will go into config.json
-	cnfg := &exec.Cmd{
-		// XXX quick workaround because oci-runtime-tool is not in the path for some reason
-		Path:   filepath.Join(os.Getenv("HOME"), "/.goenv/shims/oci-runtime-tool"),
-		Args:   []string{"oci-runtime-tool", "generate", "--process-terminal"},
-		Stderr: os.Stderr,
-	}
-	for _, s := range cntr.Args {
-		cnfg.Args = append(cnfg.Args, "--args", s)
-	}
-	stdout, err := cnfg.StdoutPipe()
-	Ck(err)
-	fmt.Printf("config args: %v\n", cnfg.Args)
-
 	// create config file and set permissions
-	configw, err := os.OpenFile("config.json", os.O_RDWR|os.O_CREATE, 0755)
+	config, err := os.OpenFile("config.json", os.O_RDWR|os.O_CREATE, 0755)
 	Ck(err)
 
-	// start config
-	fmt.Printf("PATH=%s\n", os.Getenv("PATH"))
-	err = cnfg.Start()
-	Ck(err)
-	_, err = io.Copy(configw, stdout)
-	Ck(err)
-	err = cnfg.Wait()
-	Ck(err)
-	err = configw.Close()
+	spec, err := generate.New("linux")
+
+	var exportOpts generate.ExportOptions
+	// exportOpts.Seccomp = true
+
+	spec.SetProcessTerminal(true)
+	spec.SetProcessArgs(cntr.Args)
+
+	//write to config.json
+	err = spec.Save(config, exportOpts)
 	Ck(err)
 
 	err = os.MkdirAll("rootfs", 0755)
@@ -135,7 +122,6 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tar: %v\n", err)
 	}
-
 	fmt.Fprintf(os.Stderr, "starting container\n")
 	cntr.Cmd.Path = "/usr/bin/sudo"
 	cntr.Cmd.Args = []string{"sudo", "runc", "run", cntr.Name}
