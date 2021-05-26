@@ -47,6 +47,58 @@ type Container struct {
 func (pit *Pit) startContainer(cntr *Container) (err error) {
 	defer Return(&err)
 
+	err = cntr.init()
+	Ck(err)
+
+	err = exporttar(cntr)
+	Ck(err)
+
+	fmt.Fprintf(os.Stderr, "starting container\n")
+	cntr.Cmd.Path = "/usr/bin/sudo"
+	cntr.Cmd.Args = []string{"sudo", "runc", "run", cntr.Name}
+	err = cntr.Start()
+	Ck(err)
+	fmt.Println("container started")
+
+	return
+}
+
+func (cntr *Container) Delete() (err error) {
+	// XXX check to see if container is already gone
+	runc := exec.Command("sudo", "runc", "delete", cntr.Name)
+	// XXX log?
+	runc.Stdout = os.Stdout
+	runc.Stderr = os.Stderr
+	err = runc.Start()
+	Ck(err)
+	err = runc.Wait()
+	Ck(err)
+	// XXX remove bundle dir
+	return
+}
+
+func (cntr *Container) Wait() (err error) {
+	err = cntr.Cmd.Wait()
+	cntr.Rc = cntr.Cmd.ProcessState.ExitCode()
+	return
+}
+
+func (cntr *Container) init() (err error) {
+	defer Return(&err)
+	err = cntr.initdir()
+	Ck(err)
+
+	err = cntr.initconfig()
+	Ck(err)
+
+	err = cntr.createimg()
+	Ck(err)
+	return
+}
+
+func (cntr *Container) initdir() (err error) {
+	defer Return(&err)
+
 	// XXX correct dir?
 	dir, err := ioutil.TempDir("", "pitd")
 	Ck(err)
@@ -57,6 +109,11 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	if cntr.Name == "" {
 		_, cntr.Name = filepath.Split(dir)
 	}
+	return
+}
+
+func (cntr *Container) initconfig() (err error) {
+	defer Return(&err)
 
 	// create config file and set permissions
 	config, err := os.OpenFile("config.json", os.O_RDWR|os.O_CREATE, 0755)
@@ -76,19 +133,35 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 
 	err = os.MkdirAll("rootfs", 0755)
 	Ck(err)
+	return
+}
+
+func (cntr *Container) createimg() (err error) {
+	defer Return(&err)
 
 	// create docker image
 	create := exec.Command("docker", "create", cntr.Image)
+
 	createOut, err := create.StdoutPipe()
 	Ck(err)
+
 	err = create.Start()
 	Ck(err)
+
 	containerId, err := ioutil.ReadAll(createOut)
 	Ck(err)
+
 	err = create.Wait()
 	Ck(err)
+
 	cntr.Cid = strings.TrimSpace(string(containerId))
 	fmt.Fprintf(os.Stderr, "container id: %q\n", cntr.Cid)
+
+	return
+}
+
+func exporttar(cntr *Container) (err error) {
+	defer Return(&err)
 
 	export := exec.Command("docker", "export", cntr.Cid)
 	export.Stderr = os.Stderr
@@ -122,32 +195,6 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tar: %v\n", err)
 	}
-	fmt.Fprintf(os.Stderr, "starting container\n")
-	cntr.Cmd.Path = "/usr/bin/sudo"
-	cntr.Cmd.Args = []string{"sudo", "runc", "run", cntr.Name}
-	err = cntr.Start()
-	Ck(err)
-	fmt.Println("container started")
 
-	return
-}
-
-func (cntr *Container) Delete() (err error) {
-	// XXX check to see if container is already gone
-	runc := exec.Command("sudo", "runc", "delete", cntr.Name)
-	// XXX log?
-	runc.Stdout = os.Stdout
-	runc.Stderr = os.Stderr
-	err = runc.Start()
-	Ck(err)
-	err = runc.Wait()
-	Ck(err)
-	// XXX remove bundle dir
-	return
-}
-
-func (cntr *Container) Wait() (err error) {
-	err = cntr.Cmd.Wait()
-	cntr.Rc = cntr.Cmd.ProcessState.ExitCode()
 	return
 }
