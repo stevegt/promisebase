@@ -40,6 +40,7 @@ type Container struct {
 	Name  string
 	Rc    int
 	Errc  chan error
+	dir   string
 	*exec.Cmd
 }
 
@@ -47,18 +48,20 @@ type Container struct {
 func (pit *Pit) startContainer(cntr *Container) (err error) {
 	defer Return(&err)
 
-	err = cntr.init()
+	err = cntr.initdir()
 	Ck(err)
 
-	err = exporttar(cntr)
+	err = cntr.initconfig()
 	Ck(err)
 
-	fmt.Fprintf(os.Stderr, "starting container\n")
-	cntr.Cmd.Path = "/usr/bin/sudo"
-	cntr.Cmd.Args = []string{"sudo", "runc", "run", cntr.Name}
-	err = cntr.Start()
+	err = cntr.createimg()
 	Ck(err)
-	fmt.Println("container started")
+
+	err = cntr.createrootfs()
+	Ck(err)
+
+	err = cntr.start()
+	Ck(err)
 
 	return
 }
@@ -83,19 +86,6 @@ func (cntr *Container) Wait() (err error) {
 	return
 }
 
-func (cntr *Container) init() (err error) {
-	defer Return(&err)
-	err = cntr.initdir()
-	Ck(err)
-
-	err = cntr.initconfig()
-	Ck(err)
-
-	err = cntr.createimg()
-	Ck(err)
-	return
-}
-
 func (cntr *Container) initdir() (err error) {
 	defer Return(&err)
 
@@ -106,9 +96,8 @@ func (cntr *Container) initdir() (err error) {
 	err = os.Chdir(dir)
 	Ck(err)
 
-	if cntr.Name == "" {
-		_, cntr.Name = filepath.Split(dir)
-	}
+	cntr.dir = dir
+
 	return
 }
 
@@ -131,8 +120,6 @@ func (cntr *Container) initconfig() (err error) {
 	err = spec.Save(config, exportOpts)
 	Ck(err)
 
-	err = os.MkdirAll("rootfs", 0755)
-	Ck(err)
 	return
 }
 
@@ -160,8 +147,11 @@ func (cntr *Container) createimg() (err error) {
 	return
 }
 
-func exporttar(cntr *Container) (err error) {
+func (cntr *Container) createrootfs() (err error) {
 	defer Return(&err)
+
+	err = os.MkdirAll("rootfs", 0755)
+	Ck(err)
 
 	export := exec.Command("docker", "export", cntr.Cid)
 	export.Stderr = os.Stderr
@@ -195,6 +185,22 @@ func exporttar(cntr *Container) (err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tar: %v\n", err)
 	}
+
+	return
+}
+
+func (cntr *Container) start() (err error) {
+	defer Return(&err)
+
+	fmt.Fprintf(os.Stderr, "starting container\n")
+	if cntr.Name == "" {
+		_, cntr.Name = filepath.Split(cntr.dir)
+	}
+	cntr.Cmd.Path = "/usr/bin/sudo"
+	cntr.Cmd.Args = []string{"sudo", "runc", "run", cntr.Name}
+	err = cntr.Start()
+	Ck(err)
+	fmt.Println("container started")
 
 	return
 }
