@@ -351,20 +351,34 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 }
 
 func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	// XXX maybe change "alpine" to a randomly generated string
+	dest := "oci-archive:" + "alpine" + ".oci"
+	cmd := exec.Command("skopeo", "copy", img, dest)
+	fmt.Println(cmd.Args)
+	fmt.Println(cmd.Dir)
+	err = cmd.Run()
+	Ck(err)
+	path := strings.Split(dest, ":")[1]
+	imgrd, err := os.Open(path)
+	Ck(err)
+	tree, err = pit.Db.PutStream(algo, imgrd)
+	Ck(err)
 
-	// pull container image
-	pullrd, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
-	if err != nil {
-		panic(err)
-	}
-	io.Copy(os.Stdout, pullrd)
+	/*
+		ctx := context.Background()
+		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
-	// save image as a stream
-	saverd, err := cli.ImageSave(ctx, []string{img})
-	tree, err = pit.Db.PutStream(algo, saverd)
+		// pull container image
+		pullrd, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
+		if err != nil {
+			panic(err)
+		}
+		io.Copy(os.Stdout, pullrd)
 
+		// save image as a stream
+		saverd, err := cli.ImageSave(ctx, []string{img})
+		tree, err = pit.Db.PutStream(algo, saverd)
+	*/
 	return
 }
 
