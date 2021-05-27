@@ -257,7 +257,7 @@ func TestRunHub(t *testing.T) {
 func TestRunTree(t *testing.T) {
 	pit := setup(t)
 
-	src := "docker.io/library/alpine:3.12.0"
+	src := "docker://docker.io/library/alpine:3.12.0"
 	// pull container image and save it as a stream
 	tree, err := pit.imageSave("sha256", src)
 	tassert(t, err == nil, "%v", err)
@@ -400,7 +400,7 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 func TestImageSave(t *testing.T) {
 	pit := setup(t)
 
-	src := "docker.io/library/alpine:3.12.0"
+	src := "docker://docker.io/library/alpine:3.12.0"
 	// pull container image and save it as a stream
 	tree, err := pit.imageSave("sha256", src)
 	tassert(t, err == nil, "%v", err)
