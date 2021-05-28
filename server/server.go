@@ -351,16 +351,15 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 }
 
 func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
-	tmpfile, err := ioutil.TempFile("", "")
+	tmpfile, err := ioutil.TempFile("", "*.oci")
 	Ck(err)
-	defer os.Remove(tmpfile.Name())
-	path := tmpfile.Name() + ".oci"
+	path := tmpfile.Name()
+	defer os.Remove(path)
 	cmd := exec.Command("skopeo", "copy", img, fmt.Sprintf("oci-archive:%s", path))
 	fmt.Println(cmd.Args)
 	// fmt.Println(tmpfile.Name(), dest)
 	err = cmd.Run()
 	Ck(err)
-	defer os.Remove(path)
 	imgrd, err := os.Open(path)
 	Ck(err)
 	tree, err = pit.Db.PutStream(algo, imgrd)
