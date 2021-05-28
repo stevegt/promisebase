@@ -351,14 +351,16 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 }
 
 func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
-	// XXX maybe change "alpine" to a randomly generated string
-	dest := "oci-archive:" + "alpine" + ".oci"
-	cmd := exec.Command("skopeo", "copy", img, dest)
+	tmpfile, err := ioutil.TempFile("", "")
+	Ck(err)
+	defer os.Remove(tmpfile.Name())
+	path := tmpfile.Name() + ".oci"
+	cmd := exec.Command("skopeo", "copy", img, fmt.Sprintf("oci-archive:%s", path))
 	fmt.Println(cmd.Args)
-	fmt.Println(cmd.Dir)
+	// fmt.Println(tmpfile.Name(), dest)
 	err = cmd.Run()
 	Ck(err)
-	path := strings.Split(dest, ":")[1]
+	defer os.Remove(path)
 	imgrd, err := os.Open(path)
 	Ck(err)
 	tree, err = pit.Db.PutStream(algo, imgrd)
