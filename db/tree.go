@@ -17,8 +17,9 @@ import (
 type Tree struct {
 	Db *Db
 	*WORM
-	_entries     []Object
-	currentEntry int64
+	_entries    []Object
+	_leaves     []Object
+	currentLeaf int64
 }
 
 func (tree Tree) New(db *Db, file *WORM) *Tree {
@@ -26,6 +27,13 @@ func (tree Tree) New(db *Db, file *WORM) *Tree {
 	tree.WORM = file
 	return &tree
 }
+
+/*
+func (tree *Tree) CurrentLeaf() Object {
+	// XXX use a generator to provide leafs to Read(); reset generator
+	// position on Seek()
+}
+*/
 
 func (tree *Tree) Entries() []Object {
 	if len(tree._entries) == 0 {
@@ -92,6 +100,15 @@ func (tree *Tree) XXXCat() (buf []byte, err error) {
 
 func (tree *Tree) GetPath() *Path {
 	return tree.Path
+}
+
+func (tree *Tree) Leaves() (leaves []Object, err error) {
+	defer Return(&err)
+	if len(tree._leaves) == 0 {
+		tree._leaves, err = tree.traverse(false)
+		Ck(err)
+	}
+	return tree._leaves, nil
 }
 
 // LinkStream makes a symlink named label pointing at tree, and returns
@@ -161,18 +178,20 @@ func (tree *Tree) loadEntries() (err error) {
 	return
 }
 
-// Read fills buf with the next chunk of data from tree's leaf nodes,
-// recursing as needed to reach all the leaf nodes.
+// Read fills buf with the next chunk of data from tree's leaf nodes.
 func (tree *Tree) Read(buf []byte) (n int, err error) {
 	defer Return(&err)
 
+	leaves, err := tree.Leaves()
+	Ck(err)
+
 	for {
-		if tree.currentEntry >= int64(len(tree.Entries())) {
+		if tree.currentLeaf >= int64(len(leaves)) {
 			log.Debugf("tree.Read() returning 0, io.EOF")
 			return 0, io.EOF
 		}
 
-		obj := (tree.Entries())[tree.currentEntry]
+		obj := (leaves)[tree.currentLeaf]
 		n, err = obj.Read(buf)
 		if errors.Cause(err) == io.EOF {
 			// go's finalizer might close files for us when obj goes
@@ -180,22 +199,92 @@ func (tree *Tree) Read(buf []byte) (n int, err error) {
 			// anyway, don't check err after obj.Close()
 			obj.Close()
 			Assert(n == 0)
-			tree.currentEntry++
-			log.Debugf("tree.Read() advancing to entry %v", tree.currentEntry)
+			tree.currentLeaf++
+			log.Debugf("tree.Read() advancing to leaf %v", tree.currentLeaf)
 			continue
 		}
 		Ck(err)
 		break
 	}
 
-	// log.Debugf("tree.Read() entry %d returning %d, %v", tree.currentEntry, n, err)
 	return
 }
 
 func (tree *Tree) Rewind() error {
-	tree.currentEntry = 0
+	tree.currentLeaf = 0
 	tree._entries = []Object{}
 	return nil
+}
+
+// Seek sets the offset for the next Read on tree to offset,
+// interpreted according to whence: 0 means relative to the origin of
+// the file, 1 means relative to the current offset, and 2 means
+// relative to the end.  It returns the new offset and an error, if
+// any.
+func (tree *Tree) Seek(offset int64, whence int) (newOffset int64, err error) {
+	defer Return(&err)
+	// XXX ensure readonly?
+
+	var pos int64
+
+	// SeekStart   = 0 // seek relative to the origin of the file
+	// SeekCurrent = 1 // seek relative to the current offset
+	// SeekEnd     = 2 // seek relative to the end
+	switch whence {
+	case io.SeekStart:
+		pos = offset
+	case io.SeekCurrent:
+		n, err := tree.Tell()
+		Ck(err)
+		pos = n + offset
+	case io.SeekEnd:
+		n, err := tree.Size()
+		Ck(err)
+		pos = n + offset
+	}
+
+	var total int64
+	leaves, err := tree.Leaves()
+	Ck(err)
+	for i, leaf := range leaves {
+		size, err := leaf.Size()
+		Ck(err)
+		// add up all leaf sizes until we pass pos
+		newtotal := total + size
+		if newtotal >= pos {
+			// seek in last leaf
+			leafPos := pos - total
+			_, err := leaf.Seek(leafPos, io.SeekStart)
+			Ck(err)
+			tree.currentLeaf = int64(i)
+			break
+		}
+		total = newtotal
+	}
+
+	return offset, nil
+}
+
+func (tree *Tree) Size() (total int64, err error) {
+	defer Return(&err)
+	leaves, err := tree.Leaves()
+	Ck(err)
+	for _, leaf := range leaves {
+		size, err := leaf.Size()
+		Ck(err)
+		total += size
+	}
+	return
+}
+
+// Tell returns the current seek position in the tree.
+func (tree *Tree) Tell() (n int64, err error) {
+	var pos int64
+	// add up all leaf sizes until we get to the current leaf
+
+	// add position in current leaf
+
+	return pos, nil
 }
 
 // Txt returns the concatenated tree entries

@@ -121,9 +121,17 @@ func TestTreeRead(t *testing.T) {
 	tassert(t, err == nil, "readercomp.Equal: %v", err)
 	tassert(t, ok, "tree.Read mismatch")
 
-	// XXX test rewind
-	// XXX test seek
+	// test seek
+	// expect := []byte("blob1valueblob2valueblob3value")
+	n, err := tree2.Seek(4, io.SeekStart)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, n == 4, "%v", n)
+	nint, err := tree2.Read(gotbuf[:1])
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nint == 1, "%v", nint)
+	tassert(t, string(gotbuf[0]) == "1", string(gotbuf[0]))
 
+	// XXX test rewind
 }
 
 func TestVerify(t *testing.T) {
