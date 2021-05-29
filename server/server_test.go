@@ -169,7 +169,7 @@ func TestPipeFd(t *testing.T) {
 }
 
 // XXX use this as a starter for pitd
-func TestServe(t *testing.T) {
+func XXXTestServe(t *testing.T) {
 	pit := setup(t)
 	fn := "pit.sock"
 

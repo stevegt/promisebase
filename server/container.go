@@ -8,30 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd"
 	"github.com/opencontainers/runtime-tools/generate"
 
 	. "github.com/stevegt/goadapt"
 )
-
-type ContainerRuntime struct {
-	fn     string
-	client *containerd.Client
-}
-
-// create a new client connected to the default socket path for containerd
-func (pit *Pit) connectRuntime(fn string) (err error) {
-	defer Return(&err)
-	Assert(pit.runtime == nil)
-	client, err := containerd.New(fn)
-	Ck(err)
-	runtime := &ContainerRuntime{
-		fn:     fn,
-		client: client,
-	}
-	pit.runtime = runtime
-	return
-}
 
 type Container struct {
 	Image string
