@@ -2,6 +2,7 @@ package pit
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,13 +10,56 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/google/shlex"
+	log "github.com/sirupsen/logrus"
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase/db"
 )
+
+// XXX init(), caller(), and GetGID() are copies of the same from
+// pitbase.go and all should be moved to a common lib
+func init() {
+	var debug string
+	debug = os.Getenv("DEBUG")
+	if debug == "1" {
+		log.SetLevel(log.DebugLevel)
+	}
+	log.SetReportCaller(true)
+	formatter := &log.TextFormatter{
+		CallerPrettyfier: caller(),
+		FieldMap: log.FieldMap{
+			log.FieldKeyFile: "caller",
+		},
+	}
+	formatter.TimestampFormat = "15:04:05.999999999"
+	log.SetFormatter(formatter)
+}
+
+// caller returns string presentation of log caller which is formatted as
+// `/path/to/file.go:line_number`. e.g. `/internal/app/api.go:25`
+// https://stackoverflow.com/questions/63658002/is-it-possible-to-wrap-logrus-logger-functions-without-losing-the-line-number-pr
+func caller() func(*runtime.Frame) (function string, file string) {
+	return func(f *runtime.Frame) (function string, file string) {
+		p, _ := os.Getwd()
+		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, GetGID())
+	}
+}
+
+// GetGID returns the goroutine ID of its calling function, for logging purposes.
+func GetGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
 
 type ExistsError struct {
 	Dir string
@@ -99,6 +143,7 @@ func (pit *Pit) Listen(id string) (listener net.Listener, err error) {
 // Connect to an existing UNIX domain socket
 func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 	fn := filepath.Join(pit.Dir, id)
+	log.Debugf("client connecting %s", fn)
 	conn, err = net.Dial("unix", fn)
 	return
 }
@@ -107,19 +152,25 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 // XXX rehack to use msgpack
 func (pit *Pit) handle(conn net.Conn, errc chan error) {
 	defer ReturnChan(errc)
+	log.Debugf("handling conn")
+	panic("needs to be converted to use msgpack")
 	rd := bufio.NewReader(conn)
 	for {
 		// read message from conn
+		log.Debugf("reading msg")
 		txt, err := rd.ReadString('\n')
 
 		if err == io.EOF {
 			break
 		}
 		Ck(err)
+		log.Debugf("got txt %v", txt)
 
 		// parse message
 		msg, err := Parse(txt)
 		Ck(err)
+
+		log.Debugf("got msg %v", msg)
 
 		// pass msg to runContainer
 		cntr := &Container{
@@ -155,6 +206,7 @@ func (pit *Pit) Serve(fn string) (errc chan error) {
 	defer ReturnChan(errc)
 
 	// listen on socket at fn
+	log.Debugf("listening on %s", fn)
 	listener, err := pit.Listen(fn)
 	Ck(err)
 
@@ -162,6 +214,7 @@ func (pit *Pit) Serve(fn string) (errc chan error) {
 
 		for {
 			// accept connection from client
+			log.Debugf("accepting on %s", fn)
 			conn, err := listener.Accept()
 			Ck(err)
 

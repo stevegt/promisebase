@@ -169,7 +169,7 @@ func TestPipeFd(t *testing.T) {
 }
 
 // XXX use this as a starter for pitd
-func XXXTestServe(t *testing.T) {
+func TestServe(t *testing.T) {
 	pit := setup(t)
 	fn := "pit.sock"
 
@@ -329,6 +329,8 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 // XXX use this as a starter for `client`
 func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (err error) {
 
+	fmt.Println("echoTestSocket starting")
+
 	txt := fmt.Sprintf("%s echo -n %s\n", img, shellescape.Quote(expect))
 	msg, err := Parse(txt)
 	tassert(t, err == nil, "%v", err)
@@ -336,12 +338,14 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	// the Encode() method takes the msg struct, marshals it into
 	// a msgpack message, and writes it to the conn that we passed
 	// into NewEncoder
+	fmt.Println("echoTestSocket sending")
 	encoder := msgpack.NewEncoder(conn)
 	err = encoder.Encode(msg)
 	tassert(t, err == nil, "%v", err)
 
 	// the Decode() method reads from conn and unmarshals the
 	// msgpack message into msg.
+	fmt.Println("echoTestSocket receiving")
 	decoder := msgpack.NewDecoder(conn)
 
 	// We expect two response messages; the first containing
