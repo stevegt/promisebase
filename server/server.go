@@ -1,7 +1,6 @@
 package pit
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -20,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase/db"
+	"github.com/vmihailenco/msgpack"
 )
 
 // XXX init(), caller(), and GetGID() are copies of the same from
@@ -149,34 +149,29 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 }
 
 // handle a single connection from a client
-// XXX rehack to use msgpack
 func (pit *Pit) handle(conn net.Conn, errc chan error) {
 	defer ReturnChan(errc)
 	log.Debugf("handling conn")
-	panic("needs to be converted to use msgpack")
-	rd := bufio.NewReader(conn)
+
+	var req Request
+	var res Response
+	decoder := msgpack.NewDecoder(conn)
+	encoder := msgpack.NewEncoder(conn)
 	for {
 		// read message from conn
-		log.Debugf("reading msg")
-		txt, err := rd.ReadString('\n')
-
+		log.Debugf("reading request")
+		err := decoder.Decode(&req)
 		if err == io.EOF {
 			break
 		}
-		Ck(err)
-		log.Debugf("got txt %v", txt)
+		Ck(err) // XXX handle other errors without killing daemon
+		log.Debugf("got request %#v", req)
 
-		// parse message
-		msg, err := Parse(txt)
-		Ck(err)
-
-		log.Debugf("got msg %v", msg)
-
-		// pass msg to runContainer
+		// pass req to runContainer
 		cntr := &Container{
-			Image: string(msg.Addr),
+			Image: string(req.Addr),
 			Cmd: &exec.Cmd{
-				Args:   []string(msg.Args),
+				Args:   []string(req.Args),
 				Stdin:  conn,
 				Stdout: conn,
 				Stderr: os.Stderr,
@@ -188,15 +183,10 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 
 		// return results to client
 		// status := <-statusChan
-		// XXX fake stdout and sterr file descriptors for now by using
-		// docker's stdcopy.StdCopy() to demultiplex `out` here on
-		// server side and repack in msgpack Response
-		// _, err = io.Copy(conn, out)
-		// Ck(err)
-
+		// XXX populate res
 		// XXX send rc in msgpack Response
-		// _, err = fmt.Fprint(conn, rc)
-		// Ck(err)
+		err = encoder.Encode(res)
+		Ck(err)
 
 	}
 }
@@ -227,7 +217,7 @@ func (pit *Pit) Serve(fn string) (errc chan error) {
 }
 
 type Addr string
-type Callback func(Msg) error
+type Callback func(Request) error
 
 type Dispatcher struct {
 	callbacks map[Addr][]Callback
@@ -248,41 +238,40 @@ func (dp *Dispatcher) Register(callback Callback, addr Addr) {
 }
 
 // Dispatch calls any functions that were previously registered with
-// msg.Addr, passing msg as an argument to each function.
-func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
-	for _, callback := range dp.callbacks[msg.Addr] {
-		err = callback(*msg)
+// req.Addr, passing req as an argument to each function.
+func (dp *Dispatcher) Dispatch(req *Request) (err error) {
+	for _, callback := range dp.callbacks[req.Addr] {
+		err = callback(*req)
 	}
 	return
 }
 
-// XXX rename Msg to Request
-type Msg struct {
+type Request struct {
 	Addr Addr
 	Args []string
 }
 
-// Parse splits txt and returns the parts in a Msg struct.
-func Parse(txt string) (msg *Msg, err error) {
+// Parse splits txt and returns the parts in a Request struct.
+func Parse(txt string) (req *Request, err error) {
 	defer Return(&err)
 	parts, err := shlex.Split(string(txt))
 	Ck(err)
 	// parts := strings.Fields(string(txt))
 	ErrnoIf(len(parts) < 3, syscall.EINVAL, txt)
-	msg = &Msg{}
-	msg.Addr = Addr(parts[0])
-	msg.Args = parts[1:]
+	req = &Request{}
+	req.Addr = Addr(parts[0])
+	req.Args = parts[1:]
 	return
 }
 
-func (msg *Msg) Compare(b *Msg) (ok bool) {
-	if msg.Addr != b.Addr {
+func (req *Request) Compare(b *Request) (ok bool) {
+	if req.Addr != b.Addr {
 		return false
 	}
-	if len(msg.Args) != len(b.Args) {
+	if len(req.Args) != len(b.Args) {
 		return false
 	}
-	for i, arg := range msg.Args {
+	for i, arg := range req.Args {
 		if arg != b.Args[i] {
 			return false
 		}

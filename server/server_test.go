@@ -59,7 +59,7 @@ func TestMsgPack(t *testing.T) {
 	buf, err := msgpack.Marshal(req)
 	tassert(t, err == nil, "%v", err)
 
-	var got Msg
+	var got Request
 	err = msgpack.Unmarshal(buf, &got)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, req.Compare(&got), "got %#v", got)
@@ -84,12 +84,12 @@ func TestPitDir(t *testing.T) {
 
 func TestParser(t *testing.T) {
 	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
-	msg, err := Parse(txt)
+	req, err := Parse(txt)
 	tassert(t, err == nil, "%v", err)
-	tassert(t, msg.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%#v", msg)
-	tassert(t, len(msg.Args) == 2, "%#v", msg)
-	tassert(t, msg.Args[0] == "hello", "%#v", msg)
-	tassert(t, msg.Args[1] == "world", "%#v", msg)
+	tassert(t, req.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%#v", req)
+	tassert(t, len(req.Args) == 2, "%#v", req)
+	tassert(t, req.Args[0] == "hello", "%#v", req)
+	tassert(t, req.Args[1] == "world", "%#v", req)
 }
 
 func TestDispatcher(t *testing.T) {
@@ -97,20 +97,20 @@ func TestDispatcher(t *testing.T) {
 
 	// create some simple callbacks
 	ok1 := false
-	cb1 := func(msg Msg) error {
+	cb1 := func(req Request) error {
 		ok1 = true
 		return nil
 	}
 
 	ok1b := false
-	cb1b := func(msg Msg) error {
+	cb1b := func(req Request) error {
 		ok1b = true
 		return nil
 	}
 
 	// create some simple callbacks
 	ok2 := false
-	cb2 := func(msg Msg) error {
+	cb2 := func(req Request) error {
 		ok2 = true
 		return nil
 	}
@@ -125,9 +125,9 @@ func TestDispatcher(t *testing.T) {
 	dp.Register(cb2, addr2)
 
 	// send that address in a message to the dispatcher
-	msg, err := Parse(string(txt1))
+	req, err := Parse(string(txt1))
 	tassert(t, err == nil, "%v", err)
-	err = dp.Dispatch(msg)
+	err = dp.Dispatch(req)
 
 	// confirm the callback worked
 	tassert(t, ok1, "nok")
@@ -135,9 +135,9 @@ func TestDispatcher(t *testing.T) {
 	tassert(t, !ok2, "nok")
 
 	// send another address in a message to the dispatcher
-	msg, err = Parse(string(txt2))
+	req, err = Parse(string(txt2))
 	tassert(t, err == nil, "%v", err)
-	err = dp.Dispatch(msg)
+	err = dp.Dispatch(req)
 
 	// confirm the callback worked
 	tassert(t, ok1, "nok")
@@ -200,7 +200,7 @@ func TestSocket(t *testing.T) {
 	listener, err := pit.Listen(fn)
 	tassert(t, err == nil, "%v", err)
 
-	msg, err := Parse("some/hash/path echo hello")
+	req, err := Parse("some/hash/path echo hello")
 	tassert(t, err == nil, "%v", err)
 
 	// simulate a client
@@ -209,11 +209,11 @@ func TestSocket(t *testing.T) {
 		time.Sleep(time.Second)
 		conn, err := pit.Connect(fn)
 		tassert(t, err == nil, "%v", err)
-		// the Encode() method takes the msg struct, marshals it into
+		// the Encode() method takes the req struct, marshals it into
 		// a msgpack message, and writes it to the conn that we passed
 		// into NewEncoder.
 		encoder := msgpack.NewEncoder(conn)
-		err = encoder.Encode(msg)
+		err = encoder.Encode(req)
 		tassert(t, err == nil, "%v", err)
 		conn.Close() // XXX test should still work without this close
 	}()
@@ -222,13 +222,13 @@ func TestSocket(t *testing.T) {
 	// we block on Accept() while waiting for client goroutine to connect
 	conn, err := listener.Accept()
 	tassert(t, err == nil, "%v", err)
-	var got Msg
+	var got Request
 	// the Decode() method reads from conn and unmarshals the
-	// msgpack message into msg.
+	// msgpack message into req.
 	decoder := msgpack.NewDecoder(conn)
 	err = decoder.Decode(&got)
 	tassert(t, err == nil, "%v", err)
-	tassert(t, msg.Compare(&got), "got %#v", got)
+	tassert(t, req.Compare(&got), "got %#v", got)
 }
 
 func TestInotify(t *testing.T) {
@@ -332,7 +332,7 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	fmt.Println("echoTestSocket starting")
 
 	txt := fmt.Sprintf("%s echo -n %s\n", img, shellescape.Quote(expect))
-	msg, err := Parse(txt)
+	req, err := Parse(txt)
 	tassert(t, err == nil, "%v", err)
 
 	// the Encode() method takes the msg struct, marshals it into
@@ -340,18 +340,18 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	// into NewEncoder
 	fmt.Println("echoTestSocket sending")
 	encoder := msgpack.NewEncoder(conn)
-	err = encoder.Encode(msg)
+	err = encoder.Encode(req)
 	tassert(t, err == nil, "%v", err)
-
-	// the Decode() method reads from conn and unmarshals the
-	// msgpack message into msg.
-	fmt.Println("echoTestSocket receiving")
-	decoder := msgpack.NewDecoder(conn)
 
 	// We expect two response messages; the first containing
 	// io.Writers for the container's stdout and stderr, and the
 	// second containing those as well as the container's exit code.
+
+	// the Decode() method reads from conn and unmarshals the
+	// msgpack message into res.
 	var res Response
+	fmt.Println("echoTestSocket receiving")
+	decoder := msgpack.NewDecoder(conn)
 
 	// get stdio descriptors
 	err = decoder.Decode(&res)
