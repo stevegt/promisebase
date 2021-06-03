@@ -84,6 +84,9 @@ func (cntr *Container) initdir() (err error) {
 func (cntr *Container) initconfig() (err error) {
 	defer Return(&err)
 
+	err = os.Chdir(cntr.dir)
+	Ck(err)
+
 	// create config file and set permissions
 	config, err := os.OpenFile("config.json", os.O_RDWR|os.O_CREATE, 0755)
 	Ck(err)
@@ -130,6 +133,9 @@ func (cntr *Container) createimg() (err error) {
 func (cntr *Container) createrootfs() (err error) {
 	defer Return(&err)
 
+	err = os.Chdir(cntr.dir)
+	Ck(err)
+
 	err = os.MkdirAll("rootfs", 0755)
 	Ck(err)
 
@@ -166,6 +172,16 @@ func (cntr *Container) createrootfs() (err error) {
 		fmt.Fprintf(os.Stderr, "tar: %v\n", err)
 	}
 
+	return
+}
+
+func (cntr *Container) createRootFsFromTree() (err error) {
+	defer Return(&err)
+
+	err = os.Chdir(cntr.dir)
+	Ck(err)
+
+	// XXX
 	return
 }
 
