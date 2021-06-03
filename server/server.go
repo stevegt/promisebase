@@ -1,7 +1,7 @@
 package pit
 
 import (
-	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,13 +9,57 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/google/shlex"
+	log "github.com/sirupsen/logrus"
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase/db"
+	"github.com/vmihailenco/msgpack"
 )
+
+// XXX init(), caller(), and GetGID() are copies of the same from
+// pitbase.go and all should be moved to a common lib
+func init() {
+	var debug string
+	debug = os.Getenv("DEBUG")
+	if debug == "1" {
+		log.SetLevel(log.DebugLevel)
+	}
+	log.SetReportCaller(true)
+	formatter := &log.TextFormatter{
+		CallerPrettyfier: caller(),
+		FieldMap: log.FieldMap{
+			log.FieldKeyFile: "caller",
+		},
+	}
+	formatter.TimestampFormat = "15:04:05.999999999"
+	log.SetFormatter(formatter)
+}
+
+// caller returns string presentation of log caller which is formatted as
+// `/path/to/file.go:line_number`. e.g. `/internal/app/api.go:25`
+// https://stackoverflow.com/questions/63658002/is-it-possible-to-wrap-logrus-logger-functions-without-losing-the-line-number-pr
+func caller() func(*runtime.Frame) (function string, file string) {
+	return func(f *runtime.Frame) (function string, file string) {
+		p, _ := os.Getwd()
+		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, GetGID())
+	}
+}
+
+// GetGID returns the goroutine ID of its calling function, for logging purposes.
+func GetGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
 
 type ExistsError struct {
 	Dir string
@@ -99,33 +143,35 @@ func (pit *Pit) Listen(id string) (listener net.Listener, err error) {
 // Connect to an existing UNIX domain socket
 func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 	fn := filepath.Join(pit.Dir, id)
+	log.Debugf("client connecting %s", fn)
 	conn, err = net.Dial("unix", fn)
 	return
 }
 
 // handle a single connection from a client
-// XXX rehack to use msgpack
 func (pit *Pit) handle(conn net.Conn, errc chan error) {
 	defer ReturnChan(errc)
-	rd := bufio.NewReader(conn)
+	log.Debugf("handling conn")
+
+	var req Request
+	var res Response
+	decoder := msgpack.NewDecoder(conn)
+	encoder := msgpack.NewEncoder(conn)
 	for {
 		// read message from conn
-		txt, err := rd.ReadString('\n')
-
+		log.Debugf("reading request")
+		err := decoder.Decode(&req)
 		if err == io.EOF {
 			break
 		}
-		Ck(err)
+		Ck(err) // XXX handle other errors without killing daemon
+		log.Debugf("got request %#v", req)
 
-		// parse message
-		msg, err := Parse(txt)
-		Ck(err)
-
-		// pass msg to runContainer
+		// pass req to runContainer
 		cntr := &Container{
-			Image: string(msg.Addr),
+			Image: string(req.Addr),
 			Cmd: &exec.Cmd{
-				Args:   []string(msg.Args),
+				Args:   []string(req.Args),
 				Stdin:  conn,
 				Stdout: conn,
 				Stderr: os.Stderr,
@@ -137,15 +183,10 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 
 		// return results to client
 		// status := <-statusChan
-		// XXX fake stdout and sterr file descriptors for now by using
-		// docker's stdcopy.StdCopy() to demultiplex `out` here on
-		// server side and repack in msgpack Response
-		// _, err = io.Copy(conn, out)
-		// Ck(err)
-
+		// XXX populate res
 		// XXX send rc in msgpack Response
-		// _, err = fmt.Fprint(conn, rc)
-		// Ck(err)
+		err = encoder.Encode(res)
+		Ck(err)
 
 	}
 }
@@ -155,6 +196,7 @@ func (pit *Pit) Serve(fn string) (errc chan error) {
 	defer ReturnChan(errc)
 
 	// listen on socket at fn
+	log.Debugf("listening on %s", fn)
 	listener, err := pit.Listen(fn)
 	Ck(err)
 
@@ -162,6 +204,7 @@ func (pit *Pit) Serve(fn string) (errc chan error) {
 
 		for {
 			// accept connection from client
+			log.Debugf("accepting on %s", fn)
 			conn, err := listener.Accept()
 			Ck(err)
 
@@ -174,7 +217,7 @@ func (pit *Pit) Serve(fn string) (errc chan error) {
 }
 
 type Addr string
-type Callback func(Msg) error
+type Callback func(Request) error
 
 type Dispatcher struct {
 	callbacks map[Addr][]Callback
@@ -195,41 +238,40 @@ func (dp *Dispatcher) Register(callback Callback, addr Addr) {
 }
 
 // Dispatch calls any functions that were previously registered with
-// msg.Addr, passing msg as an argument to each function.
-func (dp *Dispatcher) Dispatch(msg *Msg) (err error) {
-	for _, callback := range dp.callbacks[msg.Addr] {
-		err = callback(*msg)
+// req.Addr, passing req as an argument to each function.
+func (dp *Dispatcher) Dispatch(req *Request) (err error) {
+	for _, callback := range dp.callbacks[req.Addr] {
+		err = callback(*req)
 	}
 	return
 }
 
-// XXX rename Msg to Request
-type Msg struct {
+type Request struct {
 	Addr Addr
 	Args []string
 }
 
-// Parse splits txt and returns the parts in a Msg struct.
-func Parse(txt string) (msg *Msg, err error) {
+// Parse splits txt and returns the parts in a Request struct.
+func Parse(txt string) (req *Request, err error) {
 	defer Return(&err)
 	parts, err := shlex.Split(string(txt))
 	Ck(err)
 	// parts := strings.Fields(string(txt))
 	ErrnoIf(len(parts) < 3, syscall.EINVAL, txt)
-	msg = &Msg{}
-	msg.Addr = Addr(parts[0])
-	msg.Args = parts[1:]
+	req = &Request{}
+	req.Addr = Addr(parts[0])
+	req.Args = parts[1:]
 	return
 }
 
-func (msg *Msg) Compare(b *Msg) (ok bool) {
-	if msg.Addr != b.Addr {
+func (req *Request) Compare(b *Request) (ok bool) {
+	if req.Addr != b.Addr {
 		return false
 	}
-	if len(msg.Args) != len(b.Args) {
+	if len(req.Args) != len(b.Args) {
 		return false
 	}
-	for i, arg := range msg.Args {
+	for i, arg := range req.Args {
 		if arg != b.Args[i] {
 			return false
 		}
