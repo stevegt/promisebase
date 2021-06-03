@@ -140,11 +140,14 @@ func (cntr *Container) createrootfs() (err error) {
 	Ck(err)
 
 	export := exec.Command("docker", "export", cntr.Cid)
-	export.Stderr = os.Stderr
+	// export.Stderr = os.Stderr
+	export.Stderr = nil
 
 	tar := exec.Command("tar", "-C", "rootfs", "-xvf", "-")
-	tar.Stdout = os.Stdout
+	// tar.Stdout = os.Stdout
 	tar.Stderr = os.Stderr
+	tar.Stdout = nil
+	// tar.Stderr = nil
 
 	tarpipe, err := tar.StdinPipe()
 	Ck(err)

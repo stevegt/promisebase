@@ -173,9 +173,8 @@ func TestServe(t *testing.T) {
 	pit := setup(t)
 	fn := "pit.sock"
 
-	errc := pit.Serve(fn)
-	// XXX check messages on errc
-	_ = errc
+	err := pit.Serve(fn)
+	tassert(t, err == nil, "%#v", err)
 
 	// XXX try some client-side stuff here
 	// grab some code from TestSocket and feed in
@@ -191,6 +190,7 @@ func TestServe(t *testing.T) {
 	tassert(t, err == nil, "%v", err)
 	conn.Close()
 
+	tassert(t, false, "implementation not finished")
 }
 
 func TestSocket(t *testing.T) {
