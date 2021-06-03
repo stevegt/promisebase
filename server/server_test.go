@@ -418,6 +418,37 @@ func TestImageSave(t *testing.T) {
 
 }
 
+func TestImageTree(t *testing.T) {
+	pit := setup(t)
+
+	src := "docker://docker.io/library/alpine:3.12.0"
+	// pull container image and save it as a tree
+	tree, err := pit.imageSave("sha256", src)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, tree != nil, "%v", tree)
+
+	// should be a tarball
+	out, err := shellin(tree, "file", "-")
+	tassert(t, err == nil, "%v", err)
+	outstr := string(out)
+	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
+
+	// unpack image into a runc-compatible directory tree
+	cntr := &Container{
+		Image: tree.Addr,
+	}
+
+	err = cntr.initdir()
+	tassert(t, err == nil, "%v", err)
+
+	err = cntr.createRootFsFromTree()
+	tassert(t, err == nil, "%v", err)
+
+	tpath := filepath.Join(cntr.dir, "rootfs/bin/busybox")
+	tassert(t, exists(tpath), "not found: %s", tpath)
+
+}
+
 func shellin(stdin io.Reader, path string, args ...string) (out []byte, err error) {
 	cmd := exec.Command(path, args...)
 	cmd.Stdin = stdin
@@ -441,3 +472,11 @@ func shellin(stdin io.Reader, path string, args ...string) (out []byte, err erro
 
 // create() (msg string, err error)
 // opendb() (db *pb.Db, err error)
+
+func exists(path string) (found bool) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
