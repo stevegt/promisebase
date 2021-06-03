@@ -149,8 +149,7 @@ func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
 }
 
 // handle a single connection from a client
-func (pit *Pit) handle(conn net.Conn, errc chan error) {
-	defer ReturnChan(errc)
+func (pit *Pit) handle(conn net.Conn) {
 	log.Debugf("handling conn")
 
 	var req Request
@@ -164,14 +163,16 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 		if err == io.EOF {
 			break
 		}
-		Ck(err) // XXX handle other errors without killing daemon
+		if err != nil {
+			log.Errorf("decode: %v", err)
+		}
 		log.Debugf("got request %#v", req)
 
 		// pass req to runContainer
 		cntr := &Container{
 			Image: string(req.Addr),
+			Args:  []string(req.Args),
 			Cmd: &exec.Cmd{
-				Args:   []string(req.Args),
 				Stdin:  conn,
 				Stdout: conn,
 				Stderr: os.Stderr,
@@ -179,21 +180,25 @@ func (pit *Pit) handle(conn net.Conn, errc chan error) {
 		}
 
 		err = pit.startContainer(cntr)
-		Ck(err)
+		if err != nil {
+			log.Errorf("startContainer: %v", err)
+		}
 
 		// return results to client
 		// status := <-statusChan
 		// XXX populate res
 		// XXX send rc in msgpack Response
 		err = encoder.Encode(res)
-		Ck(err)
+		if err != nil {
+			log.Errorf("encode: %v", err)
+		}
 
 	}
 }
 
 // Serve requests on a UNIX domain socket
-func (pit *Pit) Serve(fn string) (errc chan error) {
-	defer ReturnChan(errc)
+func (pit *Pit) Serve(fn string) (err error) {
+	defer Return(&err)
 
 	// listen on socket at fn
 	log.Debugf("listening on %s", fn)
@@ -206,10 +211,12 @@ func (pit *Pit) Serve(fn string) (errc chan error) {
 			// accept connection from client
 			log.Debugf("accepting on %s", fn)
 			conn, err := listener.Accept()
-			Ck(err)
+			if err != nil {
+				log.Errorf("accept: %v", err)
+			}
 
 			// pass conn to handle()
-			go pit.handle(conn, errc)
+			go pit.handle(conn)
 		}
 
 	}()
