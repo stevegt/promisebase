@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/opencontainers/image-tools/image"
 	"github.com/opencontainers/runtime-tools/generate"
+	pb "github.com/t7a/pitbase/db"
 
 	. "github.com/stevegt/goadapt"
 )
@@ -21,6 +23,7 @@ type Container struct {
 	Rc    int
 	Errc  chan error
 	dir   string
+	pit   *Pit
 	*exec.Cmd
 }
 
@@ -184,7 +187,15 @@ func (cntr *Container) createRootFsFromTree() (err error) {
 	err = os.Chdir(cntr.dir)
 	Ck(err)
 
-	// XXX
+	err = os.MkdirAll("rootfs", 0755)
+	Ck(err)
+
+	path := pb.Path{}.New(cntr.pit.Db, cntr.Image)
+	tree, err := cntr.pit.Db.GetTree(path)
+
+	err = image.Unpack(tree, "rootfs", "", []string{})
+	Ck(err)
+
 	return
 }
 

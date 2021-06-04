@@ -435,7 +435,8 @@ func TestImageTree(t *testing.T) {
 
 	// unpack image into a runc-compatible directory tree
 	cntr := &Container{
-		Image: tree.Addr,
+		Image: "tree/" + tree.Addr,
+		pit:   pit,
 	}
 
 	err = cntr.initdir()

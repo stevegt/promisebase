@@ -209,9 +209,9 @@ func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 			log.Debugf("buffer full")
 			break
 		}
-
 	}
-	log.Debugf("returning %v bytes read, err: %v", bufpos, err)
+	log.Debugf("returning %v/%v bytes read, err: %v", bufpos, len(buf), err)
+	log.Debugf("bytes in buf: %v", string(buf))
 	return
 }
 
