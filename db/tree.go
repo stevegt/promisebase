@@ -179,8 +179,10 @@ func (tree *Tree) loadEntries() (err error) {
 }
 
 // Read fills buf with the next chunk of data from tree's leaf nodes.
-func (tree *Tree) Read(buf []byte) (n int, err error) {
+func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 	defer Return(&err)
+
+	log.Debugf("reading from tree: %#v", tree)
 
 	leaves, err := tree.Leaves()
 	Ck(err)
@@ -190,23 +192,28 @@ func (tree *Tree) Read(buf []byte) (n int, err error) {
 			log.Debugf("tree.Read() returning 0, io.EOF")
 			return 0, io.EOF
 		}
-
-		obj := (leaves)[tree.currentLeaf]
-		n, err = obj.Read(buf)
+		leaf := leaves[tree.currentLeaf]
+		n, err := leaf.Read(buf[bufpos:])
+		// log.Debugf("leaf read err: %#v", err)
 		if errors.Cause(err) == io.EOF {
 			// go's finalizer might close files for us when obj goes
 			// out of scope, and since this was a read-only file
 			// anyway, don't check err after obj.Close()
-			obj.Close()
+			leaf.Close()
 			Assert(n == 0)
+			log.Debugf("tree.Read() done with leaf %v/%v", tree.currentLeaf, len(leaves))
 			tree.currentLeaf++
-			log.Debugf("tree.Read() advancing to leaf %v", tree.currentLeaf)
 			continue
 		}
 		Ck(err)
-		break
-	}
+		bufpos += n
 
+		if bufpos == len(buf) {
+			log.Debugf("buffer full")
+			break
+		}
+	}
+	log.Debugf("returning %v, %v", bufpos, err)
 	return
 }
 
