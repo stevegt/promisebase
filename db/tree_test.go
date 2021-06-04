@@ -101,13 +101,13 @@ func TestTreeRead(t *testing.T) {
 	gotbuf := make([]byte, 99)
 	gotbufn := 0
 	for i := 0; i < 99; i++ {
-		n, err := tree2a.Read(gotbuf[gotbufn:len(gotbuf)])
+		n, err := tree2a.Read(gotbuf[gotbufn:])
+		gotbufn += n
 		if err == io.EOF {
-			tassert(t, n == 0, "n %v", n)
+			tassert(t, n == len(expect), "n %v", n)
 			break
 		}
 		tassert(t, err == nil, "err %#v", err)
-		gotbufn += n
 	}
 	tassert(t, len(expect) == gotbufn, "expect %v got %v", len(expect), gotbufn)
 	tassert(t, bytes.Compare(expect, gotbuf[:gotbufn]) == 0, "expect %q got %q", string(expect), string(gotbuf[:gotbufn]))
@@ -117,7 +117,7 @@ func TestTreeRead(t *testing.T) {
 	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
 	tree2b := Tree{}.New(db, file)
 	expectrd := bytes.NewReader(expect)
-	ok, err := readercomp.Equal(expectrd, tree2b, 5) // XXX try different sizes
+	ok, err := readercomp.Equal(expectrd, tree2b, 15) // XXX try different sizes
 	tassert(t, err == nil, "readercomp.Equal: %v", err)
 	tassert(t, ok, "tree.Read mismatch")
 

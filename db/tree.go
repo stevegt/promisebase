@@ -182,38 +182,36 @@ func (tree *Tree) loadEntries() (err error) {
 func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 	defer Return(&err)
 
-	log.Debugf("reading from tree: %#v", tree)
-
 	leaves, err := tree.Leaves()
 	Ck(err)
 
 	for {
 		if tree.currentLeaf >= int64(len(leaves)) {
-			log.Debugf("tree.Read() returning 0, io.EOF")
-			return 0, io.EOF
+			log.Debugf("tree.Read() reached EOF")
+			err = io.EOF
+			break
 		}
 		leaf := leaves[tree.currentLeaf]
 		n, err := leaf.Read(buf[bufpos:])
-		// log.Debugf("leaf read err: %#v", err)
 		if errors.Cause(err) == io.EOF {
 			// go's finalizer might close files for us when obj goes
 			// out of scope, and since this was a read-only file
 			// anyway, don't check err after obj.Close()
 			leaf.Close()
 			Assert(n == 0)
-			log.Debugf("tree.Read() done with leaf %v/%v", tree.currentLeaf, len(leaves))
+			log.Debugf("tree.Read() done with leaf %v/%v", tree.currentLeaf+1, len(leaves))
 			tree.currentLeaf++
 			continue
 		}
 		Ck(err)
 		bufpos += n
-
 		if bufpos == len(buf) {
 			log.Debugf("buffer full")
 			break
 		}
+
 	}
-	log.Debugf("returning %v, %v", bufpos, err)
+	log.Debugf("returning %v bytes read, err: %v", bufpos, err)
 	return
 }
 
