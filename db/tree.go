@@ -193,6 +193,7 @@ func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 		}
 		leaf := leaves[tree.currentLeaf]
 		n, err := leaf.Read(buf[bufpos:])
+		bufpos += n
 		if errors.Cause(err) == io.EOF {
 			// go's finalizer might close files for us when obj goes
 			// out of scope, and since this was a read-only file
@@ -204,7 +205,6 @@ func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 			continue
 		}
 		Ck(err)
-		bufpos += n
 		if bufpos == len(buf) {
 			log.Debugf("buffer full")
 			break
@@ -283,13 +283,25 @@ func (tree *Tree) Size() (total int64, err error) {
 }
 
 // Tell returns the current seek position in the tree.
-func (tree *Tree) Tell() (n int64, err error) {
-	var pos int64
-	// add up all leaf sizes until we get to the current leaf
+func (tree *Tree) Tell() (total int64, err error) {
+	var n int64
+	leaves, err := tree.Leaves()
+	Ck(err)
 
-	// add position in current leaf
-
-	return pos, nil
+	// XXX add up all leaf sizes until we get to the current leaf
+	for i, leaf := range leaves {
+		n, err = leaf.Size()
+		Ck(err)
+		if int64(i) == tree.currentLeaf {
+			// add position in current leaf
+			n, err = leaf.Tell()
+			Ck(err)
+			return total + n, err
+		}
+		total += n
+	}
+	err = errors.New("Tree.Tell() reached the end of Tree.Leaves() before encountering tree.currentLeaf")
+	return total, err
 }
 
 // Txt returns the concatenated tree entries
