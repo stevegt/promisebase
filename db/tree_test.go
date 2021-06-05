@@ -3,6 +3,7 @@ package pitbase
 import (
 	"bytes"
 	"io"
+	"math/rand"
 	"testing"
 
 	"github.com/hlubek/readercomp"
@@ -117,7 +118,7 @@ func TestTreeRead(t *testing.T) {
 	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
 	tree2b := Tree{}.New(db, file)
 	expectrd := bytes.NewReader(expect)
-	ok, err := readercomp.Equal(expectrd, tree2b, 15) // XXX try different sizes
+	ok, err := readercomp.Equal(expectrd, tree2b, 6) // XXX try different sizes
 	tassert(t, err == nil, "readercomp.Equal: %v", err)
 	tassert(t, ok, "tree.Read mismatch")
 
@@ -132,6 +133,63 @@ func TestTreeRead(t *testing.T) {
 	tassert(t, string(gotbuf[0]) == "1", string(gotbuf[0]))
 
 	// XXX test rewind
+}
+
+type predictableStream struct {
+	Size    int64
+	seekPos int64
+}
+
+// generate a stream of predictable data -- each byte is seekPos % 256
+func (s *predictableStream) Read(buf []byte) (n int, err error) {
+	if s.seekPos >= s.Size {
+		err = io.EOF
+		return
+	}
+	i := 0
+	for ; i < len(buf); i++ {
+		buf[i] = byte(s.seekPos % 256)
+		s.seekPos++
+		if s.seekPos >= s.Size {
+			break
+		}
+	}
+	return i, nil
+}
+
+// test random seek/read
+func TestTreeSeek(t *testing.T) {
+	db := setup(t, nil)
+
+	// put predictable data into a large tree
+	treesize := int64(100 * miB)
+	stream := &predictableStream{Size: treesize}
+	tree, err := db.PutStream("sha256", stream)
+	tassert(t, err == nil, "PutStream(): %v", err)
+	tassert(t, tree != nil, "PutStream() tree is nil")
+
+	// seek a bunch of times to random locations and check the data
+	rand.Seed(42)
+	for i := 0; i < 100000; i++ {
+		seekpos := rand.Int63n(treesize)
+		nseek, err := tree.Seek(seekpos, io.SeekStart)
+		tassert(t, err == nil, "seek: %#v", err)
+		tassert(t, nseek == seekpos, "n: %#v", nseek)
+		bufsize := rand.Int63n(1000000) + 1 // "+ 1" so we don't make the buf zero size
+		got := make([]byte, bufsize)
+		n, err := tree.Read(got)
+		m, err := tree.Tell()
+		tassert(t, m == seekpos+1, "m: %v", m)
+
+		// check the beginning of buf
+		expect := byte(seekpos % 256)
+		tassert(t, got[0] == expect, "expect: %v, got: %#v", expect, got[0])
+
+		// check the end of read
+		expect = byte((seekpos + int64(n-1)) % 256)
+		tassert(t, got[n-1] == expect, "expect: %v, got: %#v", expect, got[n-1])
+	}
+
 }
 
 func TestVerify(t *testing.T) {
