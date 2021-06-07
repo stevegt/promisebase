@@ -172,7 +172,7 @@ func TestTreeSeek(t *testing.T) {
 
 	// seek a bunch of times to random locations and check the data
 	rand.Seed(42)
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 100; i++ { // XXX more iterations?
 		seekpos := rand.Int63n(treesize)
 		nseek, err := tree.Seek(seekpos, io.SeekStart)
 		tassert(t, err == nil, "seek: %#v", err)
