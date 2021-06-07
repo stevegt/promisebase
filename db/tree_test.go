@@ -3,6 +3,7 @@ package pitbase
 import (
 	"bytes"
 	"io"
+	"math"
 	"math/rand"
 	"testing"
 
@@ -162,6 +163,7 @@ func TestTreeSeek(t *testing.T) {
 	db := setup(t, nil)
 
 	// put predictable data into a large tree
+	// XXX try different tree sizes, including very small
 	treesize := int64(100 * miB)
 	stream := &predictableStream{Size: treesize}
 	tree, err := db.PutStream("sha256", stream)
@@ -176,20 +178,28 @@ func TestTreeSeek(t *testing.T) {
 		tassert(t, err == nil, "seek: %#v", err)
 		tassert(t, nseek == seekpos, "n: %#v", nseek)
 		bufsize := rand.Int63n(1000000) + 1 // "+ 1" so we don't make the buf zero size
+		bufsize = minInt(bufsize, treesize-seekpos+1)
 		got := make([]byte, bufsize)
-		n, err := tree.Read(got)
-		m, err := tree.Tell()
-		tassert(t, m == seekpos+1, "m: %v", m)
+		nread, err := tree.Read(got)
+		tassert(t, err == nil, "seek: %#v", err)
+		tassert(t, int64(nread) == bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v", treesize, seekpos, bufsize, nread)
+		tellpos, err := tree.Tell()
+		tassert(t, err == nil, "seek: %#v", err)
+		tassert(t, tellpos == seekpos+bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v, tellpos: %v", treesize, seekpos, bufsize, nread, tellpos)
 
 		// check the beginning of buf
 		expect := byte(seekpos % 256)
 		tassert(t, got[0] == expect, "expect: %v, got: %#v", expect, got[0])
 
 		// check the end of read
-		expect = byte((seekpos + int64(n-1)) % 256)
-		tassert(t, got[n-1] == expect, "expect: %v, got: %#v", expect, got[n-1])
+		expect = byte((seekpos + int64(nread-1)) % 256)
+		tassert(t, got[nread-1] == expect, "expect: %v, got: %#v", expect, got[nread-1])
 	}
 
+}
+
+func minInt(a, b int64) int64 {
+	return int64(math.Min(float64(a), float64(b)))
 }
 
 func TestVerify(t *testing.T) {
