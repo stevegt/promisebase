@@ -226,11 +226,9 @@ func (tree *Tree) Rewind() error {
 // the file, 1 means relative to the current offset, and 2 means
 // relative to the end.  It returns the new offset and an error, if
 // any.
-func (tree *Tree) Seek(offset int64, whence int) (newOffset int64, err error) {
+func (tree *Tree) Seek(offset int64, whence int) (pos int64, err error) {
 	defer Return(&err)
 	// XXX ensure readonly?
-
-	var pos int64
 
 	// SeekStart   = 0 // seek relative to the origin of the file
 	// SeekCurrent = 1 // seek relative to the current offset
@@ -267,7 +265,7 @@ func (tree *Tree) Seek(offset int64, whence int) (newOffset int64, err error) {
 		total = newtotal
 	}
 
-	return offset, nil
+	return
 }
 
 func (tree *Tree) Size() (total int64, err error) {

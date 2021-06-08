@@ -125,13 +125,47 @@ func TestTreeRead(t *testing.T) {
 
 	// test seek
 	// expect := []byte("blob1valueblob2valueblob3value")
-	n, err := tree2.Seek(4, io.SeekStart)
+	// from start
+	nseek, err := tree2.Seek(4, io.SeekStart)
 	tassert(t, err == nil, "%#v", err)
-	tassert(t, n == 4, "%v", n)
-	nint, err := tree2.Read(gotbuf[:1])
+	tassert(t, nseek == 4, "%v", nseek)
+	nread, err := tree2.Read(gotbuf[:1])
 	tassert(t, err == nil, "%#v", err)
-	tassert(t, nint == 1, "%v", nint)
+	tassert(t, nread == 1, "%v", nread)
 	tassert(t, string(gotbuf[0]) == "1", string(gotbuf[0]))
+	// from current
+	nseek, err = tree2.Seek(9, io.SeekCurrent)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nseek == 14, "%v", nseek)
+	nread, err = tree2.Read(gotbuf[:1])
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nread == 1, "%v", nread)
+	tassert(t, string(gotbuf[0]) == "2", string(gotbuf[0]))
+	// from end
+	nseek, err = tree2.Seek(-6, io.SeekEnd)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nseek == int64(len(expect)-6), "%v", nseek)
+	nread, err = tree2.Read(gotbuf[:1])
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nread == 1, "%v", nread)
+	tassert(t, string(gotbuf[0]) == "3", string(gotbuf[0]))
+
+	// test tell
+	var i int64
+	for i = 0; i < int64(len(expect)); i++ {
+		nseek, err := tree2.Seek(i, io.SeekStart)
+		tassert(t, err == nil, "%#v", err)
+		ntell, err := tree2.Tell()
+		tassert(t, err == nil, "%#v", err)
+		tassert(t, ntell == i, "%v", nseek)
+		nread, err = tree2.Read(gotbuf[:1])
+		tassert(t, err == nil, "%#v", err)
+		tassert(t, nread == 1, "%v", nread)
+		tassert(t, gotbuf[0] == expect[i], "i: %v, got: %v", i, string(gotbuf[0]))
+		ntell, err = tree2.Tell()
+		tassert(t, err == nil, "%#v", err)
+		tassert(t, ntell == i+1, "%v", nseek)
+	}
 
 	// XXX test rewind
 }
