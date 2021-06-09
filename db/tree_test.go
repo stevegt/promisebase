@@ -206,7 +206,7 @@ func TestTreeSeek(t *testing.T) {
 
 	// seek a bunch of times to random locations and check the data
 	rand.Seed(42)
-	for i := 0; i < 100; i++ { // XXX more iterations?
+	for i := 0; i < 1000; i++ { // XXX more iterations?
 		seekpos := rand.Int63n(treesize)
 		nseek, err := tree.Seek(seekpos, io.SeekStart)
 		tassert(t, err == nil, "seek: %#v", err)
@@ -215,7 +215,7 @@ func TestTreeSeek(t *testing.T) {
 		bufsize = minInt(bufsize, treesize-seekpos+1)
 		got := make([]byte, bufsize)
 		nread, err := tree.Read(got)
-		tassert(t, err == nil, "seek: %#v", err)
+		tassert(t, err == nil, "i: %v seek: %#v", i, err)
 		tassert(t, int64(nread) == bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v", treesize, seekpos, bufsize, nread)
 		tellpos, err := tree.Tell()
 		tassert(t, err == nil, "seek: %#v", err)
