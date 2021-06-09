@@ -202,7 +202,15 @@ func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 			Assert(n == 0)
 			log.Debugf("tree.Read() done with leaf %v/%v", tree.currentLeaf+1, len(leaves))
 			tree.currentLeaf++
-			_, err = leaves[tree.currentLeaf].Seek(0, io.SeekStart)
+			// XXX That fact that we're comparing tree.currentLeaf
+			// with int64(len(leaves)) both here and above makes me
+			// think that we likely could refactor this whole
+			// function into a more explicit state engine.  There may
+			// be more edge cases buried here in the meantime.
+			if tree.currentLeaf < int64(len(leaves)) {
+				_, err = leaves[tree.currentLeaf].Seek(0, io.SeekStart)
+				Ck(err)
+			}
 			continue
 		}
 		Ck(err)
