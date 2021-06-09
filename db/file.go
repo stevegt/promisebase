@@ -224,6 +224,8 @@ func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
 	file.Mode(READ)
 	err = file.ckopen()
 	Ck(err)
+
+	// add header length offset to n to get file seek position
 	hl := int64(len(file.header()))
 	var pos int64
 	switch whence {
@@ -239,11 +241,15 @@ func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
 	default:
 		Assert(false)
 	}
+
+	// do the seek
 	nout, err = file.fh.Seek(pos, whence)
 	Ck(err)
-	nout -= hl
 	// don't let callers seek backwards into header
 	Assert(nout >= 0)
+	// subtract the header length to get blob seek position
+	nout -= hl
+
 	return
 }
 
