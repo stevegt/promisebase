@@ -232,10 +232,7 @@ func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
 	case io.SeekStart:
 		pos = n + hl
 	case io.SeekCurrent:
-		tellpos, err := file.fh.Seek(0, io.SeekCurrent)
-		Ck(err)
-		pos = n + tellpos
-		whence = io.SeekStart
+		pos = n
 	case io.SeekEnd:
 		pos = n
 	default:

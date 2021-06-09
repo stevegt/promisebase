@@ -45,7 +45,10 @@ func TestBlob(t *testing.T) {
 	testSeek(t, b, -3, io.SeekEnd, 5, mkbuf("ata"))
 
 	// seek from current
-	testSeek(t, b, -1, io.SeekCurrent, 4, mkbuf("data"))
+	hl := int64(5) // "blob\n"
+	tellpos, err := b.fh.Seek(4+hl, io.SeekStart)
+	tassert(t, tellpos == 4+hl, "tellpos %v", tellpos)
+	testSeek(t, b, -1, io.SeekCurrent, 3, mkbuf("edata"))
 
 	// ensure we can't write to a read-only blob
 	_, err = b.Write(data)
