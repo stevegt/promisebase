@@ -227,20 +227,17 @@ func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
 
 	// add header length offset to n to get file seek position
 	hl := int64(len(file.header()))
-	var pos int64
 	switch whence {
 	case io.SeekStart:
-		pos = n + hl
+		n += hl
 	case io.SeekCurrent:
-		pos = n
 	case io.SeekEnd:
-		pos = n
 	default:
 		Assert(false)
 	}
 
 	// do the seek
-	nout, err = file.fh.Seek(pos, whence)
+	nout, err = file.fh.Seek(n, whence)
 	Ck(err)
 	// don't let callers seek backwards into header
 	Assert(nout >= 0)

@@ -253,16 +253,16 @@ func (tree *Tree) Seek(offset int64, whence int) (pos int64, err error) {
 		size, err := leaf.Size()
 		Ck(err)
 		// add up all leaf sizes until we pass pos
-		newtotal := total + size
-		if newtotal >= pos {
+		total += size
+		if total > pos {
 			// seek in last leaf
-			leafPos := pos - total
+			leafPos := pos - total + size
+			fmt.Printf("total: %v, pos: %v, leafPos: %v\n", total, pos, leafPos)
 			_, err := leaf.Seek(leafPos, io.SeekStart)
 			Ck(err)
 			tree.currentLeaf = int64(i)
 			break
 		}
-		total = newtotal
 	}
 
 	return
