@@ -219,25 +219,37 @@ func (file *WORM) Rewind() error {
 // to know that the file header exists at all -- these functions
 // operate on the file body data only.
 func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
+	defer Return(&err)
+
 	file.Mode(READ)
 	err = file.ckopen()
-	if err != nil {
-		return
-	}
+	Ck(err)
+
+	// add header length offset to n to get file seek position
 	hl := int64(len(file.header()))
 	var pos int64
 	switch whence {
-	case 0:
+	case io.SeekStart:
 		pos = n + hl
-	case 1:
-		pos = n
-	case 2:
+	case io.SeekCurrent:
+		tellpos, err := file.fh.Seek(0, io.SeekCurrent)
+		Ck(err)
+		pos = n + tellpos
+		whence = io.SeekStart
+	case io.SeekEnd:
 		pos = n
 	default:
 		Assert(false)
 	}
+
+	// do the seek
 	nout, err = file.fh.Seek(pos, whence)
+	Ck(err)
+	// don't let callers seek backwards into header
+	Assert(nout >= 0)
+	// subtract the header length to get blob seek position
 	nout -= hl
+
 	return
 }
 
