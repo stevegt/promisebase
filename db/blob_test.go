@@ -2,6 +2,7 @@ package pitbase
 
 import (
 	"bytes"
+	"io"
 	"testing"
 )
 
@@ -37,25 +38,14 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "Blob.Size() size %d err %v", size, err)
 	// fmt.Printf("object %s is %d bytes\n", b.Path.Canon, size)
 
-	// seek to a location
-	nseek, err := b.Seek(2, 0)
-	tassert(t, err == nil, "b.Seek err %v", err)
-	tassert(t, nseek == int64(2), "b.Seek expected %v, got %v", 2, nseek)
+	// seek from start
+	testSeek(t, b, 2, io.SeekStart, 2, mkbuf("medata"))
 
-	// check our current location
-	ntell, err := b.Tell()
-	tassert(t, err == nil, "b.Tell err %v", err)
-	tassert(t, ntell == 2, "b.Tell expected %v, got %v", 2, ntell)
+	// seek from end
+	testSeek(t, b, -3, io.SeekEnd, 5, mkbuf("ata"))
 
-	// read from that location
-	buf := make([]byte, 100)
-	nread, err := b.Read(buf)
-	// fmt.Printf("dsaf nread %#v buf %#v", nread, buf)
-	tassert(t, err == nil, "b.Read err %v", err)
-	tassert(t, nread == 6, "b.Read len expected %v, got %v", 6, nread)
-	expect := mkbuf("medata")
-	got := buf[:nread]
-	tassert(t, bytes.Compare(expect, got) == 0, "b.Read expected %v, got %v", expect, got)
+	// seek from current
+	testSeek(t, b, -1, io.SeekCurrent, 4, mkbuf("data"))
 
 	// ensure we can't write to a read-only blob
 	_, err = b.Write(data)
@@ -82,5 +72,28 @@ func TestBlob(t *testing.T) {
 
 	gotcanpath := b.Path.Canon
 	tassert(t, canpath == gotcanpath, "canpath '%v'", gotcanpath)
+
+}
+
+func testSeek(t *testing.T, b *Blob, seekpos int64, whence int, tellpos int64, expect []byte) {
+
+	// seek from whence
+	nseek, err := b.Seek(seekpos, whence)
+	tassert(t, err == nil, "Seek err %v, seekpos %v, whence %v", err, seekpos, whence)
+	tassert(t, nseek == tellpos, "expected nseek %v, got %v, whence %v", tellpos, nseek, whence)
+
+	// check our current location
+	ntell, err := b.Tell()
+	tassert(t, err == nil, "b.Tell err %v", err)
+	tassert(t, ntell == tellpos, "b.Tell expected %v, got %v", tellpos, ntell)
+
+	// read the rest of the buffer starting from that location
+	buf := make([]byte, 100)
+	nread, err := b.Read(buf)
+	// fmt.Printf("dsaf nread %#v buf %#v", nread, buf)
+	tassert(t, err == nil, "b.Read err %v", err)
+	tassert(t, nread == len(expect), "b.Read len expected %v, got %v", len(expect), nread)
+	got := buf[:nread]
+	tassert(t, bytes.Compare(expect, got) == 0, "b.Read expected %v, got %v", expect, got)
 
 }
