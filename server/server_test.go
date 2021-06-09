@@ -190,7 +190,6 @@ func TestServe(t *testing.T) {
 	tassert(t, err == nil, "%v", err)
 	conn.Close()
 
-	tassert(t, false, "implementation not finished")
 }
 
 func TestSocket(t *testing.T) {
@@ -361,42 +360,31 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	// output.  We do this using a Pipe() and Copy() pattern as in
 	// https://gist.github.com/stevegt/6d14dc97731b10b46bd79771d336a390
 	stdout, stdoutw := io.Pipe()
-	stderr, stderrw := io.Pipe()
 	go func() {
 		_, err = io.Copy(stdoutw, stdout)
-		_, err = io.Copy(stderrw, stderr)
 		stdoutw.Close()
+	}()
+	stderr, stderrw := io.Pipe()
+	go func() {
+		_, err = io.Copy(stderrw, stderr)
 		stderrw.Close()
 	}()
 
-	// XXX read stdout and stderr into buffers
-	// var outbuf, errbuf []byte
+	// read stdout and stderr into buffers
+	outbuf, err := ioutil.ReadAll(stdout)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, len(outbuf) == len(expect), "expect %v bytes read, got %v", len(expect), len(outbuf))
+	tassert(t, bytes.Compare([]byte(expect), outbuf) == 0, "expect %s, got %v", expect, string(outbuf))
+
+	// ensure stderr buf is empty
+	errbuf, err := ioutil.ReadAll(stderr)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, len(errbuf) == 0, "expect %v bytes read, got %v: %v", 0, readn, string(errbuf))
 
 	// XXX get rc Response
-
 	// XXX ensure rc is zero
 
-	// XXX compare stdout buf with expect
-
-	// XXX ensure stderr buf is empty
-
-	/*
-
-		XXX old code from the pre-msgpack version of this function --
-		mine this for e.g. outbuf and errbuf
-
-		outbuf := make([]byte, len(expect))
-		readn, err := stdoutr.Read(outbuf)
-		tassert(t, err == nil, "%v", err)
-		tassert(t, readn == len(expect), "expect %v bytes read, got %v", len(expect), readn)
-		tassert(t, bytes.Compare([]byte(expect), outbuf) == 0, "expect %s, got %v", expect, string(outbuf))
-
-		// XXX check stderr
-		_ = stderrr
-		// errbuf, err := ioutil.ReadAll(stderrr)
-		// tassert(t, err == nil, "%v", err)
-		// tassert(t, len(errbuf) == 0, "%v", string(errbuf))
-	*/
+	tassert(t, false, "implementation not finished")
 
 	return
 }
