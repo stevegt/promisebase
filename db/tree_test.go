@@ -215,7 +215,11 @@ func TestTreeSeek(t *testing.T) {
 		bufsize = minInt(bufsize, treesize-seekpos+1)
 		got := make([]byte, bufsize)
 		nread, err := tree.Read(got)
-		tassert(t, err == nil, "i: %v seek: %#v", i, err)
+		if err == io.EOF {
+			tassert(t, int64(nread)+seekpos == treesize, "nread: %v + seekpos: %v = %v, treesize: %v", nread, seekpos, int64(nread)+seekpos, treesize)
+		} else {
+			tassert(t, err == nil, "i: %v seek: %#v", i, err)
+		}
 		tassert(t, int64(nread) == bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v", treesize, seekpos, bufsize, nread)
 		tellpos, err := tree.Tell()
 		tassert(t, err == nil, "seek: %#v", err)
