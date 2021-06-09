@@ -225,15 +225,10 @@ func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
 	err = file.ckopen()
 	Ck(err)
 
-	// add header length offset to n to get file seek position
 	hl := int64(len(file.header()))
-	switch whence {
-	case io.SeekStart:
+	if whence == io.SeekStart {
+		// add header length offset to n to get file seek position
 		n += hl
-	case io.SeekCurrent:
-	case io.SeekEnd:
-	default:
-		Assert(false)
 	}
 
 	// do the seek
