@@ -202,6 +202,7 @@ func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 			Assert(n == 0)
 			log.Debugf("tree.Read() done with leaf %v/%v", tree.currentLeaf+1, len(leaves))
 			tree.currentLeaf++
+			_, err = leaves[tree.currentLeaf].Seek(0, io.SeekStart)
 			continue
 		}
 		Ck(err)
@@ -211,7 +212,7 @@ func (tree *Tree) Read(buf []byte) (bufpos int, err error) {
 		}
 	}
 	log.Debugf("returning %v/%v bytes read, err: %v", bufpos, len(buf), err)
-	log.Debugf("bytes in buf: %v", string(buf))
+	// log.Debugf("bytes in buf: %v", string(buf))
 	return
 }
 
