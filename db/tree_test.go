@@ -161,7 +161,7 @@ func TestTreeRead(t *testing.T) {
 		nread, err = tree2.Read(gotbuf[:1])
 		tassert(t, err == nil, "%#v", err)
 		tassert(t, nread == 1, "%v", nread)
-		tassert(t, gotbuf[0] == expect[i], "i: %v, got: %v", i, string(gotbuf[0]))
+		tassert(t, gotbuf[0] == expect[i], "i: %v, expect: %v, got: %v, gotbuf: %v", i, string(expect[i]), string(gotbuf[0]), string(gotbuf))
 		ntell, err = tree2.Tell()
 		tassert(t, err == nil, "%#v", err)
 		tassert(t, ntell == i+1, "%v", nseek)
