@@ -216,14 +216,14 @@ func TestTreeSeek(t *testing.T) {
 		got := make([]byte, bufsize)
 		nread, err := tree.Read(got)
 		if err == io.EOF {
-			tassert(t, int64(nread)+seekpos == treesize, "nread: %v + seekpos: %v = %v, treesize: %v", nread, seekpos, int64(nread)+seekpos, treesize)
+			tassert(t, int64(nread)+seekpos+1 == treesize, "nread: %v + seekpos: %v = %v, treesize: %v", nread, seekpos, int64(nread)+seekpos, treesize)
 		} else {
 			tassert(t, err == nil, "i: %v seek: %#v", i, err)
+			tassert(t, int64(nread) == bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v", treesize, seekpos, bufsize, nread)
 		}
-		tassert(t, int64(nread) == bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v", treesize, seekpos, bufsize, nread)
 		tellpos, err := tree.Tell()
 		tassert(t, err == nil, "seek: %#v", err)
-		tassert(t, tellpos == seekpos+bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v, tellpos: %v", treesize, seekpos, bufsize, nread, tellpos)
+		tassert(t, tellpos == seekpos+int64(nread), "i: %v,treesize: %v, seekpos: %v, nread: %v, tellpos: %v", i, treesize, seekpos, nread, tellpos)
 
 		// check the beginning of buf
 		expect := byte(seekpos % 256)

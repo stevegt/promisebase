@@ -308,6 +308,9 @@ func (tree *Tree) Tell() (total int64, err error) {
 		}
 		total += n
 	}
+	if tree.currentLeaf == int64(len(leaves)) {
+		return tree.Size()
+	}
 	err = errors.New("Tree.Tell() reached the end of Tree.Leaves() before encountering tree.currentLeaf")
 	return total, err
 }
