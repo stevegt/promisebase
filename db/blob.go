@@ -1,4 +1,4 @@
-package pitbase
+package db
 
 // . "github.com/stevegt/goadapt"
 

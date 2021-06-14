@@ -34,4 +34,4 @@ Vocabulary:
 
 */
 
-package pitbase
+package db

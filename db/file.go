@@ -1,4 +1,4 @@
-package pitbase
+package db
 
 import (
 	"crypto/sha256"

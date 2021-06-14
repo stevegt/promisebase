@@ -1,4 +1,4 @@
-package pitbase
+package db
 
 /*
 // PutTree creates a file that contains the given tree or object
