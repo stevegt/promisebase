@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/opencontainers/image-tools/image"
+	// "github.com/opencontainers/image-tools/image"
+	// "github.com/opencontainers/runtime-tools/generate"
+
 	"github.com/opencontainers/runtime-tools/generate"
 	pb "github.com/t7a/pitbase/db"
 
@@ -192,11 +194,12 @@ func (cntr *Container) createRootFsFromTree() (err error) {
 
 	path := pb.Path{}.New(cntr.pit.Db, cntr.Image)
 	tree, err := cntr.pit.Db.GetTree(path)
+	_ = tree
 
-	err = image.Unpack(tree, "rootfs", "", []string{})
-	Ck(err)
+	return fmt.Errorf("not implemented")
+	//err = image.Unpack(tree, "rootfs", "", []string{})
+	//Ck(err)
 
-	return
 }
 
 func (cntr *Container) start() (err error) {
