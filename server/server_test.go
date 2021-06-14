@@ -16,9 +16,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/stevegt/readercomp"
 	"github.com/vmihailenco/msgpack"
-
 	// . "github.com/stevegt/goadapt"
-	"github.com/alessio/shellescape"
 )
 
 const tmpPitPrefix = "pit"
@@ -168,6 +166,7 @@ func TestPipeFd(t *testing.T) {
 	tassert(t, copyerr == nil, "%#v", copyerr)
 }
 
+/*
 // XXX use this as a starter for pitd
 func TestServe(t *testing.T) {
 	pit := setup(t)
@@ -191,6 +190,7 @@ func TestServe(t *testing.T) {
 	conn.Close()
 
 }
+*/
 
 func TestSocket(t *testing.T) {
 	pit := setup(t)
@@ -325,6 +325,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	return
 }
 
+/*
 // XXX use this as a starter for `client`
 func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (err error) {
 
@@ -352,25 +353,26 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	fmt.Println("echoTestSocket receiving")
 	decoder := msgpack.NewDecoder(conn)
 
-	// get stdio descriptors
+	// get Response
 	err = decoder.Decode(&res)
 	tassert(t, err == nil, "%v", err)
+
 	// because we get io.Writers from Response, we need to convert
 	// those to io.Readers so we can read from them and check the
 	// output.  We do this using a Pipe() and Copy() pattern as in
 	// https://gist.github.com/stevegt/6d14dc97731b10b46bd79771d336a390
 	stdout, stdoutw := io.Pipe()
 	go func() {
-		_, err = io.Copy(stdoutw, stdout)
+		_, err = io.Copy(stdoutw, res.Stdout)
 		stdoutw.Close()
 	}()
 	stderr, stderrw := io.Pipe()
 	go func() {
-		_, err = io.Copy(stderrw, stderr)
+		_, err = io.Copy(stderrw, res.Stderr)
 		stderrw.Close()
 	}()
 
-	// read stdout and stderr into buffers
+	// check stdout
 	outbuf, err := ioutil.ReadAll(stdout)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, len(outbuf) == len(expect), "expect %v bytes read, got %v", len(expect), len(outbuf))
@@ -379,15 +381,18 @@ func echoTestSocket(t *testing.T, conn io.ReadWriteCloser, img, expect string) (
 	// ensure stderr buf is empty
 	errbuf, err := ioutil.ReadAll(stderr)
 	tassert(t, err == nil, "%v", err)
-	tassert(t, len(errbuf) == 0, "expect %v bytes read, got %v: %v", 0, readn, string(errbuf))
+	tassert(t, len(errbuf) == 0, "expect %v bytes read, got %v: %v", 0, len(errbuf), string(errbuf))
 
-	// XXX get rc Response
-	// XXX ensure rc is zero
+	// check state
+	// XXX possible race
+	tassert(t, res.State == DONE, "state %v", res.State)
 
-	tassert(t, false, "implementation not finished")
+	// ensure rc is zero
+	tassert(t, res.Rc == 0, "rc %v", res.Rc)
 
 	return
 }
+*/
 
 func TestImageSave(t *testing.T) {
 	pit := setup(t)

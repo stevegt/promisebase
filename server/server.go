@@ -286,6 +286,7 @@ func (req *Request) Compare(b *Request) (ok bool) {
 	return true
 }
 
+// Response.State
 const (
 	RUNNING = iota
 	DONE
@@ -295,7 +296,7 @@ type Response struct {
 	Stdout io.Writer
 	Stderr io.Writer
 	Rc     int
-	Status int
+	State  int // see constants above
 }
 
 // PipeFd takes an io.Reader and returns the read end of a UNIX
