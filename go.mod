@@ -14,6 +14,7 @@ require (
 	github.com/google/renameio v1.0.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/hanwen/go-fuse/v2 v2.1.0
 	github.com/hlubek/readercomp v0.0.0-20210106164045-ffcdb292b4e8
 	github.com/moby/term v0.0.0-20210610120745-9d4ed1856297 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
