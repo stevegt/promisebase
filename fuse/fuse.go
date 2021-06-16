@@ -1,16 +1,63 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+	log "github.com/sirupsen/logrus"
 	. "github.com/stevegt/goadapt"
 	"github.com/t7a/pitbase/db"
 	pb "github.com/t7a/pitbase/db"
 )
+
+// XXX init(), caller(), and GetGID() are copies of the same from
+// pitbase.go and all should be moved to a common lib
+func init() {
+	var debug string
+	debug = os.Getenv("DEBUG")
+	if debug == "1" {
+		log.SetLevel(log.DebugLevel)
+	}
+	log.SetReportCaller(true)
+	formatter := &log.TextFormatter{
+		CallerPrettyfier: caller(),
+		FieldMap: log.FieldMap{
+			log.FieldKeyFile: "caller",
+		},
+	}
+	formatter.TimestampFormat = "15:04:05.999999999"
+	log.SetFormatter(formatter)
+}
+
+// caller returns string presentation of log caller which is formatted as
+// `/path/to/file.go:line_number`. e.g. `/internal/app/api.go:25`
+// https://stackoverflow.com/questions/63658002/is-it-possible-to-wrap-logrus-logger-functions-without-losing-the-line-number-pr
+func caller() func(*runtime.Frame) (function string, file string) {
+	return func(f *runtime.Frame) (function string, file string) {
+		p, _ := os.Getwd()
+		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, GetGID())
+	}
+}
+
+// GetGID returns the goroutine ID of its calling function, for logging purposes.
+func GetGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
 
 type HelloRoot struct {
 	fs.Inode
@@ -143,19 +190,67 @@ func (n *contentNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, ui
 	return fh, fuse.FOPEN_KEEP_CACHE, fs.OK
 }
 
-/*
+var _ = (fs.NodeGetattrer)((*contentNode)(nil))
+
+func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+
+	out.Mode = 0644
+
+	db := n.db
+	tree, err := db.GetTree(n.path)
+	if err != nil {
+		log.Errorf("gattr tree error: %#v", err)
+		return syscall.EIO
+	}
+	// XXX change size fields to uint64 everywhere
+	size, err := tree.Size()
+	out.Size = uint64(size)
+	if err != nil {
+		log.Errorf("size error: %#v", err)
+		return syscall.EIO
+	}
+	log.Errorf("lkdsafj: %#v %d", tree, size)
+	return 0
+}
+
 var _ = (fs.FileReader)((*contentNode)(nil))
 
-func (fh *contentNode) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
+func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (fuse.ReadResult, syscall.Errno) {
+	tree := fh.tree
+
+	/*
+		size , err := tree.Size()
+		if err != nil {
+			// XXX log
+			return nil, syscall.EIO
+		}
+		end := int(off) + len(dest)
+		end = math.Min(end, size)
+	*/
 
 	// seek
+	_, err := tree.Seek(offset, io.SeekStart)
+	if err != nil {
+		log.Errorf("seek error: %#v", err)
+		return nil, syscall.EIO
+	}
 
 	// read
+	nread, err := tree.Read(buf)
+	if err == io.EOF {
+		if nread == 0 {
+			// XXX is this the right way to report EOF?
+			return nil, 0
+			// return fuse.ReadResultData(buf[:0]), 0
+		}
+	} else if err != nil {
+		log.Errorf("read error: %#v", err)
+		return nil, syscall.EIO
+	}
 
-	// return
-	return fuse.ReadResult(XXX), 0
+	// XXX use ReadResultFd for zero-copy
+	return fuse.ReadResultData(buf[:nread]), 0
 }
-*/
 
 // server
 
