@@ -74,16 +74,12 @@ var _ = (fs.NodeLookuper)((*algoNode)(nil))
 
 func (n *algoNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 
-	db := n.db
-	path := pb.Path{}.New(db, filepath.Join("tree", n.algo, name))
-	tree, err := db.GetTree(path)
-	if err != nil {
-		return nil, syscall.ENOENT
-	}
-
-	operations := &treeNode{tree: tree}
-	stable := fs.StableAttr{Mode: fuse.S_IFDIR}
-	child := n.NewInode(ctx, operations, stable)
+	path := pb.Path{}.New(n.db, filepath.Join("tree", n.algo, name))
+	child := n.NewInode(
+		ctx,
+		&treeNode{db: n.db, path: path},
+		fs.StableAttr{Mode: fuse.S_IFDIR},
+	)
 
 	return child, 0
 }
@@ -92,27 +88,74 @@ func (n *algoNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 
 type treeNode struct {
 	fs.Inode
-	tree *pb.Tree
+	db   *pb.Db
+	path *db.Path
 }
 
 var _ = (fs.NodeOnAdder)((*treeNode)(nil))
 
 func (n *treeNode) OnAdd(ctx context.Context) {
-	content := &contentNode{tree: n.tree}
-	stable := fs.StableAttr{Mode: fuse.S_IFREG}
-	child := n.NewInode(ctx, content, stable)
-	n.AddChild("content", child, false)
+	content := n.NewInode(
+		ctx,
+		&contentNode{db: n.db, path: n.path},
+		fs.StableAttr{Mode: fuse.S_IFREG},
+	)
+	n.AddChild("content", content, false)
 }
 
 // content
 
 type contentNode struct {
 	fs.Inode
-	tree    *pb.Tree
-	seekPos int64
+	db   *pb.Db
+	path *db.Path
+	tree *pb.Tree
 }
 
-// var _ = (fs.NodeOpener)((*contentNode)(nil))
+var _ = (fs.NodeOpener)((*contentNode)(nil))
+
+func (n *contentNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, uint32, syscall.Errno) {
+
+	// disallow writes
+	if flags&(syscall.O_RDWR|syscall.O_WRONLY) != 0 {
+		return nil, 0, syscall.EROFS
+	}
+
+	db := n.db
+	tree, err := db.GetTree(n.path)
+	if err != nil {
+		// "Object is remote" if we don't find it in our local db
+		// XXX return EFAULT if address format is bad
+		// XXX have GetTree always return syscall.Errno
+		return nil, 0, syscall.EREMOTE
+	}
+
+	// make a copy so tree.currentLeaf is unique
+	// XXX is this actually needed?
+	// XXX what about seek position within leaf file?
+	fh := &contentNode{
+		db:   n.db,
+		path: n.path,
+		tree: tree,
+	}
+
+	// The file content is immutable, so ask the kernel to cache the data.
+	return fh, fuse.FOPEN_KEEP_CACHE, fs.OK
+}
+
+/*
+var _ = (fs.FileReader)((*contentNode)(nil))
+
+func (fh *contentNode) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
+
+	// seek
+
+	// read
+
+	// return
+	return fuse.ReadResult(XXX), 0
+}
+*/
 
 // server
 
