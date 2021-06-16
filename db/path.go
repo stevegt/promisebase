@@ -22,7 +22,9 @@ type Path struct {
 	Label string // stream label
 }
 
-func (path Path) New(db *Db, raw string) (res *Path) {
+func (path Path) New(db *Db, raw string) (res *Path, err error) {
+	defer Return(&err)
+
 	path.Db = db
 	path.Raw = raw
 
@@ -63,7 +65,9 @@ func (path Path) New(db *Db, raw string) (res *Path) {
 		// the way git truncates the leading subdir parts of the hash).
 		var subpath string
 		for i := 0; i < path.Db.Depth; i++ {
-			subdir := path.Hash[(3 * i):((3 * i) + 3)]
+			end := (3 * i) + 3
+			ErrnoIf(len(path.Hash) < end, syscall.EINVAL, "malformed path: %s", raw)
+			subdir := path.Hash[(3 * i):end]
 			subpath = filepath.Join(subpath, subdir)
 		}
 		path.Rel = filepath.Join(path.Class, path.Algo, subpath, path.Hash)
@@ -73,7 +77,7 @@ func (path Path) New(db *Db, raw string) (res *Path) {
 		path.Addr = filepath.Join(path.Algo, path.Hash)
 	}
 
-	return &path
+	return &path, nil
 }
 
 func (path *Path) header() string {

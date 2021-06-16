@@ -245,7 +245,10 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := Path{}.New(db, "tree/sha256/22695d451d4f8383546f8cc3d3c93b78c4827f508ad682c620d02a78e58a3ab3")
+	path, err := Path{}.New(db, "tree/sha256/22695d451d4f8383546f8cc3d3c93b78c4827f508ad682c620d02a78e58a3ab3")
+	if err != nil {
+		t.Fatal(err)
+	}
 	tree, err := db.GetTree(path)
 	if err != nil {
 		t.Fatal(err)

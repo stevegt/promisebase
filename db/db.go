@@ -249,7 +249,8 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	if err != nil {
 		return
 	}
-	treepath := Path{}.New(db, treeabspath)
+	treepath, err := Path{}.New(db, treeabspath)
+	Ck(err)
 	log.Debugf("treeabspath %#v treepath %#v", treeabspath, treepath)
 	rootnode, err := db.GetTree(treepath)
 	if err != nil {

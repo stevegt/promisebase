@@ -294,7 +294,8 @@ func getBlob(canpath string, wr io.Writer) (err error) {
 	defer Return(&err)
 	db, err := opendb()
 	Ck(err)
-	path := pb.Path{}.New(db, canpath)
+	path, err := pb.Path{}.New(db, canpath)
+	Ck(err)
 	// XXX from here on down is the same as in putBlob and should be
 	// moved to a common ioBlob(dst, src) (err error) {} function
 	file, err := pb.OpenWORM(db, path)
@@ -334,7 +335,10 @@ func putTree(algo string, canpaths []string) (tree *pb.Tree, err error) {
 	}
 	var children []pb.Object
 	for _, canpath := range canpaths {
-		path := pb.Path{}.New(db, canpath)
+		path, err := pb.Path{}.New(db, canpath)
+		if err != nil {
+			return nil, err
+		}
 		child, err := db.ObjectFromPath(path)
 		if err != nil {
 			return nil, err
@@ -353,7 +357,10 @@ func getTree(canpath string) (tree *pb.Tree, err error) {
 	if err != nil {
 		return
 	}
-	path := pb.Path{}.New(db, canpath)
+	path, err := pb.Path{}.New(db, canpath)
+	if err != nil {
+		return
+	}
 	tree, err = db.GetTree(path)
 	if err != nil {
 		return
@@ -368,7 +375,10 @@ func linkStream(canpath, name string) (stream *pb.Stream, err error) {
 	if err != nil {
 		return
 	}
-	path := pb.Path{}.New(db, canpath)
+	path, err := pb.Path{}.New(db, canpath)
+	if err != nil {
+		return
+	}
 	tree, err := db.GetTree(path)
 	if err != nil {
 		return
@@ -418,7 +428,8 @@ func catTree(canpath string) (tree *pb.Tree, err error) {
 	if err != nil {
 		return
 	}
-	path := pb.Path{}.New(db, canpath)
+	path, err := pb.Path{}.New(db, canpath)
+	Ck(err)
 	tree, err = db.GetTree(path)
 	Ck(err)
 	return
@@ -450,7 +461,10 @@ func canon2abs(canpath string) (abspath string, err error) {
 	if err != nil {
 		return
 	}
-	path := pb.Path{}.New(db, canpath)
+	path, err := pb.Path{}.New(db, canpath)
+	if err != nil {
+		return
+	}
 	return path.Abs, nil
 }
 
@@ -459,7 +473,10 @@ func abs2canon(abspath string) (canpath string, err error) {
 	if err != nil {
 		return
 	}
-	path := pb.Path{}.New(db, abspath)
+	path, err := pb.Path{}.New(db, abspath)
+	if err != nil {
+		return
+	}
 	return path.Canon, nil
 }
 
@@ -488,7 +505,10 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 	// fmt.Printf("algo!! %s\n", algo)
 
 	// prepend "tree/" to interpreter addr
-	interpreterPath := pb.Path{}.New(db, "tree/"+interpreterAddr)
+	interpreterPath, err := pb.Path{}.New(db, "tree/"+interpreterAddr)
+	if err != nil {
+		return
+	}
 
 	// rewind script file
 	_, err = file.Seek(0, 0)

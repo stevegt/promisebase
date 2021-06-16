@@ -131,7 +131,8 @@ func (file *WORM) Close() (err error) {
 		Assert(file.Path.Class != "")
 		Assert(file.Path.Algo != "")
 		canpath := fmt.Sprintf("%s/%s/%s", file.Path.Class, file.Path.Algo, hexhash)
-		file.Path = Path{}.New(file.Db, canpath)
+		file.Path, err = Path{}.New(file.Db, canpath)
+		Ck(err)
 
 		// make sure subdirs exist
 		dir, _ := filepath.Split(file.Path.Abs)

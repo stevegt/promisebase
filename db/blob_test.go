@@ -27,7 +27,8 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "b.Close() err %v", err)
 
 	// re-open readable
-	path := Path{}.New(db, canpath)
+	path, err := Path{}.New(db, canpath)
+	tassert(t, err == nil, "File.New err %v", err)
 	file, err = OpenWORM(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
 	b = Blob{}.New(db, file)

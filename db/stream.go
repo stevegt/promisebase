@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/renameio"
+	. "github.com/stevegt/goadapt"
 )
 
 // Stream is an ordered set of bytes of arbitrary (but not infinite)
@@ -26,7 +27,9 @@ func (stream Stream) New(db *Db, label string, rootnode *Tree) *Stream {
 	stream.Label = label
 	stream.RootNode = rootnode
 	linkrelpath := filepath.Join("stream", label)
-	stream.Path = Path{}.New(db, linkrelpath)
+	path, err := Path{}.New(db, linkrelpath)
+	Ck(err)
+	stream.Path = path
 	return &stream
 }
 

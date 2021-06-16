@@ -192,8 +192,10 @@ func (cntr *Container) createRootFsFromTree() (err error) {
 	err = os.MkdirAll("rootfs", 0755)
 	Ck(err)
 
-	path := pb.Path{}.New(cntr.pit.Db, cntr.Image)
+	path, err := pb.Path{}.New(cntr.pit.Db, cntr.Image)
+	Ck(err)
 	tree, err := cntr.pit.Db.GetTree(path)
+	Ck(err)
 	_ = tree
 
 	return fmt.Errorf("not implemented")

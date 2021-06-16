@@ -81,7 +81,8 @@ func pathFromBuf(db *Db, class string, algo string, buf []byte) (path *Path, err
 		return
 	}
 	hash := bin2hex(binhash)
-	path = Path{}.New(db, filepath.Join(class, algo, hash))
+	path, err = Path{}.New(db, filepath.Join(class, algo, hash))
+	Ck(err)
 	return
 }
 
