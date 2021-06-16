@@ -1,4 +1,4 @@
-package main
+package fuse
 
 import (
 	"bytes"
@@ -119,10 +119,13 @@ type algoNode struct {
 
 var _ = (fs.NodeLookuper)((*algoNode)(nil))
 
-func (n *algoNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+func (n *algoNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (child *fs.Inode, errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
 
-	path := pb.Path{}.New(n.db, filepath.Join("tree", n.algo, name))
-	child := n.NewInode(
+	raw := filepath.Join("tree", n.algo, name)
+	path, err := pb.Path{}.New(n.db, raw)
+	Ck(err)
+	child = n.NewInode(
 		ctx,
 		&treeNode{db: n.db, path: path},
 		fs.StableAttr{Mode: fuse.S_IFDIR},
@@ -199,8 +202,8 @@ func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.A
 	db := n.db
 	tree, err := db.GetTree(n.path)
 	if err != nil {
-		log.Errorf("gattr tree error: %#v", err)
-		return syscall.EIO
+		// log.Errorf("gattr tree error: %#v", err)
+		return syscall.EREMOTE
 	}
 	// XXX change size fields to uint64 everywhere
 	size, err := tree.Size()
@@ -209,7 +212,7 @@ func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.A
 		log.Errorf("size error: %#v", err)
 		return syscall.EIO
 	}
-	log.Errorf("lkdsafj: %#v %d", tree, size)
+	// log.Errorf("lkdsafj: %#v %d", tree, size)
 	return 0
 }
 
@@ -257,10 +260,41 @@ func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (fuse
 func Serve(db *db.Db, mnt string) (server *fuse.Server, err error) {
 	defer Return(&err)
 	opts := &fs.Options{}
+	// be verbose
 	opts.Debug = true
+	// start inode numbers at 2^16
 	opts.FirstAutomaticIno = 1 << 16
 	server, err = fs.Mount(mnt, &fsRoot{db: db}, opts)
 	Ck(err)
-	// server.Wait()
+	server.WaitMount()
 	return
+}
+
+/*
+func safePath(db *pb.Db, raw string) (path *pb.Path, errno syscall.Errno) {
+	defer unpanic(&errno)
+	path, err = pb.Path{}.New(db, raw)
+	return
+}
+*/
+
+func msglog(msg string) {
+	log.Errorf("unpanic: %v", msg)
+}
+
+func XXXunpanic(errno *syscall.Errno) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	switch concrete := r.(type) {
+	case *syscall.Errno:
+		*errno = *concrete
+		return
+	default:
+		*errno = syscall.EIO
+		// _, file, line, _ := runtime.Caller(3)
+		// log.Errorf("unpanic: %s:%d %#v", file, line, concrete)
+		log.Errorf("unpanic: %#v", concrete)
+	}
 }

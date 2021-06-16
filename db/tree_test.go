@@ -54,7 +54,11 @@ func TestTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
-	tassert(t, tree.Txt() == gottree.Txt(), "tree %v mismatch: expect %v got %v", tree.Path.Abs, tree.Txt(), gottree.Txt())
+	expecttxt, err := tree.Txt()
+	tassert(t, err == nil, "%#v", err)
+	gottxt, err := gottree.Txt()
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, expecttxt == gottxt, "tree %v mismatch: expect %v got %v", tree.Path.Abs, expecttxt, gottxt)
 
 }
 
@@ -253,7 +257,11 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, child := range tree.Entries() {
+	entries, err := tree.Entries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, child := range entries {
 		switch i {
 		case 0:
 			expect := "tree/sha256/606/1c8/6061c8eb4f00c1039c0922f1cfb73233b7353b371227fd0a5cd380104ba58a7b"

@@ -70,7 +70,9 @@ func (file *WORM) ckopen() (err error) {
 	if file.IsOpen() {
 		return
 	}
-	switch file.Mode() {
+	mode, err := file.Mode()
+	Ck(err)
+	switch mode {
 	case WRITE:
 		// open temporary file
 		file.fh, err = file.Db.tmpFile()
@@ -105,7 +107,9 @@ func (file *WORM) ckopen() (err error) {
 
 func (file *WORM) Close() (err error) {
 	defer Return(&err)
-	switch file.Mode() {
+	mode, err := file.Mode()
+	Ck(err)
+	switch mode {
 	case NEW, READ:
 		if file.fh == nil {
 			return
@@ -160,7 +164,8 @@ func (file *WORM) IsOpen() (ok bool) {
 	return err == nil
 }
 
-func (file *WORM) Mode(newmode ...os.FileMode) (oldmode os.FileMode) {
+func (file *WORM) Mode(newmode ...os.FileMode) (oldmode os.FileMode, err error) {
+	defer Return(&err)
 	Assert(len(newmode) < 2)
 	oldmode = file._mode
 	if len(newmode) > 0 {
@@ -265,8 +270,11 @@ func (file *WORM) Tell() (n int64, err error) {
 // file.Path.Abs.  Large blobs can be written using multiple Write()
 // calls.  Supports the io.Writer interface.
 func (file *WORM) Write(data []byte) (n int, err error) {
+	defer Return(&err)
 
-	if file.Mode() == READ {
+	mode, err := file.Mode()
+	Ck(err)
+	if mode == READ {
 		err = fmt.Errorf("cannot write to existing object: %s", file.Path.Abs)
 		return
 	}

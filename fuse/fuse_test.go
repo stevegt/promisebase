@@ -1,4 +1,4 @@
-package main
+package fuse
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/stevegt/goadapt"
 	pb "github.com/t7a/pitbase/db"
@@ -130,9 +129,9 @@ func TestTreeFuse(t *testing.T) {
 	expect := []byte("blob1valueblob2valueblob3value")
 
 	// XXX debug
-	if true {
+	if false {
 		info := `
-		While developing pitbase/fuse, we're pausing here so we can play around 
+		While developing pitbase/fuse, we're pausing here so you can play around 
 		in the filesystem.  Run 'fusermount -u %s' to exit.
 
 
@@ -146,15 +145,9 @@ func TestTreeFuse(t *testing.T) {
 		tassert(t, false, "debug")
 	}
 
-	// XXX find a better way to wait
-	time.Sleep(time.Second)
-
-	fn := filepath.Join(mnt, "sha256", tree2.Addr)
+	fn := filepath.Join(mnt, tree2.Addr, "content")
 	got, err := ioutil.ReadFile(fn)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, bytes.Compare(expect, got) == 0, "expect %s, got %v", string(expect), string(got))
-
-	// XXX find a better way to wait
-	time.Sleep(time.Second)
 
 }

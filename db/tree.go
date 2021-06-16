@@ -35,14 +35,13 @@ func (tree *Tree) CurrentLeaf() Object {
 }
 */
 
-func (tree *Tree) Entries() []Object {
+func (tree *Tree) Entries() (entries []Object, err error) {
+	defer Return(&err)
 	if len(tree._entries) == 0 {
 		err := tree.loadEntries()
-		// we might panic here
-		// it's up to callers to recover() if they want to continue operation
 		Ck(err)
 	}
-	return tree._entries
+	return tree._entries, nil
 }
 
 // AppendBlob puts a blob in the database, appends it to the node's
@@ -115,15 +114,15 @@ func (tree *Tree) Leaves() (leaves []Object, err error) {
 // the resulting stream object.
 // XXX do we need this?  creating the stream with rootnode == nil is risky
 func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
-	stream = Stream{}.New(tree.Db, label, tree)
+	defer Return(&err)
+	stream, err = Stream{}.New(tree.Db, label, tree)
+	Ck(err)
 	src := filepath.Join("..", tree.Path.Rel)
 	// XXX sanitize label
 	linkabspath := filepath.Join(tree.Db.Dir, "stream", label)
 	log.Debugf("linkabspath %#v", linkabspath)
 	err = renameio.Symlink(src, linkabspath)
-	if err != nil {
-		return
-	}
+	Ck(err)
 	return
 }
 
@@ -293,6 +292,7 @@ func (tree *Tree) Size() (total int64, err error) {
 
 // Tell returns the current seek position in the tree.
 func (tree *Tree) Tell() (total int64, err error) {
+	defer Return(&err)
 	var n int64
 	leaves, err := tree.Leaves()
 	Ck(err)
@@ -317,8 +317,11 @@ func (tree *Tree) Tell() (total int64, err error) {
 }
 
 // Txt returns the concatenated tree entries
-func (tree *Tree) Txt() (out string) {
-	for _, entry := range tree.Entries() {
+func (tree *Tree) Txt() (out string, err error) {
+	defer Return(&err)
+	entries, err := tree.Entries()
+	Ck(err)
+	for _, entry := range entries {
 		out += strings.TrimSpace(entry.GetPath().Canon) + "\n"
 	}
 	return
@@ -373,7 +376,9 @@ func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	}
 
 	log.Debugf("traverse tree %#v", tree)
-	for _, obj := range tree.Entries() {
+	entries, err := tree.Entries()
+	Ck(err)
+	for _, obj := range entries {
 		log.Debugf("traverse obj %#v", obj)
 		switch child := obj.(type) {
 		case *Tree:

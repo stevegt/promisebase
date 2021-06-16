@@ -164,7 +164,9 @@ Options:
 	case opts.Gettree:
 		tree, err := getTree(opts.Canpath)
 		Ck(err)
-		fmt.Println(tree.Txt())
+		txt, err := tree.Txt()
+		Ck(err)
+		fmt.Println(txt)
 	case opts.Linkstream:
 		stream, err := linkStream(opts.Canpath, opts.Name)
 		Ck(err)
@@ -353,18 +355,13 @@ func putTree(algo string, canpaths []string) (tree *pb.Tree, err error) {
 }
 
 func getTree(canpath string) (tree *pb.Tree, err error) {
+	defer Return(&err)
 	db, err := opendb()
-	if err != nil {
-		return
-	}
+	Ck(err)
 	path, err := pb.Path{}.New(db, canpath)
-	if err != nil {
-		return
-	}
+	Ck(err)
 	tree, err = db.GetTree(path)
-	if err != nil {
-		return
-	}
+	Ck(err)
 	return
 }
 

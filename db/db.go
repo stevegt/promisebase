@@ -243,6 +243,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 // until we hit a Read() or Write().
 // XXX likewise for MkBlob and MkTree
 func (db *Db) OpenStream(label string) (stream *Stream, err error) {
+	defer Return(&err)
 	// XXX sanitize label
 	linkabspath := filepath.Join(db.Dir, "stream", label)
 	treeabspath, err := filepath.EvalSymlinks(linkabspath)
@@ -260,7 +261,8 @@ func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 		panic("rootnode is nil")
 	}
 	log.Debugf("OpenStream rootnode %#v", rootnode)
-	stream = Stream{}.New(db, label, rootnode)
+	stream, err = Stream{}.New(db, label, rootnode)
+	Ck(err)
 	return
 }
 
@@ -282,7 +284,9 @@ func (db *Db) PutTree(algo string, children ...Object) (tree *Tree, err error) {
 
 	// concatenate entry paths together
 	// XXX refactor for streaming
-	buf := []byte(tree.Txt())
+	txt, err := tree.Txt()
+	Ck(err)
+	buf := []byte(txt)
 
 	var n int
 	n, err = tree.Write(buf)

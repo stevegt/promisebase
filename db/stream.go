@@ -22,7 +22,8 @@ type Stream struct {
 	// chunker     *Rabin
 }
 
-func (stream Stream) New(db *Db, label string, rootnode *Tree) *Stream {
+func (stream Stream) New(db *Db, label string, rootnode *Tree) (out *Stream, err error) {
+	defer Return(&err)
 	stream.Db = db
 	stream.Label = label
 	stream.RootNode = rootnode
@@ -30,13 +31,14 @@ func (stream Stream) New(db *Db, label string, rootnode *Tree) *Stream {
 	path, err := Path{}.New(db, linkrelpath)
 	Ck(err)
 	stream.Path = path
-	return &stream
+	return &stream, nil
 }
 
 // AppendBlob puts a blob in the database, appends it to the Merkle
 // tree as a new leaf node, and then rewrites the stream label's symlink
 // to point at the new tree root.
 func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, err error) {
+	defer Return(&err)
 	oldrootnode := stream.RootNode
 	newrootnode, err := oldrootnode.AppendBlob(algo, buf)
 	if err != nil {
@@ -50,7 +52,8 @@ func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, er
 	if err != nil {
 		return
 	}
-	newstream = Stream{}.New(stream.Db, stream.Label, newrootnode)
+	newstream, err = Stream{}.New(stream.Db, stream.Label, newrootnode)
+	Ck(err)
 	return
 
 }
