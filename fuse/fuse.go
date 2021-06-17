@@ -164,7 +164,8 @@ type contentNode struct {
 
 var _ = (fs.NodeOpener)((*contentNode)(nil))
 
-func (n *contentNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, uint32, syscall.Errno) {
+func (n *contentNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, outflags uint32, errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
 
 	// disallow writes
 	if flags&(syscall.O_RDWR|syscall.O_WRONLY) != 0 {
@@ -176,14 +177,13 @@ func (n *contentNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, ui
 	if err != nil {
 		// "Object is remote" if we don't find it in our local db
 		// XXX return EFAULT if address format is bad
-		// XXX have GetTree always return syscall.Errno
 		return nil, 0, syscall.EREMOTE
 	}
 
 	// make a copy so tree.currentLeaf is unique
 	// XXX is this actually needed?
 	// XXX what about seek position within leaf file?
-	fh := &contentNode{
+	fh = &contentNode{
 		db:   n.db,
 		path: n.path,
 		tree: tree,
@@ -195,7 +195,8 @@ func (n *contentNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, ui
 
 var _ = (fs.NodeGetattrer)((*contentNode)(nil))
 
-func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) (errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
 
 	out.Mode = 0644
 
@@ -218,18 +219,10 @@ func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.A
 
 var _ = (fs.FileReader)((*contentNode)(nil))
 
-func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (fuse.ReadResult, syscall.Errno) {
-	tree := fh.tree
+func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (res fuse.ReadResult, errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
 
-	/*
-		size , err := tree.Size()
-		if err != nil {
-			// XXX log
-			return nil, syscall.EIO
-		}
-		end := int(off) + len(dest)
-		end = math.Min(end, size)
-	*/
+	tree := fh.tree
 
 	// seek
 	_, err := tree.Seek(offset, io.SeekStart)
@@ -270,31 +263,6 @@ func Serve(db *db.Db, mnt string) (server *fuse.Server, err error) {
 	return
 }
 
-/*
-func safePath(db *pb.Db, raw string) (path *pb.Path, errno syscall.Errno) {
-	defer unpanic(&errno)
-	path, err = pb.Path{}.New(db, raw)
-	return
-}
-*/
-
 func msglog(msg string) {
 	log.Errorf("unpanic: %v", msg)
-}
-
-func XXXunpanic(errno *syscall.Errno) {
-	r := recover()
-	if r == nil {
-		return
-	}
-	switch concrete := r.(type) {
-	case *syscall.Errno:
-		*errno = *concrete
-		return
-	default:
-		*errno = syscall.EIO
-		// _, file, line, _ := runtime.Caller(3)
-		// log.Errorf("unpanic: %s:%d %#v", file, line, concrete)
-		log.Errorf("unpanic: %#v", concrete)
-	}
 }
