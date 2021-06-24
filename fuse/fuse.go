@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -104,7 +105,15 @@ var _ = (fs.NodeOnAdder)((*fsRoot)(nil))
 func (root *fsRoot) OnAdd(ctx context.Context) {
 	// XXX get valid algos from db
 	for _, algo := range []string{"sha256", "sha512"} {
-		node := root.NewPersistentInode(ctx, &algoNode{db: root.db, algo: algo}, fs.StableAttr{Mode: syscall.S_IFDIR})
+		node := root.NewPersistentInode(ctx,
+			&algoNode{
+				db:   root.db,
+				algo: algo,
+			},
+			fs.StableAttr{
+				Mode: syscall.S_IFDIR,
+			},
+		)
 		root.AddChild(algo, node, false)
 	}
 }
@@ -199,6 +208,7 @@ func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.A
 	defer Unpanic(&errno, msglog)
 
 	out.Mode = 0644
+	out.Mtime = uint64(time.Now().Unix())
 
 	db := n.db
 	tree, err := db.GetTree(n.path)
