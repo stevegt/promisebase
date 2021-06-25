@@ -1,3 +1,5 @@
+# DB
+
 x add rabin, PutStream and PutFile test cases
 x add PutFile code 
     x start with World.AppendBlock()
@@ -72,6 +74,9 @@ x write pb run:
 
 x track down source of the multiple closes on file handles
     x figure out why we can't uncomment tree.go:178
+
+# Daemon
+
 x figure out API for other language libs 
     x filesystem?  UDS?  both?  
 x figure out how a container sends messages
@@ -117,28 +122,28 @@ x migrate to containerd
             x this looks like the best option
         x can we safely use the docker containerd?
             x let's avoid that due to possible conflicts
+
 - write pitd as a fuse server; gets rid of need for all of these things:
-        XXX refactor server to provide a pit.Serve function
-        XXX call listener function from pitd
-        XXX write client library
-            XXX contacts pitd through unix domain socket
-        XXX get pitmain.ct to pass
-            XXX `pit` is the cmdline utility providing an API for shell scripts
-        XXX rework server to use msgpack for wire protocol
-            XXX ~/core/u/gdo/msgpack/unix-domain-sockets
-        XXX POC pit libraries in other languages
-            XXX bash
-            XXX python
-            XXX C++
-        XXX RFC -- UDS protocol
-        XXX add daemon() to pb 
-            XXX run daemon with `pb daemon`, 
-        XXX move or copy pb runContainer into daemon
-            XXX run the container in a goroutine with stdio via channels
-        XXX client/broker/member talks to daemon via unix domain socket, stream mode
+        - NO refactor server to provide a pit.Serve function
+        - NO call listener function from pitd
+        - NO write client library
+            - NO contacts pitd through unix domain socket
+        - NO get pitmain.ct to pass
+            - NO `pit` is the cmdline utility providing an API for shell scripts
+        - NO rework server to use msgpack for wire protocol
+            - NO ~/core/u/gdo/msgpack/unix-domain-sockets
+        - NO POC pit libraries in other languages
+            - NO bash
+            - NO python
+            - NO C++
+        - NO RFC -- UDS protocol
+        - NO add daemon() to pb 
+            - NO run daemon with `pb daemon`, 
+        - NO move or copy pb runContainer into daemon
+            - NO run the container in a goroutine with stdio via channels
+        - NO client/broker/member talks to daemon via unix domain socket, stream mode
 - investigate stargz and the general idea of a FUSE driver for a
-  container's live rootfs
-  (beyond just tree/stream service)
+  container's live rootfs (beyond just tree/stream service)
     - https://github.com/containerd/stargz-snapshotter/blob/master/docs/overview.md
 - spike network layer
 - containerize tests and prod
