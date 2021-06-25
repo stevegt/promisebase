@@ -117,33 +117,35 @@ x migrate to containerd
             x this looks like the best option
         x can we safely use the docker containerd?
             x let's avoid that due to possible conflicts
-- rework server to use msgpack for wire protocol
-    - ~/core/u/gdo/msgpack/unix-domain-sockets
+- write pitd as a fuse server; gets rid of need for all of these things:
+        XXX refactor server to provide a pit.Serve function
+        XXX call listener function from pitd
+        XXX write client library
+            XXX contacts pitd through unix domain socket
+        XXX get pitmain.ct to pass
+            XXX `pit` is the cmdline utility providing an API for shell scripts
+        XXX rework server to use msgpack for wire protocol
+            XXX ~/core/u/gdo/msgpack/unix-domain-sockets
+        XXX POC pit libraries in other languages
+            XXX bash
+            XXX python
+            XXX C++
+        XXX RFC -- UDS protocol
+        XXX add daemon() to pb 
+            XXX run daemon with `pb daemon`, 
+        XXX move or copy pb runContainer into daemon
+            XXX run the container in a goroutine with stdio via channels
+        XXX client/broker/member talks to daemon via unix domain socket, stream mode
+- investigate stargz and the general idea of a FUSE driver for a
+  container's live rootfs
+  (beyond just tree/stream service)
+    - https://github.com/containerd/stargz-snapshotter/blob/master/docs/overview.md
+- spike network layer
 - containerize tests and prod
     x this will also help provide a linux VM for Matt
     x write a Dockerfile 
     x base on nerdctl?
     - have `make test` spawn container?
-- write pitd
-    - refactor server to provide a pit.Serve function
-    - call listener function from pitd
-- write client library
-    - contacts pitd through unix domain socket
-- get pitmain.ct to pass
-    - `pit` is the cmdline utility providing an API for shell scripts
-- investigate stargz and the general idea of a FUSE driver for rootfs
-    - https://github.com/containerd/stargz-snapshotter/blob/master/docs/overview.md
-- POC pit libraries in other languages
-    - bash
-    - python
-    - C++
-- spike network layer
-	- add daemon() to pb 
-		- run daemon with `pb daemon`, 
-	- move or copy pb runContainer into daemon
-		- run the container in a goroutine with stdio via channels
-    - client/broker/member talks to daemon via unix domain socket, stream mode
-- RFC -- UDS protocol
 - write some test cases where we change the working directory
     - should help make macOS work
 - move rfcs to:
