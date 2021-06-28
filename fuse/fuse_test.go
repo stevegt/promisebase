@@ -128,7 +128,7 @@ func TestTreeFuse(t *testing.T) {
 
 	expect := []byte("blob1valueblob2valueblob3value")
 
-	// XXX debug
+	// debug
 	if false {
 		info := `
 		While developing pitbase/fuse, we're pausing here so you can play around 
@@ -142,10 +142,35 @@ func TestTreeFuse(t *testing.T) {
 		fmt.Printf(info, mnt, mnt, mnt, tree2.Addr)
 		// Wait until unmount before exiting
 		server.Wait()
-		tassert(t, false, "debug")
+		return
 	}
 
 	fn := filepath.Join(mnt, tree2.Addr, "content")
+	got, err := ioutil.ReadFile(fn)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, bytes.Compare(expect, got) == 0, "expect %s, got %v", string(expect), string(got))
+
+}
+
+func TestWrite(t *testing.T) {
+	db, mnt := setup(t, nil)
+
+	server, err := Serve(db, mnt)
+	tassert(t, err == nil, "%#v", err)
+	defer server.Unmount()
+
+	expect := []byte("blob1valueblob2valueblob3value")
+	addr := "sha256/da0e74aa2d64168df0321877dd98a0e0c1f8b8f02a6f54211995623f518dd7f4"
+
+	// when we write the contents of `expect` to ./tag/test1/sha256,
+	// that creates a tree, writes the data to it, and makes a symlink
+	// at ./tag/test1 pointing at the path in `addr`/content
+
+	newfn := filepath.Join(mnt, "tag", "test1", "sha256")
+	err = ioutil.WriteFile(newfn, expect, 0644)
+	tassert(t, err == nil, "%#v", err)
+
+	fn := filepath.Join(mnt, addr, "content")
 	got, err := ioutil.ReadFile(fn)
 	tassert(t, err == nil, "%#v", err)
 	tassert(t, bytes.Compare(expect, got) == 0, "expect %s, got %v", string(expect), string(got))
