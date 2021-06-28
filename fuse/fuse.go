@@ -60,8 +60,26 @@ func GetGID() uint64 {
 	return n
 }
 
-type HelloRoot struct {
+type DirNode struct {
 	fs.Inode
+}
+
+// XXX add README in each dir
+
+func (r *DirNode) Readdir(ctx context.Context) (stream fs.DirStream, errno syscall.Errno) {
+	entries := []fuse.DirEntry{
+		{Mode: syscall.S_IFDIR, Name: "."},
+		{Mode: syscall.S_IFDIR, Name: ".."},
+	}
+	for name, child := range r.Children() {
+		entry := fuse.DirEntry{Mode: child.Mode(), Name: name}
+		entries = append(entries, entry)
+	}
+	return fs.NewListDirStream(entries), 0
+}
+
+type HelloRoot struct {
+	DirNode
 }
 
 func (r *HelloRoot) OnAdd(ctx context.Context) {
@@ -96,7 +114,7 @@ func hello(dir string) (server *fuse.Server, err error) {
 // root
 
 type fsRoot struct {
-	fs.Inode
+	DirNode
 	db *pb.Db
 }
 
@@ -121,7 +139,7 @@ func (root *fsRoot) OnAdd(ctx context.Context) {
 // algo
 
 type algoNode struct {
-	fs.Inode
+	DirNode
 	db   *pb.Db
 	algo string
 }
@@ -146,7 +164,7 @@ func (n *algoNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 // tree
 
 type treeNode struct {
-	fs.Inode
+	DirNode
 	db   *pb.Db
 	path *db.Path
 }
