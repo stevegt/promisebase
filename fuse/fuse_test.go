@@ -129,7 +129,7 @@ func TestTreeFuse(t *testing.T) {
 	expect := []byte("blob1valueblob2valueblob3value")
 
 	// debug
-	if false {
+	if true {
 		info := `
 		While developing pitbase/fuse, we're pausing here so you can play around 
 		in the filesystem.  Run 'fusermount -u %s' to exit.
@@ -162,11 +162,13 @@ func TestWrite(t *testing.T) {
 	expect := []byte("blob1valueblob2valueblob3value")
 	addr := "sha256/da0e74aa2d64168df0321877dd98a0e0c1f8b8f02a6f54211995623f518dd7f4"
 
+	// XXX try this later
 	// when we write the contents of `expect` to ./tag/test1/sha256,
 	// that creates a tree, writes the data to it, and makes a symlink
 	// at ./tag/test1 pointing at the path in `addr`/content
 
-	newfn := filepath.Join(mnt, "tag", "test1", "sha256")
+	// newfn := filepath.Join(mnt, "tag", "test1", "sha256")
+	newfn := filepath.Join(mnt, "new")
 	err = ioutil.WriteFile(newfn, expect, 0644)
 	tassert(t, err == nil, "%#v", err)
 

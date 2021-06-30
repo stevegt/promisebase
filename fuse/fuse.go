@@ -136,6 +136,17 @@ func (root *fsRoot) OnAdd(ctx context.Context) {
 	}
 }
 
+func (n *fsRoot) Create(ctx context.Context, name string, flags uint32, mode uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+	fmt.Println("something")
+	content := n.NewInode(
+		ctx,
+		&contentNode{db: n.db},
+		fs.StableAttr{Mode: fuse.S_IFREG},
+	)
+	n.AddChild(name, content, false)
+	return content, content, 0, 0
+}
+
 // algo
 
 type algoNode struct {
@@ -246,6 +257,21 @@ func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.A
 }
 
 var _ = (fs.FileReader)((*contentNode)(nil))
+var _ = (fs.FileWriter)((*contentNode)(nil))
+
+func (fh *contentNode) Write(ctx context.Context, data []byte, off int64) (written uint32, errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
+	if fh.path != nil {
+		return 0, syscall.EEXIST
+	}
+	blob, err := fh.db.PutBlob("sha256", data)
+	Ck(err)
+	fh.tree, err = fh.db.PutTree("sha256", blob)
+	Ck(err)
+	fmt.Println(fh.tree.Path.Addr)
+	return uint32(len(data)), 0
+
+}
 
 func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (res fuse.ReadResult, errno syscall.Errno) {
 	defer Unpanic(&errno, msglog)
