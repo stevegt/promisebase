@@ -121,6 +121,8 @@ type fsRoot struct {
 var _ = (fs.NodeOnAdder)((*fsRoot)(nil))
 
 func (root *fsRoot) OnAdd(ctx context.Context) {
+
+	// add algo dirs
 	// XXX get valid algos from db
 	for _, algo := range []string{"sha256", "sha512"} {
 		node := root.NewPersistentInode(ctx,
@@ -134,6 +136,18 @@ func (root *fsRoot) OnAdd(ctx context.Context) {
 		)
 		root.AddChild(algo, node, false)
 	}
+
+	// add tag dir
+	node := root.NewPersistentInode(ctx,
+		&tagDirNode{
+			db: root.db,
+		},
+		fs.StableAttr{
+			Mode: syscall.S_IFDIR,
+		},
+	)
+	root.AddChild("tag", node, false)
+
 }
 
 // algo
@@ -275,6 +289,64 @@ func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (res 
 	// XXX use ReadResultFd for zero-copy
 	return fuse.ReadResultData(buf[:nread]), 0
 }
+
+// tag dir
+
+type tagDirNode struct {
+	DirNode
+	db *pb.Db
+}
+
+func (n *tagDirNode) Listxattr(ctx context.Context, dest []byte) (nout uint32, errno syscall.Errno) {
+	copy(dest, []byte("user.foo\x00"))
+	nout = 9
+	return
+}
+
+func (n *tagDirNode) Getxattr(ctx context.Context, attr string, dest []byte) (nout uint32, errno syscall.Errno) {
+
+	copy(dest, []byte("bar"))
+	nout = 3
+
+	return
+}
+
+/*
+var _ = (fs.NodeLookuper)((*tagDirNode)(nil))
+
+func (n *tagDirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (child *fs.Inode, errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
+
+	child = n.NewInode(
+		ctx,
+		&tagNode{db: n.db, name: name},
+		fs.StableAttr{Mode: fuse.S_IFDIR},
+	)
+
+	return child, 0
+}
+
+// tag
+
+type tagNode struct {
+	DirNode
+	db *pb.Db
+}
+
+var _ = (fs.NodeLookuper)((*tagDirNode)(nil))
+
+func (n *tagNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (child *fs.Inode, errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
+
+	child = n.NewInode(
+		ctx,
+		&tagAlgoNode{db: n.db, algo: name},
+		fs.StableAttr{Mode: fuse.S_IFDIR},
+	)
+
+	return child, 0
+}
+*/
 
 // server
 
