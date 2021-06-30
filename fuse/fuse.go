@@ -137,28 +137,37 @@ func (root *fsRoot) OnAdd(ctx context.Context) {
 		root.AddChild(algo, node, false)
 	}
 
-	// add tag dir
-	node := root.NewPersistentInode(ctx,
-		&tagDirNode{
-			db: root.db,
-		},
-		fs.StableAttr{
-			Mode: syscall.S_IFDIR,
-		},
-	)
-	root.AddChild("tag", node, false)
+	/*
+		// add tag dir
+		node := root.NewPersistentInode(ctx,
+			&tagDirNode{
+				db: root.db,
+			},
+			fs.StableAttr{
+				Mode: syscall.S_IFDIR,
+			},
+		)
+		root.AddChild("tag", node, false)
+	*/
 
+	/*
+		newnode := root.NewInode(
+			ctx,
+			&newNode{db: root.db},
+			fs.StableAttr{Mode: fuse.S_IFREG},
+		)
+		root.AddChild("new", newnode, false)
+	*/
 }
 
 func (n *fsRoot) Create(ctx context.Context, name string, flags uint32, mode uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
 	fmt.Println("something")
-	content := n.NewInode(
+	newnode := n.NewInode(
 		ctx,
-		&contentNode{db: n.db},
+		&newNode{db: n.db},
 		fs.StableAttr{Mode: fuse.S_IFREG},
 	)
-	n.AddChild(name, content, false)
-	return content, content, 0, 0
+	return newnode, newnode, 0, 0
 }
 
 // algo
@@ -271,21 +280,6 @@ func (n *contentNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.A
 }
 
 var _ = (fs.FileReader)((*contentNode)(nil))
-var _ = (fs.FileWriter)((*contentNode)(nil))
-
-func (fh *contentNode) Write(ctx context.Context, data []byte, off int64) (written uint32, errno syscall.Errno) {
-	defer Unpanic(&errno, msglog)
-	if fh.path != nil {
-		return 0, syscall.EEXIST
-	}
-	blob, err := fh.db.PutBlob("sha256", data)
-	Ck(err)
-	fh.tree, err = fh.db.PutTree("sha256", blob)
-	Ck(err)
-	fmt.Println(fh.tree.Path.Addr)
-	return uint32(len(data)), 0
-
-}
 
 func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (res fuse.ReadResult, errno syscall.Errno) {
 	defer Unpanic(&errno, msglog)
@@ -316,6 +310,7 @@ func (fh *contentNode) Read(ctx context.Context, buf []byte, offset int64) (res 
 	return fuse.ReadResultData(buf[:nread]), 0
 }
 
+/*
 // tag dir
 
 type tagDirNode struct {
@@ -337,7 +332,6 @@ func (n *tagDirNode) Getxattr(ctx context.Context, attr string, dest []byte) (no
 	return
 }
 
-/*
 var _ = (fs.NodeLookuper)((*tagDirNode)(nil))
 
 func (n *tagDirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (child *fs.Inode, errno syscall.Errno) {
@@ -373,6 +367,31 @@ func (n *tagNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 	return child, 0
 }
 */
+
+// new node
+
+type newNode struct {
+	fs.Inode
+	db   *pb.Db
+	path *db.Path
+	tree *pb.Tree
+}
+
+var _ = (fs.FileWriter)((*newNode)(nil))
+
+func (fh *newNode) Write(ctx context.Context, data []byte, off int64) (written uint32, errno syscall.Errno) {
+	defer Unpanic(&errno, msglog)
+	if fh.path != nil {
+		return 0, syscall.EEXIST
+	}
+	blob, err := fh.db.PutBlob("sha256", data)
+	Ck(err)
+	fh.tree, err = fh.db.PutTree("sha256", blob)
+	Ck(err)
+	fmt.Println(fh.tree.Path.Addr)
+	return uint32(len(data)), 0
+
+}
 
 // server
 
