@@ -123,6 +123,27 @@ x migrate to containerd
         x can we safely use the docker containerd?
             x let's avoid that due to possible conflicts
 
+- refactor to support fuse:
+    - add function to create a new tree
+        - this is probably already there in PutStream
+            - but we need it to return an io.Writer
+            - and it probably should be renamed to PutTree
+            - but it still isn't going to deal with the offset arg
+              passed in to fuse FileWriter.Write()
+    - rename Blob to Chunk? 
+        - probably Leaf
+    - rename Tree to Blob?  
+        - probably no
+    - add a directory structure object
+        - hopefully-thin layer on top of Tree
+          - updating mode bits or inserting a directory entry probably
+            intersects with however we handle the offset arg of FileWriter.Write()
+        - this is where file and directory names are associated with
+          tree root nodes
+        - call it Index?  
+        - Forest?
+    - deprecate Stream
+
 - write pitd as a fuse server; gets rid of need for all of these things:
         - NO refactor server to provide a pit.Serve function
         - NO call listener function from pitd
