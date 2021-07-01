@@ -150,25 +150,26 @@ func (root *fsRoot) OnAdd(ctx context.Context) {
 		root.AddChild("tag", node, false)
 	*/
 
-	/*
-		newnode := root.NewInode(
-			ctx,
-			&newNode{db: root.db},
-			fs.StableAttr{Mode: fuse.S_IFREG},
-		)
-		root.AddChild("new", newnode, false)
-	*/
+	newnode := root.NewInode(
+		ctx,
+		&newNode{db: root.db},
+		fs.StableAttr{Mode: fuse.S_IFREG},
+	)
+	root.AddChild("new", newnode, false)
 }
 
+/*
 func (n *fsRoot) Create(ctx context.Context, name string, flags uint32, mode uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	fmt.Println("something")
 	newnode := n.NewInode(
 		ctx,
 		&newNode{db: n.db},
 		fs.StableAttr{Mode: fuse.S_IFREG},
 	)
-	return newnode, newnode, 0, 0
+	return newnode, 0, 0, 0
 }
+*/
+
+// var _ = (fs.NodeLookuper)((*fsRoot)(nil))
 
 // algo
 
@@ -368,7 +369,7 @@ func (n *tagNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (
 }
 */
 
-// new node
+// "new" node
 
 type newNode struct {
 	fs.Inode
@@ -381,6 +382,7 @@ var _ = (fs.FileWriter)((*newNode)(nil))
 
 func (fh *newNode) Write(ctx context.Context, data []byte, off int64) (written uint32, errno syscall.Errno) {
 	defer Unpanic(&errno, msglog)
+	fmt.Println("Write called")
 	if fh.path != nil {
 		return 0, syscall.EEXIST
 	}
@@ -391,6 +393,19 @@ func (fh *newNode) Write(ctx context.Context, data []byte, off int64) (written u
 	fmt.Println(fh.tree.Path.Addr)
 	return uint32(len(data)), 0
 
+}
+
+var _ = (fs.NodeOpener)((*newNode)(nil))
+
+func (fh *newNode) Open(ctx context.Context, flags uint32) (outfh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+	return fh, 0, 0
+}
+
+var _ = (fs.NodeSetattrer)((*newNode)(nil))
+
+func (fh *newNode) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
+	fmt.Printf("%#v\n", in)
+	return 0
 }
 
 // server
