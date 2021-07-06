@@ -161,7 +161,7 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 func TestGetGID(t *testing.T) {
 	n := GetGID()
 	if n == 0 {
-		t.Fatalf("oh no n is 0")
+		t.Fatalf("goroutine id 0 (this should never happen but is here for coverage)")
 	}
 }
 
