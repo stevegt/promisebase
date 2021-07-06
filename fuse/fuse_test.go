@@ -129,7 +129,7 @@ func TestTreeFuse(t *testing.T) {
 	expect := []byte("blob1valueblob2valueblob3value")
 
 	// debug
-	if true {
+	if false {
 		info := `
 		While developing pitbase/fuse, we're pausing here so you can play around 
 		in the filesystem.  Run 'fusermount -u %s' to exit.
@@ -160,7 +160,7 @@ func TestWrite(t *testing.T) {
 	defer server.Unmount()
 
 	expect := []byte("blob1valueblob2valueblob3value")
-	addr := "sha256/da0e74aa2d64168df0321877dd98a0e0c1f8b8f02a6f54211995623f518dd7f4"
+	addr := "sha256/15fc6a46a2719f85be2c1415c7d7e953d2603c8eb123f82500e98f6fc44e926b"
 
 	// XXX try this later
 	// when we write the contents of `expect` to ./tag/test1/sha256,
