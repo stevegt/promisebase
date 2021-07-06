@@ -83,7 +83,7 @@ func (file *WORM) ckopen() (err error) {
 		Ck(err)
 		Assert(n == len(header))
 		// add header to hash data to help keep us from accidentally
-		// writing a cyrtographic hash reverser
+		// writing a cryptographic hash reverser
 		n, err = file.hash.Write(header)
 		Ck(err)
 		Assert(n == len(header))
