@@ -22,6 +22,7 @@ const (
 	WRITE = 0644
 )
 
+// WORM - Write Once Read Many
 type WORM struct {
 	Db *Db
 	*Path
@@ -161,6 +162,7 @@ func (file *WORM) IsOpen() (ok bool) {
 		return false
 	}
 	_, err := file.fh.Seek(0, io.SeekCurrent)
+	// XXX double check this logic
 	return err == nil
 }
 

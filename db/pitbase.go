@@ -53,13 +53,10 @@ func canstat(path string) bool {
 	if err == nil {
 		return true
 	}
-	if os.IsNotExist(err) {
-		return false
-	}
 	return false
 }
 
-func exists(path string) (found bool) {
+func exists(path string) bool {
 	_, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return false
@@ -87,8 +84,7 @@ func GetGID() uint64 {
 
 // Hash returns the hash of a blob using a given algorithm
 // XXX rework to support streaming
-func Hash(algo string, buf []byte) (hash []byte, err error) {
-	var binhash []byte
+func Hash(algo string, buf []byte) (binhash []byte, err error) {
 	switch algo {
 	case "sha256":
 		d := sha256.Sum256(buf)
