@@ -161,8 +161,8 @@ func (file *WORM) IsOpen() (ok bool) {
 	if file.fh == nil {
 		return false
 	}
+	// we use Seek(0, io.SeekCurrent) to see if the file is open. If the file is not opened, Seek() will fail
 	_, err := file.fh.Seek(0, io.SeekCurrent)
-	// XXX double check this logic
 	return err == nil
 }
 
