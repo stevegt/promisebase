@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestBlob(t *testing.T) {
+func TestBlock(t *testing.T) {
 	db := setup(t, nil)
 
 	hash := "d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
@@ -16,7 +16,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, err == nil, "File.New err %v", err)
 	b := Block{}.New(db, file)
 
-	// put something in the blob
+	// put something in the block
 	data := mkbuf("somedata")
 	nwrite, err := b.Write(data)
 	tassert(t, err == nil, "b.Write err %v", err)
@@ -32,11 +32,11 @@ func TestBlob(t *testing.T) {
 	file, err = OpenWorm(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
 	b = Block{}.New(db, file)
-	tassert(t, err == nil, "OpenBlob err %v", err)
+	tassert(t, err == nil, "OpenBlock err %v", err)
 
 	// check size
 	size, err := b.Size()
-	tassert(t, err == nil, "Blob.Size() size %d err %v", size, err)
+	tassert(t, err == nil, "Block.Size() size %d err %v", size, err)
 	// fmt.Printf("object %s is %d bytes\n", b.Path.Canon, size)
 
 	// seek from start
@@ -51,7 +51,7 @@ func TestBlob(t *testing.T) {
 	tassert(t, tellpos == 4+hl, "tellpos %v", tellpos)
 	testSeek(t, b, -1, io.SeekCurrent, 3, mkbuf("edata"))
 
-	// ensure we can't write to a read-only blob
+	// ensure we can't write to a read-only block
 	_, err = b.Write(data)
 	tassert(t, err != nil, "b.Write to a read-only file should throw error")
 
