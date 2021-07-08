@@ -60,11 +60,11 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 	class := path.Class
 	switch class {
 	case "blob":
-		file, err := OpenWORM(db, path)
+		file, err := OpenWorm(db, path)
 		Ck(err)
 		return Blob{}.New(db, file), nil
 	case "tree":
-		file, err := OpenWORM(db, path)
+		file, err := OpenWorm(db, path)
 		Ck(err)
 		return Tree{}.New(db, file), nil
 	default:
@@ -142,7 +142,7 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 
 // GetBlob retrieves an entire blob into buf by reading its file contents.
 func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
-	file, err := OpenWORM(db, path)
+	file, err := OpenWorm(db, path)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (db *Db) Rm(path *Path) (err error) {
 // XXX needs to accept label arg
 func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Tree, err error) {
 	// set chunker parameters
-	chunker, err := Rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
+	chunker, err := rabin{Poly: db.Poly, MinSize: db.MinSize, MaxSize: db.MaxSize}.Init()
 	if err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
 
 	Assert(db != nil, "db is nil")
 
-	file, err := CreateWORM(db, "blob", algo)
+	file, err := CreateWorm(db, "blob", algo)
 	Ck(err)
 	b = Blob{}.New(db, file)
 
@@ -274,7 +274,7 @@ func (db *Db) PutTree(algo string, children ...Object) (tree *Tree, err error) {
 
 	Assert(db != nil, "db is nil")
 
-	file, err := CreateWORM(db, "tree", algo)
+	file, err := CreateWorm(db, "tree", algo)
 	Ck(err)
 	tree = Tree{}.New(db, file)
 
@@ -308,7 +308,7 @@ func (db *Db) GetTree(path *Path) (tree *Tree, err error) {
 func (db *Db) getTree(path *Path, verify bool) (tree *Tree, err error) {
 	defer Return(&err)
 
-	file, err := OpenWORM(db, path)
+	file, err := OpenWorm(db, path)
 	Ck(err)
 	defer file.Close()
 

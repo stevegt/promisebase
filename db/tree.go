@@ -16,13 +16,13 @@ import (
 // Tree is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Tree struct {
 	Db *Db
-	*WORM
+	*worm
 	_entries    []Object
 	_leaves     []Object
 	currentLeaf int64
 }
 
-func (tree Tree) New(db *Db, file *WORM) *Tree {
+func (tree Tree) New(db *Db, file *worm) *Tree {
 	tree.Db = db
 	tree.WORM = file
 	return &tree
@@ -366,7 +366,7 @@ func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
 	if tree.WORM == nil {
-		file, err := OpenWORM(tree.Db, tree.Path)
+		file, err := OpenWorm(tree.Db, tree.Path)
 		Ck(err)
 		tree.WORM = file
 	}
