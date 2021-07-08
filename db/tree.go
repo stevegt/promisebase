@@ -16,15 +16,15 @@ import (
 // Tree is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Tree struct {
 	Db *Db
-	*WORM
+	*worm
 	_entries    []Object
 	_leaves     []Object
 	currentLeaf int64
 }
 
-func (tree Tree) New(db *Db, file *WORM) *Tree {
+func (tree Tree) New(db *Db, file *worm) *Tree {
 	tree.Db = db
-	tree.WORM = file
+	tree.worm = file
 	return &tree
 }
 
@@ -54,7 +54,7 @@ func (tree *Tree) AppendBlock(algo string, buf []byte) (newrootnode *Tree, err e
 	oldrootnode := tree
 
 	// put block
-	block, err := tree.Db.PutBlock(algo, buf)
+	block, err := tree.Db.PutBlob(algo, buf)
 
 	// put tree for new root of merkle tree
 	newrootnode, err = tree.Db.PutTree(algo, oldrootnode, block)
@@ -129,12 +129,12 @@ func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
 func (tree *Tree) loadEntries() (err error) {
 	defer Return(&err)
 
-	Assert(tree.WORM != nil)
-	Assert(tree.WORM.Path != nil)
-	if tree.WORM.Path.Abs == "" {
+	Assert(tree.worm != nil)
+	Assert(tree.worm.Path != nil)
+	if tree.worm.Path.Abs == "" {
 		return
 	}
-	file := tree.WORM
+	file := tree.worm
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -365,10 +365,10 @@ func (tree *Tree) Verify() (ok bool, err error) {
 func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
-	if tree.WORM == nil {
-		file, err := OpenWORM(tree.Db, tree.Path)
+	if tree.worm == nil {
+		file, err := OpenWorm(tree.Db, tree.Path)
 		Ck(err)
-		tree.WORM = file
+		tree.worm = file
 	}
 
 	if all {
@@ -387,7 +387,7 @@ func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 				return nil, err
 			}
 			objects = append(objects, childobjs...)
-		case *Blob:
+		case *Block:
 			objects = append(objects, obj)
 		default:
 			panic(fmt.Sprintf("unhandled type %T", child))

@@ -145,7 +145,7 @@ func TestTreeStream(t *testing.T) {
 	*/
 	// append
 	blob4 := mkbuf("blob4value")
-	stream1, err = stream1.AppendBlob("sha256", blob4)
+	stream1, err = stream1.AppendBlock("sha256", blob4)
 	if err != nil {
 		t.Fatal(err)
 	}
