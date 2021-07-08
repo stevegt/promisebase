@@ -342,11 +342,11 @@ func dbdir() (dir string, err error) {
 }
 
 /*
-func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
+func putBlock(algo string, rd io.Reader) (block *pb.Block, err error) {
 	return
 }
 
-func getBlob(canpath string, wr io.Writer) (err error) {
+func getBlock(canpath string, wr io.Writer) (err error) {
 	return
 }
 
