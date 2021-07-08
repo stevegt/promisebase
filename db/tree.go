@@ -337,7 +337,7 @@ func (tree *Tree) Verify() (ok bool, err error) {
 	Ck(err)
 	for _, obj := range objects {
 		switch child := obj.(type) {
-		case *Blob:
+		case *Block:
 			// XXX add a verify flag to GetBlob and do this there
 			path := child.Path
 			content, err := child.Db.GetBlob(path)
@@ -387,7 +387,7 @@ func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 				return nil, err
 			}
 			objects = append(objects, childobjs...)
-		case *Blob:
+		case *Block:
 			objects = append(objects, obj)
 		default:
 			panic(fmt.Sprintf("unhandled type %T", child))

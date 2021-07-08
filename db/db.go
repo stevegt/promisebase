@@ -62,7 +62,7 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 	case "blob":
 		file, err := OpenWorm(db, path)
 		Ck(err)
-		return Blob{}.New(db, file), nil
+		return Block{}.New(db, file), nil
 	case "tree":
 		file, err := OpenWorm(db, path)
 		Ck(err)
@@ -218,14 +218,14 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Tree, err error) {
 
 // PutBlob hashes the blob, stores the blob in a file named after the hash,
 // and returns the blob object.
-func (db *Db) PutBlob(algo string, buf []byte) (b *Blob, err error) {
+func (db *Db) PutBlob(algo string, buf []byte) (b *Block, err error) {
 	defer Return(&err)
 
 	Assert(db != nil, "db is nil")
 
 	file, err := CreateWorm(db, "blob", algo)
 	Ck(err)
-	b = Blob{}.New(db, file)
+	b = Block{}.New(db, file)
 
 	var n int
 	n, err = b.Write(buf)

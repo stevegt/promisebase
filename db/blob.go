@@ -2,16 +2,16 @@ package db
 
 // . "github.com/stevegt/goadapt"
 
-type Blob struct {
+type Block struct {
 	Db *Db
 	*worm
 }
 
-func (blob *Blob) GetPath() *Path {
+func (blob *Block) GetPath() *Path {
 	return blob.Path
 }
 
-func (blob Blob) New(db *Db, file *worm) *Blob {
+func (blob Block) New(db *Db, file *worm) *Block {
 	blob.Db = db
 	blob.worm = file
 	return &blob
