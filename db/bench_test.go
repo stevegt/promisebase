@@ -7,7 +7,7 @@ import (
 
 var benchSize int
 
-func Benchmark0PutBlob(b *testing.B) {
+func Benchmark0PutBlock(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
@@ -28,7 +28,7 @@ func Benchmark1Sync(b *testing.B) {
 	// time.Sleep(10 * time.Second)
 }
 
-func Benchmark2GetBlob(b *testing.B) {
+func Benchmark2GetBlock(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
@@ -47,7 +47,7 @@ func Benchmark2GetBlob(b *testing.B) {
 	}
 }
 
-func XXXBenchmarkPutBlobSame(b *testing.B) {
+func XXXBenchmarkPutBlockSame(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
@@ -62,18 +62,18 @@ func XXXBenchmarkPutBlobSame(b *testing.B) {
 	}
 }
 
-func BenchmarkPutGetBlob(b *testing.B) {
+func BenchmarkPutGetBlock(b *testing.B) {
 	db, err := Open("/tmp/bench/")
 	if err != nil {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
 		val := mkbuf(asString(n))
-		blob, err := db.PutBlock("sha256", val)
+		block, err := db.PutBlock("sha256", val)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = db.GetBlock(blob.Path)
+		_, err = db.GetBlock(block.Path)
 		if err != nil {
 			//	fmt.Printf("n: %d\n", n)
 			b.Fatal(err)
