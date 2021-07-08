@@ -70,30 +70,30 @@ func TestTreeStream(t *testing.T) {
 
 	// setup
 	buf1 := mkbuf("blob1value")
-	blob1, err := db.PutBlock("sha256", buf1)
+	block1, err := db.PutBlock("sha256", buf1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buf2 := mkbuf("blob2value")
-	blob2, err := db.PutBlock("sha256", buf2)
+	block2, err := db.PutBlock("sha256", buf2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buf3 := mkbuf("blob3value")
-	blob3, err := db.PutBlock("sha256", buf3)
+	block3, err := db.PutBlock("sha256", buf3)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// put
-	tree1, err := db.PutTree("sha256", blob1, blob2)
+	tree1, err := db.PutTree("sha256", block1, block2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if tree1 == nil {
 		t.Fatal("tree1 is nil")
 	}
-	tree2, err := db.PutTree("sha256", tree1, blob3)
+	tree2, err := db.PutTree("sha256", tree1, block3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,8 +144,8 @@ func TestTreeStream(t *testing.T) {
 		tassert(t, bytes.Compare(expectbuf, gotbuf) == 0, "expected %v got %v", string(expectbuf), string(gotbuf))
 	*/
 	// append
-	blob4 := mkbuf("blob4value")
-	stream1, err = stream1.AppendBlock("sha256", blob4)
+	block4 := mkbuf("blob4value")
+	stream1, err = stream1.AppendBlock("sha256", block4)
 	if err != nil {
 		t.Fatal(err)
 	}
