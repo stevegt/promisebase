@@ -47,7 +47,7 @@ func genstream(t *testing.T, size int) (stream *testStream) {
 func TestChunker(t *testing.T) {
 	// setup
 	// polynomial was randomly generated from a call to chunker.Init()
-	chunker, err := Rabin{Poly: 0x25d92e975e1aa3}.Init()
+	chunker, err := rabin{Poly: 0x25d92e975e1aa3}.Init()
 	tassert(t, err == nil, "%v", err)
 	// fmt.Printf("%T %#v\n", chunker.Poly, chunker.Poly)
 	tassert(t, chunker.Poly > 0, "polynomial is %v", chunker.Poly)

@@ -22,7 +22,8 @@ const (
 	WRITE = 0644
 )
 
-type WORM struct {
+// worm - Write Once Read Many
+type worm struct {
 	Db *Db
 	*Path
 	_mode os.FileMode
@@ -30,9 +31,9 @@ type WORM struct {
 	hash  hash.Hash
 }
 
-func CreateWORM(db *Db, class string, algo string) (file *WORM, err error) {
+func CreateWorm(db *Db, class string, algo string) (file *worm, err error) {
 	defer Return(&err)
-	file = &WORM{}
+	file = &worm{}
 	file.Db = db
 	// we don't call Path.New() here 'cause we don't want it to
 	// try to parse the empty Raw field
@@ -52,9 +53,9 @@ func CreateWORM(db *Db, class string, algo string) (file *WORM, err error) {
 	return
 }
 
-func OpenWORM(db *Db, path *Path) (file *WORM, err error) {
+func OpenWorm(db *Db, path *Path) (file *worm, err error) {
 	defer Return(&err)
-	file = &WORM{}
+	file = &worm{}
 	file.Db = db
 	file.Path = path
 	ErrnoIf(len(file.Path.Abs) == 0, syscall.EINVAL, "empty path")
@@ -64,7 +65,7 @@ func OpenWORM(db *Db, path *Path) (file *WORM, err error) {
 }
 
 // gets called by Read(), Write(), etc.
-func (file *WORM) ckopen() (err error) {
+func (file *worm) ckopen() (err error) {
 	defer Return(&err)
 
 	if file.IsOpen() {
@@ -105,7 +106,7 @@ func (file *WORM) ckopen() (err error) {
 	return
 }
 
-func (file *WORM) Close() (err error) {
+func (file *worm) Close() (err error) {
 	defer Return(&err)
 	mode, err := file.Mode()
 	Ck(err)
@@ -156,15 +157,16 @@ func (file *WORM) Close() (err error) {
 	return
 }
 
-func (file *WORM) IsOpen() (ok bool) {
+func (file *worm) IsOpen() (ok bool) {
 	if file.fh == nil {
 		return false
 	}
+	// we use Seek(0, io.SeekCurrent) to see if the file is open. If the file is not opened, Seek() will fail
 	_, err := file.fh.Seek(0, io.SeekCurrent)
 	return err == nil
 }
 
-func (file *WORM) Mode(newmode ...os.FileMode) (oldmode os.FileMode, err error) {
+func (file *worm) Mode(newmode ...os.FileMode) (oldmode os.FileMode, err error) {
 	defer Return(&err)
 	Assert(len(newmode) < 2)
 	oldmode = file._mode
@@ -180,7 +182,7 @@ func (file *WORM) Mode(newmode ...os.FileMode) (oldmode os.FileMode, err error) 
 
 // Read reads from the file and puts the data into `buf`, returning n
 // as the number of bytes read.  Supports the io.Reader interface.
-func (file *WORM) Read(buf []byte) (n int, err error) {
+func (file *worm) Read(buf []byte) (n int, err error) {
 	defer Return(&err)
 	file.Mode(READ)
 	err = file.ckopen()
@@ -189,7 +191,7 @@ func (file *WORM) Read(buf []byte) (n int, err error) {
 }
 
 // XXX deprecate
-func (file *WORM) ReadAll() (buf []byte, err error) {
+func (file *worm) ReadAll() (buf []byte, err error) {
 	defer Return(&err)
 	err = file.ckopen()
 	Ck(err)
@@ -207,7 +209,7 @@ func (file *WORM) ReadAll() (buf []byte, err error) {
 	return
 }
 
-func (file *WORM) Rewind() error {
+func (file *worm) Rewind() error {
 	_, err := file.Seek(0, 0)
 	return err
 }
@@ -224,7 +226,7 @@ func (file *WORM) Rewind() error {
 // doesn't need to know the size of the file header, and doesn't need
 // to know that the file header exists at all -- these functions
 // operate on the file body data only.
-func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
+func (file *worm) Seek(n int64, whence int) (nout int64, err error) {
 	defer Return(&err)
 
 	file.Mode(READ)
@@ -248,7 +250,7 @@ func (file *WORM) Seek(n int64, whence int) (nout int64, err error) {
 	return
 }
 
-func (file *WORM) Size() (n int64, err error) {
+func (file *worm) Size() (n int64, err error) {
 	file.Mode(READ)
 	info, err := os.Stat(file.Path.Abs)
 	if err != nil {
@@ -261,7 +263,7 @@ func (file *WORM) Size() (n int64, err error) {
 
 // Tell returns the current seek position (the current value of
 // `b.pos`) in the file.
-func (file *WORM) Tell() (n int64, err error) {
+func (file *worm) Tell() (n int64, err error) {
 	// call Seek(0, 1)
 	return file.Seek(0, io.SeekCurrent)
 }
@@ -269,7 +271,7 @@ func (file *WORM) Tell() (n int64, err error) {
 // Write takes data from `data` and puts it into the file named
 // file.Path.Abs.  Large blobs can be written using multiple Write()
 // calls.  Supports the io.Writer interface.
-func (file *WORM) Write(data []byte) (n int, err error) {
+func (file *worm) Write(data []byte) (n int, err error) {
 	defer Return(&err)
 
 	mode, err := file.Mode()

@@ -277,14 +277,14 @@ func opendb() (db *pb.Db, err error) {
 	return
 }
 
-func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
+func putBlob(algo string, rd io.Reader) (blob *pb.Block, err error) {
 	defer Return(&err)
 	db, err := opendb()
 	Ck(err)
-	file, err := pb.CreateWORM(db, "blob", algo)
+	file, err := pb.CreateWorm(db, "blob", algo)
 	ExitIf(err, syscall.ENOSYS)
 	Ck(err)
-	blob = pb.Blob{}.New(db, file)
+	blob = pb.Block{}.New(db, file)
 	_, err = io.Copy(blob, rd)
 	Ck(err)
 	err = blob.Close()
@@ -300,9 +300,9 @@ func getBlob(canpath string, wr io.Writer) (err error) {
 	Ck(err)
 	// XXX from here on down is the same as in putBlob and should be
 	// moved to a common ioBlob(dst, src) (err error) {} function
-	file, err := pb.OpenWORM(db, path)
+	file, err := pb.OpenWorm(db, path)
 	Ck(err)
-	blob := pb.Blob{}.New(db, file)
+	blob := pb.Block{}.New(db, file)
 	_, err = io.Copy(wr, blob)
 	Ck(err)
 	err = blob.Close()

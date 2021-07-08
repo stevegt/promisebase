@@ -12,9 +12,9 @@ func TestBlob(t *testing.T) {
 	hash := "d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
 	canpath := "blob/sha256/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
 	relpath := "blob/sha256/d2c/71a/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
-	file, err := CreateWORM(db, "blob", "sha256")
+	file, err := CreateWorm(db, "blob", "sha256")
 	tassert(t, err == nil, "File.New err %v", err)
-	b := Blob{}.New(db, file)
+	b := Block{}.New(db, file)
 
 	// put something in the blob
 	data := mkbuf("somedata")
@@ -29,9 +29,9 @@ func TestBlob(t *testing.T) {
 	// re-open readable
 	path, err := Path{}.New(db, canpath)
 	tassert(t, err == nil, "File.New err %v", err)
-	file, err = OpenWORM(db, path)
+	file, err = OpenWorm(db, path)
 	tassert(t, err == nil, "File.New err %v", err)
-	b = Blob{}.New(db, file)
+	b = Block{}.New(db, file)
 	tassert(t, err == nil, "OpenBlob err %v", err)
 
 	// check size
@@ -79,7 +79,7 @@ func TestBlob(t *testing.T) {
 
 }
 
-func testSeek(t *testing.T, b *Blob, seekpos int64, whence int, tellpos int64, expect []byte) {
+func testSeek(t *testing.T, b *Block, seekpos int64, whence int, tellpos int64, expect []byte) {
 
 	// seek from whence
 	nseek, err := b.Seek(seekpos, whence)

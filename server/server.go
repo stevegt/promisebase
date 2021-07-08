@@ -341,6 +341,7 @@ func dbdir() (dir string, err error) {
 	return
 }
 
+/*
 func putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error) {
 	return
 }
@@ -392,6 +393,7 @@ func execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc in
 func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc int, err error) {
 	return
 }
+*/
 
 func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
 	tmpfile, err := ioutil.TempFile("", "*.oci")
