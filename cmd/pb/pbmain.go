@@ -65,8 +65,8 @@ func getGID() uint64 {
 
 type Opts struct {
 	Init       bool
-	Putblob    bool
-	Getblob    bool
+	Putblock   bool
+	Getblock   bool
 	Puttree    bool
 	Gettree    bool
 	Linkstream bool
@@ -112,8 +112,8 @@ func _run() (rc int, msg string) {
 
 Usage:
   pb init 
-  pb putblob <algo>
-  pb getblob <canpath>
+  pb putblock <algo>
+  pb getblock <canpath>
   pb puttree <algo> <canpaths>... 
   pb gettree <canpath>
   pb linkstream <canpath> <name>
@@ -139,21 +139,21 @@ Options:
 	log.Debugf("%#v", opts)
 	// fmt.Printf("speed is a %T", arguments["--speed"])
 
-	//putblob := optsBool("putblob")
-	//getblob := optsBool("getblob")
+	//putblock := optsBool("putblock")
+	//getblock := optsBool("getblock")
 
 	switch true {
 	case opts.Init:
 		msg, err := create()
 		Ck(err)
 		fmt.Println(msg)
-	case opts.Putblob:
-		blob, err := putBlob(opts.Algo, os.Stdin)
+	case opts.Putblock:
+		block, err := putBlock(opts.Algo, os.Stdin)
 		ExitIf(err, syscall.ENOSYS)
 		Ck(err)
-		fmt.Println(blob.Path.Canon)
-	case opts.Getblob:
-		err := getBlob(opts.Canpath, os.Stdout)
+		fmt.Println(block.Path.Canon)
+	case opts.Getblock:
+		err := getBlock(opts.Canpath, os.Stdout)
 		ExitIf(err, syscall.EINVAL)
 		ExitIf(err, syscall.ENOENT)
 		Ck(err)
@@ -277,41 +277,41 @@ func opendb() (db *pb.Db, err error) {
 	return
 }
 
-func putBlob(algo string, rd io.Reader) (blob *pb.Block, err error) {
+func putBlock(algo string, rd io.Reader) (block *pb.Block, err error) {
 	defer Return(&err)
 	db, err := opendb()
 	Ck(err)
 	file, err := pb.CreateWorm(db, "blob", algo)
 	ExitIf(err, syscall.ENOSYS)
 	Ck(err)
-	blob = pb.Block{}.New(db, file)
-	_, err = io.Copy(blob, rd)
+	block = pb.Block{}.New(db, file)
+	_, err = io.Copy(block, rd)
 	Ck(err)
-	err = blob.Close()
+	err = block.Close()
 	Ck(err)
 	return
 }
 
-func getBlob(canpath string, wr io.Writer) (err error) {
+func getBlock(canpath string, wr io.Writer) (err error) {
 	defer Return(&err)
 	db, err := opendb()
 	Ck(err)
 	path, err := pb.Path{}.New(db, canpath)
 	Ck(err)
-	// XXX from here on down is the same as in putBlob and should be
-	// moved to a common ioBlob(dst, src) (err error) {} function
+	// XXX from here on down is the same as in putBlock and should be
+	// moved to a common ioBlock(dst, src) (err error) {} function
 	file, err := pb.OpenWorm(db, path)
 	Ck(err)
-	blob := pb.Block{}.New(db, file)
-	_, err = io.Copy(wr, blob)
+	block := pb.Block{}.New(db, file)
+	_, err = io.Copy(wr, block)
 	Ck(err)
-	err = blob.Close()
+	err = block.Close()
 	Ck(err)
 	return
 }
 
 /*
-func XXXgetBlob(canpath string) (buf []byte, err error) {
+func XXXgetBlock(canpath string) (buf []byte, err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -322,7 +322,7 @@ func XXXgetBlob(canpath string) (buf []byte, err error) {
 		return
 	}
 	path := pb.Path{}.New(db, canpath)
-	buf, err = db.GetBlob(path)
+	buf, err = db.GetBlock(path)
 	if err != nil {
 		return
 	}
