@@ -14,7 +14,7 @@ func Benchmark0PutBlob(b *testing.B) {
 	}
 	for n := 0; n < b.N; n++ {
 		val := mkbuf(asString(n))
-		_, err = db.PutBlob("sha256", val)
+		_, err = db.PutBlock("sha256", val)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -39,7 +39,7 @@ func Benchmark2GetBlob(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = db.GetBlob(path)
+		_, err = db.GetBlock(path)
 		if err != nil {
 			fmt.Printf("n: %d\n", n)
 			b.Fatal(err)
@@ -54,7 +54,7 @@ func XXXBenchmarkPutBlobSame(b *testing.B) {
 	}
 	val := mkbuf("foo")
 	for n := 0; n < b.N; n++ {
-		gotpath, err := db.PutBlob("sha256", val)
+		gotpath, err := db.PutBlock("sha256", val)
 		_ = gotpath
 		if err != nil {
 			b.Fatal(err)
@@ -69,11 +69,11 @@ func BenchmarkPutGetBlob(b *testing.B) {
 	}
 	for n := 0; n < b.N; n++ {
 		val := mkbuf(asString(n))
-		blob, err := db.PutBlob("sha256", val)
+		blob, err := db.PutBlock("sha256", val)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = db.GetBlob(blob.Path)
+		_, err = db.GetBlock(blob.Path)
 		if err != nil {
 			//	fmt.Printf("n: %d\n", n)
 			b.Fatal(err)

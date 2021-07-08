@@ -54,7 +54,7 @@ func (tree *Tree) AppendBlock(algo string, buf []byte) (newrootnode *Tree, err e
 	oldrootnode := tree
 
 	// put block
-	block, err := tree.Db.PutBlob(algo, buf)
+	block, err := tree.Db.PutBlock(algo, buf)
 
 	// put tree for new root of merkle tree
 	newrootnode, err = tree.Db.PutTree(algo, oldrootnode, block)
@@ -340,7 +340,7 @@ func (tree *Tree) Verify() (ok bool, err error) {
 		case *Block:
 			// XXX add a verify flag to GetBlock and do this there
 			path := child.Path
-			content, err := child.Db.GetBlob(path)
+			content, err := child.Db.GetBlock(path)
 			Ck(err)
 			// hash content
 			content = append([]byte(path.header()), content...)

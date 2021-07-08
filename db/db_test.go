@@ -12,14 +12,14 @@ func TestGetBlob(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotblob, err := db.PutBlob("sha256", val)
+	gotblob, err := db.PutBlock("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if path.Canon != gotblob.Path.Canon {
 		t.Fatalf("expected path %s, got %s", path.Canon, gotblob.Path.Canon)
 	}
-	got, err := db.GetBlob(path)
+	got, err := db.GetBlock(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestGetBlob(t *testing.T) {
 func TestRm(t *testing.T) {
 	db := setup(t, nil)
 	buf := mkbuf("somevalue")
-	blob, err := db.PutBlob("sha256", buf)
+	blob, err := db.PutBlock("sha256", buf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestRm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotblob, err := db.GetBlob(blob.Path)
+	gotblob, err := db.GetBlock(blob.Path)
 	if err == nil {
 		t.Fatalf("blob not deleted: %#v", gotblob)
 	}

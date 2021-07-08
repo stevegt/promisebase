@@ -98,7 +98,7 @@ func (db Db) Create() (out *Db, err error) {
 	err = mkdir(dir)
 	Ck(err)
 
-	// The blob dir is where we store hashed blobs
+	// The blob dir is where we store hashed blocks
 	err = mkdir(filepath.Join(dir, "blob"))
 	Ck(err)
 
@@ -140,8 +140,8 @@ func (db *Db) tmpFile() (fh *os.File, err error) {
 	return
 }
 
-// GetBlob retrieves an entire blob into buf by reading its file contents.
-func (db *Db) GetBlob(path *Path) (buf []byte, err error) {
+// GetBlock retrieves an entire block into buf by reading its file contents.
+func (db *Db) GetBlock(path *Path) (buf []byte, err error) {
 	file, err := OpenWorm(db, path)
 	if err != nil {
 		return nil, err
@@ -159,8 +159,8 @@ func (db *Db) Rm(path *Path) (err error) {
 	return
 }
 
-// PutStream reads blobs from stream, creates a merkle tree with those
-// blobs as leaf nodes, and returns the root node of the new tree.
+// PutStream reads blocks from stream, creates a merkle tree with those
+// blocks as leaf nodes, and returns the root node of the new tree.
 // XXX needs to accept label arg
 func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Tree, err error) {
 	// set chunker parameters
@@ -189,21 +189,21 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Tree, err error) {
 			return nil, err
 		}
 
-		newblob, err := db.PutBlob(algo, chunk.Data)
+		newblock, err := db.PutBlock(algo, chunk.Data)
 		if err != nil {
 			return nil, err
 		}
 
-		log.Debugf("newblob %v", newblob)
+		log.Debugf("newblock %v", newblock)
 		if oldtree == nil {
 			// we're just starting the tree
-			rootnode, err = db.PutTree(algo, newblob)
+			rootnode, err = db.PutTree(algo, newblock)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// add the next node
-			rootnode, err = db.PutTree(algo, oldtree, newblob)
+			rootnode, err = db.PutTree(algo, oldtree, newblock)
 			if err != nil {
 				return nil, err
 			}
@@ -216,9 +216,9 @@ func (db *Db) PutStream(algo string, rd io.Reader) (rootnode *Tree, err error) {
 	return
 }
 
-// PutBlob hashes the blob, stores the blob in a file named after the hash,
-// and returns the blob object.
-func (db *Db) PutBlob(algo string, buf []byte) (b *Block, err error) {
+// PutBlock hashes the block, stores the block in a file named after the hash,
+// and returns the block object.
+func (db *Db) PutBlock(algo string, buf []byte) (b *Block, err error) {
 	defer Return(&err)
 
 	Assert(db != nil, "db is nil")

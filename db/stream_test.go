@@ -70,17 +70,17 @@ func TestTreeStream(t *testing.T) {
 
 	// setup
 	buf1 := mkbuf("blob1value")
-	blob1, err := db.PutBlob("sha256", buf1)
+	blob1, err := db.PutBlock("sha256", buf1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buf2 := mkbuf("blob2value")
-	blob2, err := db.PutBlob("sha256", buf2)
+	blob2, err := db.PutBlock("sha256", buf2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buf3 := mkbuf("blob3value")
-	blob3, err := db.PutBlob("sha256", buf3)
+	blob3, err := db.PutBlock("sha256", buf3)
 	if err != nil {
 		t.Fatal(err)
 	}

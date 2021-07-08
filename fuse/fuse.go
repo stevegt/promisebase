@@ -386,7 +386,7 @@ func (fh *newNode) Write(ctx context.Context, data []byte, off int64) (written u
 	if fh.path != nil {
 		return 0, syscall.EEXIST
 	}
-	blob, err := fh.db.PutBlob("sha256", data)
+	blob, err := fh.db.PutBlock("sha256", data)
 	Ck(err)
 	fh.tree, err = fh.db.PutTree("sha256", blob)
 	Ck(err)
