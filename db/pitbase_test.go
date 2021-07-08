@@ -57,7 +57,7 @@ func objectExample(t *testing.T, o Object) {
 	// fmt.Printf("object path %s\n", abspath)
 
 	size, err := o.Size()
-	tassert(t, err == nil, "Blob.Size() size %d err %v", size, err)
+	tassert(t, err == nil, "Block.Size() size %d err %v", size, err)
 	// fmt.Printf("object %s is %d bytes\n", o.GetPath().Canon, size)
 }
 
