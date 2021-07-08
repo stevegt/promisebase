@@ -5,19 +5,19 @@ import (
 	"testing"
 )
 
-func TestGetBlob(t *testing.T) {
+func TestGetBlock(t *testing.T) {
 	db := setup(t, nil)
 	val := mkbuf("somevalue")
 	path, err := pathFromBuf(db, "blob", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotblob, err := db.PutBlock("sha256", val)
+	gotblock, err := db.PutBlock("sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if path.Canon != gotblob.Path.Canon {
-		t.Fatalf("expected path %s, got %s", path.Canon, gotblob.Path.Canon)
+	if path.Canon != gotblock.Path.Canon {
+		t.Fatalf("expected path %s, got %s", path.Canon, gotblock.Path.Canon)
 	}
 	got, err := db.GetBlock(path)
 	if err != nil {
@@ -31,16 +31,16 @@ func TestGetBlob(t *testing.T) {
 func TestRm(t *testing.T) {
 	db := setup(t, nil)
 	buf := mkbuf("somevalue")
-	blob, err := db.PutBlock("sha256", buf)
+	block, err := db.PutBlock("sha256", buf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = db.Rm(blob.Path)
+	err = db.Rm(block.Path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotblob, err := db.GetBlock(blob.Path)
+	gotblock, err := db.GetBlock(block.Path)
 	if err == nil {
-		t.Fatalf("blob not deleted: %#v", gotblob)
+		t.Fatalf("block not deleted: %#v", gotblock)
 	}
 }
