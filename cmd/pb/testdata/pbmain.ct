@@ -6,38 +6,38 @@ $ cd var
 $ pb init
 Initialized empty database in ${ROOTDIR}/var
 
-# put a blob
-$ fecho blob1 this is blob1
-$ pb putblob sha256 < blob1
+# put a block
+$ fecho block1 this is blob1
+$ pb putblock sha256 < block1
 blob/sha256/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd98387708196425ab2
 
 # get it (fully qualified path)
-$ pb getblob blob/sha256/d17/370/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd98387708196425ab2 
+$ pb getblock blob/sha256/d17/370/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd98387708196425ab2 
 this is blob1
 
 # get it using canonical path
-$ pb getblob blob/sha256/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd98387708196425ab2 
+$ pb getblock blob/sha256/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd98387708196425ab2 
 this is blob1
 
-# put blob with bad hash algo
-$ fecho badblob1 this is badblob1
-$ pb putblob sha257 < badblob1 --> FAIL
+# put block with bad hash algo
+$ fecho badblock1 this is badblob1
+$ pb putblock sha257 < badblock1 --> FAIL
 function not implemented: sha257
 
-# put nonexistent blob
-$ pb putblob sha256 < badblob2 --> FAIL
+# put nonexistent block
+$ pb putblock sha256 < badblock2 --> FAIL
 
-# get nonexistent blob
-$ pb getblob blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000 --> FAIL
+# get nonexistent block
+$ pb getblock blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000 --> FAIL
 not found: ${ROOTDIR}/var/blob/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000: no such file or directory
 
-# try a multiline blob
-$ fecho blob2 multiline blob\nthis is line 2
-$ pb putblob sha256 < blob2
+# try a multiline block
+$ fecho block2 multiline blob\nthis is line 2
+$ pb putblock sha256 < block2
 blob/sha256/814dae28c0306f25a40c515f53645a4af8bfd64247676e269c3b11c4a6068bce
 
-# try a slightly bigger blob 
-$ pb putblob sha256 < ../bigblob
+# try a slightly bigger block 
+$ pb putblock sha256 < ../bigblob
 blob/sha256/22c8aa3f0cb68164b766ce1b6bfef1b2dec069a7ef2ef17b74cdacf20042d995
 
 # put a tree
@@ -134,10 +134,10 @@ $ pb catstream stream42 --> FAIL
 lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
 
 # improve coverage
-$ pb putblob lkdsajf --> FAIL
+$ pb putblock lkdsajf --> FAIL
 function not implemented: lkdsajf
 
-$ pb getblob kakajsn --> FAIL
+$ pb getblock kakajsn --> FAIL
 malformed path: kakajsn: invalid argument
 
 $ pb lsstream lsadkfj --> FAIL
