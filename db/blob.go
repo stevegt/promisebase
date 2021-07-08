@@ -13,6 +13,6 @@ func (blob *Blob) GetPath() *Path {
 
 func (blob Blob) New(db *Db, file *worm) *Blob {
 	blob.Db = db
-	blob.WORM = file
+	blob.worm = file
 	return &blob
 }

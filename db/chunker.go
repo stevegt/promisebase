@@ -27,7 +27,7 @@ type rabin struct {
 	MaxSize uint
 }
 
-type chunk resticRabin.Chunk
+// type chunk resticRabin.Chunk
 
 func (c rabin) Init() (res *rabin, err error) {
 	if c.MinSize == 0 {

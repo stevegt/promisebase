@@ -24,7 +24,7 @@ type Tree struct {
 
 func (tree Tree) New(db *Db, file *worm) *Tree {
 	tree.Db = db
-	tree.WORM = file
+	tree.worm = file
 	return &tree
 }
 
@@ -129,12 +129,12 @@ func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
 func (tree *Tree) loadEntries() (err error) {
 	defer Return(&err)
 
-	Assert(tree.WORM != nil)
-	Assert(tree.WORM.Path != nil)
-	if tree.WORM.Path.Abs == "" {
+	Assert(tree.worm != nil)
+	Assert(tree.worm.Path != nil)
+	if tree.worm.Path.Abs == "" {
 		return
 	}
-	file := tree.WORM
+	file := tree.worm
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -365,10 +365,10 @@ func (tree *Tree) Verify() (ok bool, err error) {
 func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
-	if tree.WORM == nil {
+	if tree.worm == nil {
 		file, err := OpenWorm(tree.Db, tree.Path)
 		Ck(err)
-		tree.WORM = file
+		tree.worm = file
 	}
 
 	if all {
