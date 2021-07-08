@@ -144,7 +144,7 @@ func (file *worm) Close() (err error) {
 		err = os.MkdirAll(dir, 0755)
 		Ck(err)
 
-		// rename temp file to permanent blob file
+		// rename temp file to permanent block file
 		err = os.Rename(file.fh.Name(), file.Path.Abs)
 		Ck(err)
 
@@ -244,7 +244,7 @@ func (file *worm) Seek(n int64, whence int) (nout int64, err error) {
 	Ck(err)
 	// don't let callers seek backwards into header
 	Assert(nout >= 0)
-	// subtract the header length to get blob seek position
+	// subtract the header length to get block seek position
 	nout -= hl
 
 	return
@@ -269,7 +269,7 @@ func (file *worm) Tell() (n int64, err error) {
 }
 
 // Write takes data from `data` and puts it into the file named
-// file.Path.Abs.  Large blobs can be written using multiple Write()
+// file.Path.Abs.  Large blocks can be written using multiple Write()
 // calls.  Supports the io.Writer interface.
 func (file *worm) Write(data []byte) (n int, err error) {
 	defer Return(&err)

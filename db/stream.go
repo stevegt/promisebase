@@ -10,7 +10,7 @@ import (
 // Stream is an ordered set of bytes of arbitrary (but not infinite)
 // length.  It implements the io.ReadWriteCloser interface so a
 // Stream acts like a file from the perspective of a caller.
-// XXX Either (A) stop exporting Tree and Blob, and have callers only
+// XXX Either (A) stop exporting Tree and Block, and have callers only
 // see Stream, or (B) be prepared to expose trees and blocks to open
 // market operations, and redefine `address` to include blocks as well
 // as trees.
@@ -134,21 +134,21 @@ func (s Stream) XXX() (rootnode *Tree, err error) {
 			return nil, err
 		}
 
-		key, err := db.PutBlob(algo, &chunk.Data)
+		key, err := db.PutBlock(algo, &chunk.Data)
 		if err != nil {
 			return nil, err
 		}
-		newblobnode := &Node{Db: db, Key: key}
+		newblocknode := &Node{Db: db, Key: key}
 
 		if oldnode == nil {
 			// we're just starting the tree
-			rootnode, err = db.PutNode(algo, newblobnode)
+			rootnode, err = db.PutNode(algo, newblocknode)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// add the next node
-			rootnode, err = db.PutNode(algo, oldnode, newblobnode)
+			rootnode, err = db.PutNode(algo, oldnode, newblocknode)
 			if err != nil {
 				return nil, err
 			}
@@ -165,7 +165,7 @@ func (s Stream) XXX() (rootnode *Tree, err error) {
 // error, so `n` can be safely ignored.
 func (s *Stream) Write(buf []byte) (n int, err error) {
 	n = len(buf)
-	// if RootNode is null, then call db.PutBlob and db.PutNode
+	// if RootNode is null, then call db.PutBlock and db.PutNode
 	if s.RootNode == nil {
 
 //		// set up chunker
@@ -181,18 +181,18 @@ func (s *Stream) Write(buf []byte) (n int, err error) {
 //			return 0, io.EOF
 //		}
 
-		key, err := s.Db.PutBlob(s.Algo, &buf)
+		key, err := s.Db.PutBlock(s.Algo, &buf)
 		if err != nil {
 			return n, err
 		}
-		blobnode := &Node{Db: s.Db, Key: key}
-		s.RootNode, err = s.Db.PutNode(s.Algo, blobnode)
+		blocknode := &Node{Db: s.Db, Key: key}
+		s.RootNode, err = s.Db.PutNode(s.Algo, blocknode)
 		if err != nil {
 			return n, err
 		}
 	} else {
-		// else call RootNode.AppendBlob() and update RootNode
-		s.RootNode, err = s.RootNode.AppendBlob(s.Algo, &buf)
+		// else call RootNode.AppendBlock() and update RootNode
+		s.RootNode, err = s.RootNode.AppendBlock(s.Algo, &buf)
 	}
 	return
 }
@@ -201,7 +201,7 @@ func (s *Stream) Write(buf []byte) (n int, err error) {
 // returns the number of bytes read.
 func (s *Stream) Read(buf []byte) (n int, err error) {
 
-	// read the next chunk from currentBlob and update posInBlob
+	// read the next chunk from currentBlock and update posInBlock
 
 	// XXX
 	err = io.EOF
