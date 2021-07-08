@@ -81,15 +81,15 @@ func (tree *Tree) XXXCat() (buf []byte, err error) {
 	buf = []byte{}
 	for _, obj := range objects {
 		var content []byte
-		blob, ok := obj.(*Blob)
+		block, ok := obj.(*Block)
 		if !ok {
-			panic("assertion failure: blob type")
+			panic("assertion failure: block type")
 		}
-		file, err := File{}.New(blob.Db, blob.File.Path)
+		file, err := File{}.New(block.Db, block.File.Path)
 		Ck(err)
-		blob = Blob{}.New(blob.Db, file)
+		block = Block{}.New(block.Db, file)
 		// XXX rework for streaming
-		content, err = blob.ReadAll()
+		content, err = block.ReadAll()
 		Ck(err)
 		buf = append(buf, content...)
 	}
@@ -330,7 +330,7 @@ func (tree *Tree) Txt() (out string, err error) {
 // Verify hashes the node content and compares it to its address
 // XXX move to File
 // XXX refactor to take advantage of streaming
-// XXX right now we only verify trees by default -- what about blobs?
+// XXX right now we only verify trees by default -- what about blocks?
 func (tree *Tree) Verify() (ok bool, err error) {
 	defer Return(&err)
 	objects, err := tree.traverse(true)
