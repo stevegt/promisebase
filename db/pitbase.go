@@ -82,7 +82,7 @@ func GetGID() uint64 {
 	return n
 }
 
-// Hash returns the hash of a blob using a given algorithm
+// Hash returns the hash of a block using a given algorithm
 // XXX rework to support streaming
 func Hash(algo string, buf []byte) (binhash []byte, err error) {
 	switch algo {
@@ -130,7 +130,7 @@ func mkdir(dir string) (err error) {
 	return
 }
 
-// Object is a data item stored in a Db; includes blob, tree, and
+// Object is a data item stored in a Db; includes block, tree, and
 // stream.
 type Object interface {
 	Read(buf []byte) (n int, err error)
