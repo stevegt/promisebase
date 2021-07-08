@@ -11,8 +11,8 @@ import (
 // length.  It implements the io.ReadWriteCloser interface so a
 // Stream acts like a file from the perspective of a caller.
 // XXX Either (A) stop exporting Tree and Blob, and have callers only
-// see Stream, or (B) be prepared to expose trees and blobs to open
-// market operations, and redefine `address` to include blobs as well
+// see Stream, or (B) be prepared to expose trees and blocks to open
+// market operations, and redefine `address` to include blocks as well
 // as trees.
 type Stream struct {
 	Db       *Db
@@ -34,13 +34,13 @@ func (stream Stream) New(db *Db, label string, rootnode *Tree) (out *Stream, err
 	return &stream, nil
 }
 
-// AppendBlob puts a blob in the database, appends it to the Merkle
+// AppendBlock puts a block in the database, appends it to the Merkle
 // tree as a new leaf node, and then rewrites the stream label's symlink
 // to point at the new tree root.
-func (stream *Stream) AppendBlob(algo string, buf []byte) (newstream *Stream, err error) {
+func (stream *Stream) AppendBlock(algo string, buf []byte) (newstream *Stream, err error) {
 	defer Return(&err)
 	oldrootnode := stream.RootNode
-	newrootnode, err := oldrootnode.AppendBlob(algo, buf)
+	newrootnode, err := oldrootnode.AppendBlock(algo, buf)
 	if err != nil {
 		return
 	}
