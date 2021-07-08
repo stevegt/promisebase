@@ -91,30 +91,30 @@ func TestTreeFuse(t *testing.T) {
 	db, mnt := setup(t, nil)
 
 	buf1 := mkbuf("blob1value")
-	blob1, err := db.PutBlock("sha256", buf1)
+	block1, err := db.PutBlock("sha256", buf1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buf2 := mkbuf("blob2value")
-	blob2, err := db.PutBlock("sha256", buf2)
+	block2, err := db.PutBlock("sha256", buf2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	buf3 := mkbuf("blob3value")
-	blob3, err := db.PutBlock("sha256", buf3)
+	block3, err := db.PutBlock("sha256", buf3)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// put
-	tree1, err := db.PutTree("sha256", blob1, blob2)
+	tree1, err := db.PutTree("sha256", block1, block2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if tree1 == nil {
 		t.Fatal("tree1 is nil")
 	}
-	tree2, err := db.PutTree("sha256", tree1, blob3)
+	tree2, err := db.PutTree("sha256", tree1, block3)
 	if err != nil {
 		t.Fatal(err)
 	}
