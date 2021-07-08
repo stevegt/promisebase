@@ -16,15 +16,15 @@ import (
 // Tree is a vertex in a Merkle tree. Entries point at leafs or other nodes.
 type Tree struct {
 	Db *Db
-	*worm
+	*WORM
 	_entries    []Object
 	_leaves     []Object
 	currentLeaf int64
 }
 
-func (tree Tree) New(db *Db, file *worm) *Tree {
+func (tree Tree) New(db *Db, file *WORM) *Tree {
 	tree.Db = db
-	tree.worm = file
+	tree.WORM = file
 	return &tree
 }
 
@@ -44,20 +44,20 @@ func (tree *Tree) Entries() (entries []Object, err error) {
 	return tree._entries, nil
 }
 
-// AppendBlob puts a blob in the database, appends it to the node's
+// AppendBlock puts a block in the database, appends it to the node's
 // Merkle tree as a new leaf node, and returns the new root node.
 // This function can be used to append new records or blocks to journals
 // or files in accounting, trading, version control, blockchain, and file
 // storage applications.
-// XXX refactor for streaming, or add an AppendBlobStream
-func (tree *Tree) AppendBlob(algo string, buf []byte) (newrootnode *Tree, err error) {
+// XXX refactor for streaming, or add an AppendBlockStream
+func (tree *Tree) AppendBlock(algo string, buf []byte) (newrootnode *Tree, err error) {
 	oldrootnode := tree
 
-	// put blob
-	blob, err := tree.Db.PutBlob(algo, buf)
+	// put block
+	block, err := tree.Db.PutBlock(algo, buf)
 
 	// put tree for new root of merkle tree
-	newrootnode, err = tree.Db.PutTree(algo, oldrootnode, blob)
+	newrootnode, err = tree.Db.PutTree(algo, oldrootnode, block)
 	if err != nil {
 		return
 	}
@@ -129,12 +129,12 @@ func (tree *Tree) LinkStream(label string) (stream *Stream, err error) {
 func (tree *Tree) loadEntries() (err error) {
 	defer Return(&err)
 
-	Assert(tree.worm != nil)
-	Assert(tree.worm.Path != nil)
-	if tree.worm.Path.Abs == "" {
+	Assert(tree.WORM != nil)
+	Assert(tree.WORM.Path != nil)
+	if tree.WORM.Path.Abs == "" {
 		return
 	}
-	file := tree.worm
+	file := tree.WORM
 	scanner := bufio.NewScanner(file)
 	var content []byte
 	var entries []Object
@@ -338,7 +338,7 @@ func (tree *Tree) Verify() (ok bool, err error) {
 	for _, obj := range objects {
 		switch child := obj.(type) {
 		case *Block:
-			// XXX add a verify flag to GetBlob and do this there
+			// XXX add a verify flag to GetBlock and do this there
 			path := child.Path
 			content, err := child.Db.GetBlob(path)
 			Ck(err)
@@ -365,10 +365,10 @@ func (tree *Tree) Verify() (ok bool, err error) {
 func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 	defer Return(&err)
 
-	if tree.worm == nil {
-		file, err := OpenWorm(tree.Db, tree.Path)
+	if tree.WORM == nil {
+		file, err := OpenWORM(tree.Db, tree.Path)
 		Ck(err)
-		tree.worm = file
+		tree.WORM = file
 	}
 
 	if all {
@@ -387,7 +387,7 @@ func (tree *Tree) traverse(all bool) (objects []Object, err error) {
 				return nil, err
 			}
 			objects = append(objects, childobjs...)
-		case *Block:
+		case *Blob:
 			objects = append(objects, obj)
 		default:
 			panic(fmt.Sprintf("unhandled type %T", child))
