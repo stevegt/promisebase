@@ -453,8 +453,8 @@ func shellin(stdin io.Reader, path string, args ...string) (out []byte, err erro
 // execute(scriptPath string, args ...string) (stdout, stderr io.Reader, rc int, err error)
 // xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc int, err error)
 
-// putBlob(algo string, rd io.Reader) (blob *pb.Blob, err error)
-// getBlob(canpath string, wr io.Writer) (err error)
+// putBlock(algo string, rd io.Reader) (block *pb.Block, err error)
+// getBlock(canpath string, wr io.Writer) (err error)
 // putTree(algo string, canpaths []string) (tree *pb.Tree, err error)
 // getTree(canpath string) (tree *pb.Tree, err error)
 // linkStream(canpath, name string) (stream *pb.Stream, err error)
