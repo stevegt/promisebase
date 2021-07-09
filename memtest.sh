@@ -41,11 +41,10 @@ do
 	size=$(calc "100 * 1024^2")
 	count=$(calc "$size / 1024")
 
-	blobpath1=$(dd if=/dev/urandom bs=1024 count=$count | $pb putblob sha256)
-	$pb getblob $blobpath1 > /dev/null
-
-	blobpath2=$(dd if=/dev/urandom bs=1024 count=$count | $pb putblob sha256)
-	treepath1=$($pb puttree sha256 $blobpath1 $blobpath2)
+	blockpath1=$(dd if=/dev/urandom bs=1024 count=$count | $pb putblock sha256)
+	$pb getblock $blockpath1 > /dev/null 
+	blockpath2=$(dd if=/dev/urandom bs=1024 count=$count | $pb putblock sha256)
+	treepath1=$($pb puttree sha256 $blockpath1 $blockpath2)
 
 	# for j in {1..8000000}
 	# do
