@@ -15,7 +15,7 @@ import (
 )
 
 // Db is a key-value database. Dir is the base directory. Depth is the
-// number of subdirectory levels in the blob and tree dirs.  We use
+// number of subdirectory levels in the block and tree dirs.  We use
 // three-character hexadecimal names for the subdirectories, giving us
 // a maximum of 4096 subdirs in a parent dir -- that's a sweet spot.
 // Two-character names (such as what git uses under .git/objects) only
@@ -24,7 +24,7 @@ import (
 // cause performance issues on e.g. ext4.
 type Db struct {
 	Dir     string          // base of tree
-	Depth   int             // number of subdir levels in blob and tree dirs
+	Depth   int             // number of subdir levels in block and tree dirs
 	Poly    resticRabin.Pol // rabin polynomial for chunking
 	MinSize uint            // minimum chunk size
 	MaxSize uint            // maximum chunk size
@@ -98,7 +98,7 @@ func (db Db) Create() (out *Db, err error) {
 	err = mkdir(dir)
 	Ck(err)
 
-	// The blob dir is where we store hashed blocks
+	// The block dir is where we store hashed blocks
 	err = mkdir(filepath.Join(dir, "blob"))
 	Ck(err)
 
@@ -241,7 +241,7 @@ func (db *Db) PutBlock(algo string, buf []byte) (b *Block, err error) {
 // XXX figure out how to collapse OpenStream and Stream.New
 // into one function, probably by deferring any disk I/O in OpenStream
 // until we hit a Read() or Write().
-// XXX likewise for MkBlob and MkTree
+// XXX likewise for MkBlock and MkTree
 func (db *Db) OpenStream(label string) (stream *Stream, err error) {
 	defer Return(&err)
 	// XXX sanitize label
