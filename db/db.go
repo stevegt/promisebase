@@ -59,7 +59,7 @@ func (db *Db) ObjectFromPath(path *Path) (obj Object, err error) {
 
 	class := path.Class
 	switch class {
-	case "blob":
+	case "block":
 		file, err := OpenWorm(db, path)
 		Ck(err)
 		return Block{}.New(db, file), nil
@@ -99,7 +99,7 @@ func (db Db) Create() (out *Db, err error) {
 	Ck(err)
 
 	// The block dir is where we store hashed blocks
-	err = mkdir(filepath.Join(dir, "blob"))
+	err = mkdir(filepath.Join(dir, "block"))
 	Ck(err)
 
 	// we store references to trees as stream symlinks
@@ -223,7 +223,7 @@ func (db *Db) PutBlock(algo string, buf []byte) (b *Block, err error) {
 
 	Assert(db != nil, "db is nil")
 
-	file, err := CreateWorm(db, "blob", algo)
+	file, err := CreateWorm(db, "block", algo)
 	Ck(err)
 	b = Block{}.New(db, file)
 
