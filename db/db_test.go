@@ -8,7 +8,7 @@ import (
 func TestGetBlock(t *testing.T) {
 	db := setup(t, nil)
 	val := mkbuf("somevalue")
-	path, err := pathFromBuf(db, "blob", "sha256", val)
+	path, err := pathFromBuf(db, "block", "sha256", val)
 	if err != nil {
 		t.Fatal(err)
 	}
