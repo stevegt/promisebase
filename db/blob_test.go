@@ -9,10 +9,10 @@ import (
 func TestBlock(t *testing.T) {
 	db := setup(t, nil)
 
-	hash := "d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
-	canpath := "blob/sha256/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
-	relpath := "blob/sha256/d2c/71a/d2c71afc5848aa2a33ff08621217f24dab485077d95d788c5170995285a5d65d"
-	file, err := CreateWorm(db, "blob", "sha256")
+	hash := "303f7138f2be7b918fbd55af43653760b16f6b13a046fa0d71dd7a3909b64486"
+	canpath := "block/sha256/303f7138f2be7b918fbd55af43653760b16f6b13a046fa0d71dd7a3909b64486"
+	relpath := "block/sha256/303/f71/303f7138f2be7b918fbd55af43653760b16f6b13a046fa0d71dd7a3909b64486"
+	file, err := CreateWorm(db, "block", "sha256")
 	tassert(t, err == nil, "File.New err %v", err)
 	b := Block{}.New(db, file)
 
@@ -46,7 +46,7 @@ func TestBlock(t *testing.T) {
 	testSeek(t, b, -3, io.SeekEnd, 5, mkbuf("ata"))
 
 	// seek from current
-	hl := int64(5) // "blob\n"
+	hl := int64(len("block\n"))
 	tellpos, err := b.fh.Seek(4+hl, io.SeekStart)
 	tassert(t, tellpos == 4+hl, "tellpos %v", tellpos)
 	testSeek(t, b, -1, io.SeekCurrent, 3, mkbuf("edata"))
@@ -66,7 +66,7 @@ func TestBlock(t *testing.T) {
 	tassert(t, relpath == gotrelpath, "relpath '%v'", gotrelpath)
 
 	class := b.Path.Class
-	tassert(t, class == "blob", "class '%v'", class)
+	tassert(t, class == "block", "class '%v'", class)
 
 	algo := b.Path.Algo
 	tassert(t, algo == "sha256", "algo '%v'", algo)
