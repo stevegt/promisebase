@@ -281,7 +281,7 @@ func putBlock(algo string, rd io.Reader) (block *pb.Block, err error) {
 	defer Return(&err)
 	db, err := opendb()
 	Ck(err)
-	file, err := pb.CreateWorm(db, "blob", algo)
+	file, err := pb.CreateWorm(db, "block", algo)
 	ExitIf(err, syscall.ENOSYS)
 	Ck(err)
 	block = pb.Block{}.New(db, file)

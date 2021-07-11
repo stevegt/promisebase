@@ -249,7 +249,7 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path, err := Path{}.New(db, "tree/sha256/22695d451d4f8383546f8cc3d3c93b78c4827f508ad682c620d02a78e58a3ab3")
+	path, err := Path{}.New(db, "tree/sha256/a0d8c34b4e52b65b1ecc24919dc1eafa8d4930fce0bb4eb5023821162d154b9d")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,10 +264,10 @@ func TestVerify(t *testing.T) {
 	for i, child := range entries {
 		switch i {
 		case 0:
-			expect := "tree/sha256/606/1c8/6061c8eb4f00c1039c0922f1cfb73233b7353b371227fd0a5cd380104ba58a7b"
+			expect := "tree/sha256/eab/258/eab258bcea84fb7594c04a72cc2c6cfab1b9629abccdc5b54c0750ffb01de4aa"
 			tassert(t, expect == child.GetPath().Rel, "expected %v got %v", expect, child.GetPath().Rel)
 		case 1:
-			expect := "block/sha256/32b/cc6/32bcc691cfa205d4a4be7f47cfca49253fd76cbdfd93124388b1824499cdb36b"
+			expect := "block/sha256/65f/ac3/65fac34b0f3b5678b44aa3931da6bd936db2ece34a0c2c50754c15503115cb0e"
 			tassert(t, expect == child.GetPath().Rel, "expected %q got %q", expect, child.GetPath().Rel)
 		}
 	}
