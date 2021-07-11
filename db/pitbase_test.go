@@ -209,19 +209,3 @@ func TestMkdir(t *testing.T) {
 		t.Fatal("expected error, got none")
 	}
 }
-
-/*
-func TestPath(t *testing.T) {
-	db := setup(t)
-	val := mkbuf("somevalue")
-	path, err := pathFromBuf(db, "blob", "sha256", val)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectabs := filepath.Join(db.Dir, "blob/sha256/70a/524/70a524688ced8e45d26776fd4dc56410725b566cd840c044546ab30c4b499342")
-	gotabs := path.Abs
-	if expectabs != gotabs {
-		t.Fatalf("expected %s, got %s", path.Abs, gotabs)
-	}
-}
-*/
