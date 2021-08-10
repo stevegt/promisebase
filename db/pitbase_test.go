@@ -158,6 +158,13 @@ func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
 	}
 }
 
+func tck(t *testing.T, err error) {
+	t.Helper() // cause file:line info to show caller
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetGID(t *testing.T) {
 	n := GetGID()
 	if n == 0 {
