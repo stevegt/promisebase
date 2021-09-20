@@ -1,0 +1,279 @@
+package db
+
+import (
+	"bytes"
+	"io"
+	"math"
+	"math/rand"
+	"testing"
+
+	"github.com/hlubek/readercomp"
+)
+
+func TestTree(t *testing.T) {
+	db := setup(t, nil)
+	// setup
+	buf1 := mkbuf("blob1value")
+	child1, err := db.PutBlock("sha256", buf1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf2 := mkbuf("blob2value")
+	child2, err := db.PutBlock("sha256", buf2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// put
+	tree, err := db.PutTree("sha256", child1, child2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree == nil {
+		t.Fatal("tree is nil")
+	}
+
+	/*
+		nodekey := db.KeyFromPath("node/sha256/cb4/678/cb46789e72baabd2f1b1bc7dc03f9588f2a36c1d38224f3a11fad7386cb9cbcf")
+		if nodekey == nil {
+			t.Fatal("nodekey is nil")
+		}
+		// t.Log(fmt.Sprintf("nodekey %#v node %#v", nodekey, node))
+		tassert(t, keyEqual(nodekey, node.Key), "node key mismatch: expect %s got %s", nodekey, node.Key)
+	*/
+
+	ok, err := tree.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tassert(t, ok, "tree verify failed: %v", tree)
+
+	// get
+	gottree, err := db.GetTree(tree.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// t.Log(fmt.Sprintf("node\n%q\ngotnode\n%q\n", node, gotnode))
+	expecttxt, err := tree.Txt()
+	tassert(t, err == nil, "%#v", err)
+	gottxt, err := gottree.Txt()
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, expecttxt == gottxt, "tree %v mismatch: expect %v got %v", tree.Path.Abs, expecttxt, gottxt)
+
+}
+
+func TestTreeRead(t *testing.T) {
+	db := setup(t, nil)
+
+	// setup
+	buf1 := mkbuf("blob1value")
+	block1, err := db.PutBlock("sha256", buf1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf2 := mkbuf("blob2value")
+	block2, err := db.PutBlock("sha256", buf2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf3 := mkbuf("blob3value")
+	block3, err := db.PutBlock("sha256", buf3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// put
+	tree1, err := db.PutTree("sha256", block1, block2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree1 == nil {
+		t.Fatal("tree1 is nil")
+	}
+	tree2, err := db.PutTree("sha256", tree1, block3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree2 == nil {
+		t.Fatal("tree2 is nil")
+	}
+
+	expect := []byte("blob1valueblob2valueblob3value")
+
+	// read explicitly
+	file, err := OpenWorm(db, tree2.Path)
+	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
+	tree2a := Tree{}.New(db, file)
+	gotbuf := make([]byte, 99)
+	gotbufn := 0
+	for i := 0; i < 99; i++ {
+		n, err := tree2a.Read(gotbuf[gotbufn:])
+		gotbufn += n
+		if err == io.EOF {
+			tassert(t, n == len(expect), "n %v", n)
+			break
+		}
+		tassert(t, err == nil, "err %#v", err)
+	}
+	tassert(t, len(expect) == gotbufn, "expect %v got %v", len(expect), gotbufn)
+	tassert(t, bytes.Compare(expect, gotbuf[:gotbufn]) == 0, "expect %q got %q", string(expect), string(gotbuf[:gotbufn]))
+
+	// read as stream
+	file, err = OpenWorm(db, tree2.Path)
+	tassert(t, err == nil, "tree2 file %#v err %v", file, err)
+	tree2b := Tree{}.New(db, file)
+	expectrd := bytes.NewReader(expect)
+	ok, err := readercomp.Equal(expectrd, tree2b, 6) // XXX try different sizes
+	tassert(t, err == nil, "readercomp.Equal: %v", err)
+	tassert(t, ok, "tree.Read mismatch")
+
+	// test seek
+	// expect := []byte("blob1valueblob2valueblob3value")
+	// from start
+	nseek, err := tree2.Seek(4, io.SeekStart)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nseek == 4, "%v", nseek)
+	nread, err := tree2.Read(gotbuf[:1])
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nread == 1, "%v", nread)
+	tassert(t, string(gotbuf[0]) == "1", string(gotbuf[0]))
+	// from current
+	nseek, err = tree2.Seek(9, io.SeekCurrent)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nseek == 14, "%v", nseek)
+	nread, err = tree2.Read(gotbuf[:1])
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nread == 1, "%v", nread)
+	tassert(t, string(gotbuf[0]) == "2", string(gotbuf[0]))
+	// from end
+	nseek, err = tree2.Seek(-6, io.SeekEnd)
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nseek == int64(len(expect)-6), "%v", nseek)
+	nread, err = tree2.Read(gotbuf[:1])
+	tassert(t, err == nil, "%#v", err)
+	tassert(t, nread == 1, "%v", nread)
+	tassert(t, string(gotbuf[0]) == "3", string(gotbuf[0]))
+
+	// test tell
+	var i int64
+	for i = 0; i < int64(len(expect)); i++ {
+		nseek, err := tree2.Seek(i, io.SeekStart)
+		tassert(t, err == nil, "%#v", err)
+		ntell, err := tree2.Tell()
+		tassert(t, err == nil, "%#v", err)
+		tassert(t, ntell == i, "%v", nseek)
+		nread, err = tree2.Read(gotbuf[:1])
+		tassert(t, err == nil, "%#v", err)
+		tassert(t, nread == 1, "%v", nread)
+		ntell, err = tree2.Tell()
+		tassert(t, err == nil, "%#v", err)
+		tassert(t, ntell == i+1, "nseek after tell: expect %v got %v", i+1, ntell)
+		tassert(t, gotbuf[0] == expect[i], "i: %v, expect: %v, got: %v, gotbuf: %v", i, string(expect[i]), string(gotbuf[0]), string(gotbuf))
+	}
+
+	// XXX test rewind
+}
+
+type predictableStream struct {
+	Size    int64
+	seekPos int64
+}
+
+// generate a stream of predictable data -- each byte is seekPos % 256
+func (s *predictableStream) Read(buf []byte) (n int, err error) {
+	if s.seekPos >= s.Size {
+		err = io.EOF
+		return
+	}
+	i := 0
+	for ; i < len(buf); i++ {
+		buf[i] = byte(s.seekPos % 256)
+		s.seekPos++
+		if s.seekPos >= s.Size {
+			break
+		}
+	}
+	return i, nil
+}
+
+// test random seek/read
+func TestTreeSeek(t *testing.T) {
+	db := setup(t, nil)
+
+	// put predictable data into a large tree
+	// XXX try different tree sizes, including very small
+	treesize := int64(100 * miB)
+	stream := &predictableStream{Size: treesize}
+	tree, err := db.PutStream("sha256", stream)
+	tassert(t, err == nil, "PutStream(): %v", err)
+	tassert(t, tree != nil, "PutStream() tree is nil")
+
+	// seek a bunch of times to random locations and check the data
+	rand.Seed(42)
+	for i := 0; i < 1000; i++ { // XXX more iterations?
+		seekpos := rand.Int63n(treesize)
+		nseek, err := tree.Seek(seekpos, io.SeekStart)
+		tassert(t, err == nil, "seek: %#v", err)
+		tassert(t, nseek == seekpos, "n: %#v", nseek)
+		bufsize := rand.Int63n(1000000) + 1 // "+ 1" so we don't make the buf zero size
+		bufsize = minInt(bufsize, treesize-seekpos+1)
+		got := make([]byte, bufsize)
+		nread, err := tree.Read(got)
+		if err == io.EOF {
+			tassert(t, int64(nread)+seekpos+1 == treesize, "nread: %v + seekpos: %v = %v, treesize: %v", nread, seekpos, int64(nread)+seekpos, treesize)
+		} else {
+			tassert(t, err == nil, "i: %v seek: %#v", i, err)
+			tassert(t, int64(nread) == bufsize, "treesize: %v, seekpos: %v, bufsize: %v, nread: %v", treesize, seekpos, bufsize, nread)
+		}
+		tellpos, err := tree.Tell()
+		tassert(t, err == nil, "seek: %#v", err)
+		tassert(t, tellpos == seekpos+int64(nread), "i: %v,treesize: %v, seekpos: %v, nread: %v, tellpos: %v", i, treesize, seekpos, nread, tellpos)
+
+		// check the beginning of buf
+		expect := byte(seekpos % 256)
+		tassert(t, got[0] == expect, "expect: %v, got: %#v", expect, got[0])
+
+		// check the end of read
+		expect = byte((seekpos + int64(nread-1)) % 256)
+		tassert(t, got[nread-1] == expect, "expect: %v, got: %#v", expect, got[nread-1])
+	}
+
+}
+
+func minInt(a, b int64) int64 {
+	return int64(math.Min(float64(a), float64(b)))
+}
+
+func TestVerify(t *testing.T) {
+	db, err := Open("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := Path{}.New(db, "tree/sha256/a0d8c34b4e52b65b1ecc24919dc1eafa8d4930fce0bb4eb5023821162d154b9d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, err := db.GetTree(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := tree.Entries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, child := range entries {
+		switch i {
+		case 0:
+			expect := "tree/sha256/eab/258/eab258bcea84fb7594c04a72cc2c6cfab1b9629abccdc5b54c0750ffb01de4aa"
+			tassert(t, expect == child.GetPath().Rel, "expected %v got %v", expect, child.GetPath().Rel)
+		case 1:
+			expect := "block/sha256/65f/ac3/65fac34b0f3b5678b44aa3931da6bd936db2ece34a0c2c50754c15503115cb0e"
+			tassert(t, expect == child.GetPath().Rel, "expected %q got %q", expect, child.GetPath().Rel)
+		}
+	}
+	ok, err := tree.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tassert(t, ok, "tree verify failed: %v", pretty(tree))
+}

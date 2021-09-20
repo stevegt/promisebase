@@ -1,3 +1,5 @@
+# DB
+
 x add rabin, PutStream and PutFile test cases
 x add PutFile code 
     x start with World.AppendBlock()
@@ -50,33 +52,151 @@ x split into multiple files or packages
     x db, tree, stream, blob, and util
     x tests also
 x clean up test directories
-- clean up streaming enough to support `pb run`
+x clean up streaming enough to support `pb run`
     x write test case for tree.Read()
-    - convert tree.Cat() and stream.Cat()
-    - look around for anywhere else a buf is being returned
-    - test pb with ulimit 
+    x convert tree.Cat() and stream.Cat()
+    x look around for anywhere else a buf is being returned
+    x test pb with ulimit 
+x write pb run:
+    x see https://docs.docker.com/engine/api/sdk/examples/
+    x we likely want to use save/load instead of export/import because
+      of https://medium.com/@cminion/quicknote-docker-load-vs-docker-import-ed1367b93721
+    x https://pspdfkit.com/blog/2019/docker-import-export-vs-load-save/
+    x https://maori.geek.nz/how-to-digest-a-docker-image-ca9fc7630b71
+    x https://pkg.go.dev/github.com/docker/docker/client#Client.ImageLoad
 - write some test cases where we change the working directory
     - should help make macOS work
 - setup a linux VM for Matt
 - make this work:
 
 ```
-    host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-export.tar 
+    host1 $ pb putstream sha256 ubuntu < /tmp/ubuntu-docker-save.tar 
     stream/ubuntu -> tree/sha256/0ebd5d411223e3777db972163a60aa2f45c386db5c2353978e95fabdd1b08b08
     host2 $ pb run --rm -it sha256/0ebd5d411223e3777db972163a60aa2f45c386db5c2353978e95fabdd1b08b08 echo hello
     hello
 ```
 
+x track down source of the multiple closes on file handles
+    x figure out why we can't uncomment tree.go:178
+
+# Daemon
+
+x figure out API for other language libs 
+    x filesystem?  UDS?  both?  
+x figure out how a container sends messages
+    x filesystem?  UDS?  both?  
+x write test cases
+    x protocol parser and/or inotify lib first
+x copy runContainer into pit library
+    x run the container in a goroutine with stdio via channels
+x refactor modules
+    x move pitbase/*.go to pitbase/db
+    x cmd/pb imports pitbase/db
+    x pitbase/server imports pitbase/db
+    x cmd/pitd imports pitbase/server
+        x git mv pitbase/pit pitbase/server 
+    x cmd/pit imports pitbase/client
+        x create pitbase/client
+    x create cmd/pitd
+        x cp -a cmd/pb cmd/pitd
+        x mv cmd/pitd/main.go cmd/pitd/pitdmain.go
+            x import pitbase/server // for now
+        x git mv cmd/pb/main.go cmd/pb/pbmain.go
+    x create cmd/pit
+        x cp -a cmd/pb cmd/pit
+        x mv cmd/pit/pbmain.go cmd/pit/pitmain.go
+            x import pitbase/client
+        x mv cmd/pit/testdata/main.ct cmd/pit/testdata/pitmain.ct
+x migrate to containerd
+    x decision points:
+        x vanilla ubuntu containerd.io .deb wants redis tutorial
+          client to either run as root or to be using rootless
+          configuration
+          x we don't want to run test cases as root
+          x rootless config is a lot of setup on dev or user machines
+            (setup that we would want to avoid)
+          x XXX it's possible that there is an easy change to either
+            redis tutorial or containerd config to not make it want
+            rootless
+        x the `nerdctl` container image is able to run the redis
+          tutorial fine, inside the container:
+            x docker run -it --rm --privileged -v \
+                ~/lab/containerd/client-api-getting-started/:/client-api-getting-started \
+                nerdctl /client-api-getting-started/main
+            x this looks like the best option
+        x can we safely use the docker containerd?
+            x let's avoid that due to possible conflicts
+
+- refactor to support fuse:
+    - add function to create a new tree
+        - this is probably already there in PutStream
+            - but we need it to return an io.Writer
+            - and it probably should be renamed to PutTree
+            - but it still isn't going to deal with the offset arg
+              passed in to fuse FileWriter.Write()
+    - rename Blob to Chunk? 
+        - probably Leaf
+    - rename Tree to Blob?  
+        - probably no
+    - add a directory structure object
+        - hopefully-thin layer on top of Tree
+          - updating mode bits or inserting a directory entry probably
+            intersects with however we handle the offset arg of FileWriter.Write()
+        - this is where file and directory names are associated with
+          tree root nodes
+        - call it Index?  
+        - Forest?
+    - deprecate Stream
+
+- write pitd as a fuse server; gets rid of need for all of these things:
+        - NO refactor server to provide a pit.Serve function
+        - NO call listener function from pitd
+        - NO write client library
+            - NO contacts pitd through unix domain socket
+        - NO get pitmain.ct to pass
+            - NO `pit` is the cmdline utility providing an API for shell scripts
+        - NO rework server to use msgpack for wire protocol
+            - NO ~/core/u/gdo/msgpack/unix-domain-sockets
+        - NO POC pit libraries in other languages
+            - NO bash
+            - NO python
+            - NO C++
+        - NO RFC -- UDS protocol
+        - NO add daemon() to pb 
+            - NO run daemon with `pb daemon`, 
+        - NO move or copy pb runContainer into daemon
+            - NO run the container in a goroutine with stdio via channels
+        - NO client/broker/member talks to daemon via unix domain socket, stream mode
+- investigate stargz and the general idea of a FUSE driver for a
+  container's live rootfs (beyond just tree/stream service)
+    - https://github.com/containerd/stargz-snapshotter/blob/master/docs/overview.md
 - spike network layer
     - daemon
     - unix domain socket, stream mode
     - broker
+- containerize tests and prod
+    x this will also help provide a linux VM for Matt
+    x write a Dockerfile 
+    x base on nerdctl?
+    - have `make test` spawn container?
+- write some test cases where we change the working directory
+    - should help make macOS work
 - move rfcs to:
     - 0000 t7a
     - 1000 pb/gdo
     - 2000 cdint
 - start RFC 1004 -- auth&auth
     - e.g. authorization by key fingerprint should be via encryption, not by us
+- RFC -- architecture
+    - db
+    - daemon
+    - counterparty
+    - network
+- RFC -- accounting records
+    - one blob per transaction leg 
+        - per-leg payload in stream
+- make wide trees streamable
+    - see note in memtest.sh
 - spike pit
     - accounting
     - disk is network

@@ -1,0 +1,24 @@
+
+msc {
+  app1,
+  pit,
+  dockerd,
+  app2;
+
+  app1 note app1 [label="app1 is in a container; mounts /var/run/pit.sock"],
+  pit note pit [label="pit is in a container; mounts /var/run/pit.sock and pitbase db docker volume"],
+  dockerd note dockerd [label="dockerd is the local docker daemon"],
+  app2 note app2 [label="app2 is in a container; mounts /var/run/pit.sock"];
+  --- [label="ready for request"];
+  app1 => pit [label="app2() request"];
+  pit => dockerd [label="app2 image"];
+  dockerd => app2 [label="start app2 container"];
+  dockerd <= app2 [label="stdio"];
+  pit <= dockerd [label="stdio descriptors"];
+  app1 <= pit [label="stdio descriptors"];
+  app2 note app2 [label="app2 runs, and can in turn recurse to other containers because it mounts /var/run/pit.sock"];
+  dockerd <= app2 [label="rc"];
+  pit <= dockerd [label="rc"];
+  app1 <= pit [label="rc"];
+  --- [label="ready for next request"];
+}

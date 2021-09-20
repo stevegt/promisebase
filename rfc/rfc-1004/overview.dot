@@ -1,0 +1,22 @@
+digraph overview {
+    // label=overview;
+    // rankdir=LR;
+
+    fs [shape=record];
+
+    app1 [shape=record, label="{app1|pit.go}"];
+    app1 -> fs [label=syscall];
+
+    app2 [shape=record, label="{app2|bash|pb|pit.go}"];
+    app2 -> fs [label=syscall];
+
+    app3 [shape=record, label="{app3|pit.py}"];
+    app3 -> fs [label=syscall];
+
+    app4 [shape=record, label="{app4|pit.go|container}"];
+    app4 -> fs [label=syscall];
+
+
+    I [color=white, label=""];
+    I -> app1 [label="TCP/UDP/etc."];
+}

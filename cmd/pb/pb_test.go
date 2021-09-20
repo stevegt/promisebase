@@ -40,7 +40,7 @@ func TestCLI(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		err = fileutils.CopyFile("main.go", filepath.Join(srcdir, "main.go"))
+		err = fileutils.CopyFile("pbmain.go", filepath.Join(srcdir, "pbmain.go"))
 		if err != nil {
 			panic(err)
 		}

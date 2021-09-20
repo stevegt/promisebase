@@ -1,0 +1,176 @@
+# pb CLI test suite
+# https://github.com/google/go-cmdtest
+
+$ mkdir var
+$ cd var
+$ pb init
+Initialized empty database in ${ROOTDIR}/var
+
+# put a block
+$ fecho block1 this is blob1
+$ pb putblock sha256 < block1
+block/sha256/54fc654ca4de97f20e8cddd5547959864f4ce890275ae4b8419256bd822e6c65
+
+# get it (fully qualified path)
+$ pb getblock block/sha256/54f/c65/54fc654ca4de97f20e8cddd5547959864f4ce890275ae4b8419256bd822e6c65
+this is blob1
+
+# get it using canonical path
+$ pb getblock block/sha256/54fc654ca4de97f20e8cddd5547959864f4ce890275ae4b8419256bd822e6c65
+this is blob1
+
+# put block with bad hash algo
+$ fecho badblock1 this is badblob1
+$ pb putblock sha257 < badblock1 --> FAIL
+function not implemented: sha257
+
+# put nonexistent block
+$ pb putblock sha256 < badblock2 --> FAIL
+
+# get nonexistent block
+$ pb getblock block/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000 --> FAIL
+not found: ${ROOTDIR}/var/block/sha256/000/000/000000deadbeef00000000000000000000000000000000000000000000000000: no such file or directory
+
+# try a multiline block
+$ fecho block2 multiline blob\nthis is line 2
+$ pb putblock sha256 < block2
+block/sha256/5b1a08db4cc2eac41561bd71e8e1f5b796042d2af69ec0e6ca5dc5277b42534d
+
+# try a slightly bigger block 
+$ pb putblock sha256 < ../bigblob
+block/sha256/f3ca719e760d66cede06cc803f250d6315db4b6653d3ce402f74c0fbaa59d54b
+
+# put a tree
+$ pb puttree sha256 block/sha256/5b1a08db4cc2eac41561bd71e8e1f5b796042d2af69ec0e6ca5dc5277b42534d block/sha256/f3ca719e760d66cede06cc803f250d6315db4b6653d3ce402f74c0fbaa59d54b
+tree/sha256/6cc7535a983bf4558f16ca5cf40c648885839bbf7005de9b4fc6a73cfe14de27
+
+# get it (fully qualified)
+$ pb gettree tree/sha256/6cc/753/6cc7535a983bf4558f16ca5cf40c648885839bbf7005de9b4fc6a73cfe14de27
+block/sha256/5b1a08db4cc2eac41561bd71e8e1f5b796042d2af69ec0e6ca5dc5277b42534d
+block/sha256/f3ca719e760d66cede06cc803f250d6315db4b6653d3ce402f74c0fbaa59d54b
+
+# get it (canonical)
+$ pb gettree tree/sha256/6cc7535a983bf4558f16ca5cf40c648885839bbf7005de9b4fc6a73cfe14de27
+block/sha256/5b1a08db4cc2eac41561bd71e8e1f5b796042d2af69ec0e6ca5dc5277b42534d
+block/sha256/f3ca719e760d66cede06cc803f250d6315db4b6653d3ce402f74c0fbaa59d54b
+
+# put a parent tree
+# XXX also test fully qualified inputs
+$ pb puttree sha256 tree/sha256/6cc7535a983bf4558f16ca5cf40c648885839bbf7005de9b4fc6a73cfe14de27 block/sha256/54fc654ca4de97f20e8cddd5547959864f4ce890275ae4b8419256bd822e6c65
+tree/sha256/097d75af6c557669338662faf7f561a99fbd72733c5e0d7c1edfa7e0f15c7ffe
+
+# get it
+$ pb gettree tree/sha256/097d75af6c557669338662faf7f561a99fbd72733c5e0d7c1edfa7e0f15c7ffe
+tree/sha256/6cc7535a983bf4558f16ca5cf40c648885839bbf7005de9b4fc6a73cfe14de27
+block/sha256/54fc654ca4de97f20e8cddd5547959864f4ce890275ae4b8419256bd822e6c65
+
+# make a stream from that parent tree
+# - this just makes a symlink in var/stream and shows the result
+$ pb linkstream tree/sha256/097d75af6c557669338662faf7f561a99fbd72733c5e0d7c1edfa7e0f15c7ffe stream1
+stream/stream1 -> tree/sha256/097d75af6c557669338662faf7f561a99fbd72733c5e0d7c1edfa7e0f15c7ffe
+
+# get a stream
+# - calls Readlink("var/stream/stream1") and returns the canpath of the thing it's pointing at
+$ pb getstream stream1
+tree/sha256/097d75af6c557669338662faf7f561a99fbd72733c5e0d7c1edfa7e0f15c7ffe
+
+# get stream fail
+$ pb getstream stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
+
+# list all of the leaf nodes in a stream 
+$ pb lsstream stream1
+block/sha256/5b1a08db4cc2eac41561bd71e8e1f5b796042d2af69ec0e6ca5dc5277b42534d
+block/sha256/f3ca719e760d66cede06cc803f250d6315db4b6653d3ce402f74c0fbaa59d54b
+block/sha256/54fc654ca4de97f20e8cddd5547959864f4ce890275ae4b8419256bd822e6c65
+
+# list all of the nodes in a stream, both leaf and inner, depth first
+$ pb lsstream -a stream1
+tree/sha256/097d75af6c557669338662faf7f561a99fbd72733c5e0d7c1edfa7e0f15c7ffe
+tree/sha256/6cc7535a983bf4558f16ca5cf40c648885839bbf7005de9b4fc6a73cfe14de27
+block/sha256/5b1a08db4cc2eac41561bd71e8e1f5b796042d2af69ec0e6ca5dc5277b42534d
+block/sha256/f3ca719e760d66cede06cc803f250d6315db4b6653d3ce402f74c0fbaa59d54b
+block/sha256/54fc654ca4de97f20e8cddd5547959864f4ce890275ae4b8419256bd822e6c65
+
+# lsstream fail
+$ pb lsstream stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
+
+$ pb lsstream -a stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
+
+# show a concatenation of all leaf node content in a stream
+$ pb catstream stream1
+multiline blob
+this is line 2
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae
+dapibus lorem. Pellentesque habitant morbi tristique senectus et netus
+et malesuada fames ac turpis egestas. Phasellus suscipit mattis
+interdum. Praesent nec diam mi. In placerat est sit amet cursus
+ullamcorper. Sed porta dignissim elementum. Quisque at dui pharetra,
+rhoncus nibh in, maximus erat. Praesent diam sapien, semper sed
+sollicitudin id, porttitor eu urna. Quisque vitae ligula non mi
+sagittis varius. Orci varius natoque penatibus et magnis dis
+parturient montes, nascetur ridiculus mus.
+this is blob1
+
+# same, but for tree
+$ pb cattree tree/sha256/097d75af6c557669338662faf7f561a99fbd72733c5e0d7c1edfa7e0f15c7ffe
+multiline blob
+this is line 2
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae
+dapibus lorem. Pellentesque habitant morbi tristique senectus et netus
+et malesuada fames ac turpis egestas. Phasellus suscipit mattis
+interdum. Praesent nec diam mi. In placerat est sit amet cursus
+ullamcorper. Sed porta dignissim elementum. Quisque at dui pharetra,
+rhoncus nibh in, maximus erat. Praesent diam sapien, semper sed
+sollicitudin id, porttitor eu urna. Quisque vitae ligula non mi
+sagittis varius. Orci varius natoque penatibus et magnis dis
+parturient montes, nascetur ridiculus mus.
+this is blob1
+
+# catstream fail
+$ pb catstream stream42 --> FAIL
+lstat ${ROOTDIR}/var/stream/stream42: no such file or directory
+
+# improve coverage
+$ pb putblock lkdsajf --> FAIL
+function not implemented: lkdsajf
+
+$ pb getblock kakajsn --> FAIL
+malformed path: kakajsn: invalid argument
+
+$ pb lsstream lsadkfj --> FAIL
+lstat ${ROOTDIR}/var/stream/lsadkfj: no such file or directory
+
+# putfile
+# create a huge file
+$ dd status=none if=/dev/urandom of=${ROOTDIR}/hugefile bs=1M count=100
+
+# put it 
+$ pb putstream -q sha256 stream7 < ${ROOTDIR}/hugefile
+
+
+# get it and save to hugefile.copy
+$ pb catstream stream7 -o ${ROOTDIR}/hugefile.copy 
+
+# compare
+$ cmp ${ROOTDIR}/hugefile ${ROOTDIR}/hugefile.copy
+
+# try executing code in an arbitrary language
+# load the lang1 interpreter
+$ pb putstream sha256 lang1 < ../lang1.sh 
+stream/lang1 -> tree/sha256/47c77ccb4d0d9922d2da79e3e8903d0b1d5a7bd0072b3c7eeefb914596cbf1fd
+
+# run a script written in lang1
+$ pb exec ../hello.lang1
+Hello, Universe!
+
+# ensure stream names can include slashes
+# XXX - also need to ensure they don't include '..', or that they otherwise
+# XXX   resolve to anything outside of ./stream/
+# $ pb puttree sha256 blob/sha256/1a7/b18/1a7b18e13062cfcdc1f36d53d0a852794e2547f8cf6379afd0c85958ba166262,/some/path
+# tree/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
+# $ pb putstream tree/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c /some/stream
+# /some/stream -> tree/sha256/8334d1e784ad1c5567a84ae7d182dc9e10b5778c02c15cd8ffc8200b673b435c
+

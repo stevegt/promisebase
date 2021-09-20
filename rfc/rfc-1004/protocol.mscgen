@@ -1,0 +1,24 @@
+msc {
+  app1,
+  fs,
+  app2,
+  stdout,
+  stderr;
+
+  stdout note stdout [label="stdout and stderr might be provided by app2 threads, files on disk, or the local end of a TCP connection"];
+  app1 => fs [label="inotify watch()"];
+  fs <= app2 [label="create socket and listen"];
+  app1 <= fs [label="inotify CREATE"];
+  app1 => app2 [label="connect"];
+  app2 => app2 [label="accept"];
+  --- [label="ready for request"];
+  app1 => app2 [label="addr arg1 arg2"];
+  app2 note app2 [label="app2 creates stdoutfd and stderrfd"];
+  app1 <= app2 [label="stdoutfd, stderrfd"];
+  app1 => stdout [label="stdoutfd.read()"];
+  app1 <= stdout [label="stdout bytes"];
+  app1 => stderr [label="stderrfd.read()"];
+  app1 <= stderr [label="stderr bytes"];
+  app1 <= app2 [label="rc"];
+  --- [label="ready for next request"];
+}

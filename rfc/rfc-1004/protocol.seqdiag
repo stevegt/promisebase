@@ -1,0 +1,29 @@
+seqdiag {
+
+  activation = none;
+
+  app1; fs; app2;
+
+/*
+  app1 ->   fs          [label = "inotify watch"];
+  app1 <--  fs;          
+            fs <-  app2 [label = "inotify watch"];
+            fs --> app2;
+            */
+
+            fs <-  app2 [label = "create socket"];
+  app1  <-  fs          [label = "inotify create"];
+  app1  ->  fs          [label = "connect"];
+
+  app1      ->     app2 [label = "hash arg1 arg2"];
+  app1      <--    app2 [label = "stdoutfd, stderrfd"];
+
+  app1 ->   fs          [label = "stdoutfd.read()"];
+  app1 <--  fs;          
+  app1 ->   fs          [label = "stderrfd.read()"];
+  app1 <--  fs;          
+
+  app1      <--    app2 [label = "rc"];
+
+  
+}
