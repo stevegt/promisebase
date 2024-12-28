@@ -1,10 +1,7 @@
-fix signal.Notify vet error
+analyze difference between current code and a graph database
 
-cmd/pitd/pitdmain.go:92:2: misuse of unbuffered os.Signal channel as argument to signal.Notify
-
-The channel needs to be buffered to prevent `signal.Notify` from
-blocking if a signal is received when the goroutine isn't ready to
-handle it immediately.
+- Describe the difference between the current code and a graph database.
+- Suggest changes to the code to make it more like a graph database.
 
 Sysmsg: You are an expert Go programmer. Please make the requested changes to the given code or documentation.
 In:
