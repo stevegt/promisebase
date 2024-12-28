@@ -1,7 +1,10 @@
-analyze difference between current code and a graph database
+analyze usability of current code as storage layer under a graph database
 
-- Describe the difference between the current code and a graph database.
-- Suggest changes to the code to make it more like a graph database.
+Describe suitability of the current code for use as the storage layer under
+a graph database.  Assume the graph is a directed graph with labeled
+nodes and edges, and is append-only.  Consider the question of whether
+a graph database tends to use a key-value store or a document store as
+its storage layer.
 
 Sysmsg: You are an expert Go programmer. Please make the requested changes to the given code or documentation.
 In:
