@@ -1,0 +1,116 @@
+The `go vet` tool has identified a potential issue in your `cmd/pitd/pitdmain.go` file at line **92:2**, specifically:
+
+```
+misuse of unbuffered os.Signal channel as argument to signal.Notify
+```
+
+## **Understanding the Issue**
+
+The error message indicates that you're using an **unbuffered** channel for signal notifications. Here's the relevant portion of your code:
+
+```go
+sig := make(chan os.Signal)
+signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+go func() {
+    <-sig
+    umount(server)
+    os.Exit(1)
+}()
+```
+
+### **Why is This a Problem?**
+
+- **Blocking Behavior:** An unbuffered channel requires that both the sender and receiver are ready to communicate simultaneously. If a signal is sent to `sig` but there's no receiver ready to receive it, the program can **block indefinitely**, leading to potential deadlocks or missed signals.
+  
+- **Signal Handling Best Practices:** The [Go `signal` package documentation](https://pkg.go.dev/os/signal#Notify) recommends using a **buffered** channel to ensure that signals are not missed, especially if multiple signals arrive in quick succession.
+
+## **Solution: Use a Buffered Channel**
+
+To address this issue, you should modify the signal channel to be **buffered**. A buffer size of **1** is typically sufficient for most use cases, ensuring that at least one signal is captured without blocking.
+
+### **Modified Code**
+
+Here's how you can update your code:
+
+```go
+sig := make(chan os.Signal, 1) // Make the channel buffered with capacity 1
+signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+go func() {
+    <-sig
+    umount(server)
+    os.Exit(1)
+}()
+```
+
+### **Explanation of Changes**
+
+1. **Buffered Channel Creation:**
+   - **Before:** `sig := make(chan os.Signal)`
+   - **After:** `sig := make(chan os.Signal, 1)`
+   
+   Adding a buffer size of `1` allows the channel to hold one signal without requiring an immediate receiver. This prevents the `signal.Notify` from blocking if a signal is received when the goroutine isn't ready to handle it immediately.
+
+2. **Handling Multiple Signals:**
+   - If your application might receive multiple signals that you need to handle, consider increasing the buffer size accordingly. However, for most scenarios where you expect single signals (like `SIGINT` or `SIGTERM` for graceful shutdown), a buffer size of `1` is adequate.
+
+## **Final Updated Code Snippet**
+
+Here's the updated `serve` function with the corrected signal channel:
+
+```go
+func serve(dbdir, mountpoint string) (err error) {
+    defer Return(&err)
+
+    var server *gofuse.Server
+
+    // unmount on exit
+    defer umount(server)
+
+    // unmount on SIGINT or SIGTERM
+    sig := make(chan os.Signal, 1) // Buffered channel
+    signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+    go func() {
+        <-sig
+        umount(server)
+        os.Exit(1)
+    }()
+
+    db, err := opendb(dbdir)
+    Ck(err)
+
+    server, err = fuse.Serve(db, mountpoint)
+    Ck(err)
+    server.Wait()
+
+    return
+}
+```
+
+## **Additional Recommendations**
+
+1. **Graceful Shutdown:**
+   - Ensure that all goroutines and resources are properly cleaned up during shutdown to prevent resource leaks.
+
+2. **Handling Multiple Signals:**
+   - If your application needs to handle multiple signals or perform different actions for different signals, adjust the buffering and goroutine logic accordingly.
+
+3. **Testing:**
+   - After making these changes, test your application by sending signals (e.g., pressing `Ctrl+C` to send `SIGINT`) to verify that it shuts down gracefully without hanging.
+
+4. **Logging:**
+   - Consider adding logging within your signal-handling goroutine to aid in debugging and monitoring signal receptions.
+
+```go
+go func() {
+    s := <-sig
+    log.Infof("Received signal: %v. Initiating shutdown.", s)
+    umount(server)
+    os.Exit(1)
+}()
+```
+
+This addition provides visibility into the signal handling process, which can be invaluable for troubleshooting and ensuring that your application behaves as expected upon receiving termination signals.
+
+---
+
+By updating the signal channel to be buffered, you adhere to Go's best practices for signal handling, ensuring that your application remains responsive and doesn't inadvertently block when handling OS signals.

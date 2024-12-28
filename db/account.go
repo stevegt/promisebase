@@ -1,9 +1,9 @@
 package db
 
-import (
-	"math/big"
-	"time"
-)
+// "math/big"
+// "time"
+
+/*
 
 type Account []byte // public key of account
 
@@ -28,3 +28,5 @@ type Leg struct {
 
 // XXX we either need version numbers or some other extensibility on
 // the above structs -- maybe they are interfaces instead?
+
+*/

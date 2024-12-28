@@ -88,7 +88,10 @@ func serve(dbdir, mountpoint string) (err error) {
 	defer umount(server)
 
 	// unmount on SIGINT or SIGTERM
-	sig := make(chan os.Signal)
+	// The channel needs to be buffered to prevent `signal.Notify`
+	// from blocking if a signal is received when the goroutine isn't
+	// ready to handle it immediately.
+	sig := make(chan os.Signal, 10)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sig
