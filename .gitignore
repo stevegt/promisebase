@@ -2,4 +2,7 @@ var
 *.swp
 *.swo
 pitbase.test
+.grok
+.grok-*
+local
 
