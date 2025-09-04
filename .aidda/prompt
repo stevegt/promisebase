@@ -1,3 +1,83 @@
+create slide show 
+
+Create a detailed slide show in remerkjs format describing the codebase:
+
+- Why it's important
+- Who wrote it
+- When they wrote it and what was going on in the world at that time
+- What tools were used to write it
+- What the code does
+- How it is organized
+- Key algorithms and data structures
+- Important files and their roles
+- Work in progress, bugs, known issues
+- What's missing, future plans
+
+
+Out:
+    ./slides/README.md
+In:
+    ./Makefile
+    ./db/chunker_test.go
+    ./db/stream_test.go
+    ./db/bench_test.go
+    ./cmd/pitd/.gitignore
+    ./cmd/pitd/pitdmain.go
+    ./rfc/rfc-1003.md
+    ./covertest.sh
+    ./.grok.lock
+    ./local/grokker.md
+    ./cmd/pitd/testdata/lang1.sh
+    ./go.mod
+    ./rfc/rfc-1004/protocol.mscgen
+    ./cmd/pitd/testdata/main.ct
+    ./cmd/pitd/testdata/bigblob
+    ./cmd/pb/testdata/pbmain.ct
+    ./rfc/rfc-1004/Makefile
+    ./rfc/rfc-1004/recursion.mscgen
+    ./db/statlink_test.go
+    ./rfc/rfc-1004/overview.dot
+    ./db/blob.go
+    ./cmd/pb/testdata/lang1.sh
+    ./cmd/pb/pb_test.go
+    ./ROADMAP.md
+    ./fuse/fuse.go
+    ./rfc/rfc-1005.md
+    ./TODO.md
+    ./db/file.go
+    ./rfc/rfc-1004.md
+    ./.gitignore
+    ./db/stream.go
+    ./db/account.go
+    ./db/blob_test.go
+    ./cmd/pb/testdata/bigblob
+    ./client/client.go
+    ./server/container.go
+    ./db/chunker.go
+    ./db/tree_test.go
+    ./rfc/rfc-1006.md
+    ./db/db_test.go
+    ./server/server.go
+    ./db/tree.go
+    ./db/db.go
+    ./rfc/rfc-1004/protocol.seqdiag
+    ./memtest.sh
+    ./fuse/fuse_test.go
+    ./server/server_test.go
+    ./db/path_test.go
+    ./db/doc.go
+    ./cmd/pitd/testdata/hello.lang1
+    ./cmd/pitd/pitd_test.go
+    ./cmd/pb/.gitignore
+    ./rfc/rfc-lang
+    ./db/pitbase.go
+    ./db/path.go
+    ./rfc/rfc-ipc/2934897/cmd
+    ./db/pitbase_test.go
+    ./cmd/pb/pbmain.go
+    ./cmd/pb/testdata/hello.lang1
+.stop
+
 analyze usability of current code as storage layer under a graph database
 
 Describe suitability of the current code for use as the storage layer under

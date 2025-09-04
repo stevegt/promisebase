@@ -34,19 +34,19 @@ func (pit *Pit) startContainer(cntr *Container) (err error) {
 	defer Return(&err)
 
 	err = cntr.initdir()
-	Ck(err)
+	Ck(err, "initdir failed")
 
 	err = cntr.initconfig()
-	Ck(err)
+	Ck(err, "initconfig failed")
 
 	err = cntr.createimg()
-	Ck(err)
+	Ck(err, "createimg failed")
 
 	err = cntr.createrootfs()
-	Ck(err)
+	Ck(err, "createrootfs failed")
 
 	err = cntr.start()
-	Ck(err)
+	Ck(err, "start failed")
 
 	return
 }

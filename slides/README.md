@@ -1,54 +1,3 @@
-<think>
-This is a fascinating code base! I need to analyze the codebase and create a detailed slide show in RemarkJS format describing:
-
-1. Why it's important
-2. Who wrote it
-3. When they wrote it and what was going on in the world at that time
-4. What tools were used to write it
-5. What the code does
-6. How it is organized
-7. Key algorithms and data structures
-8. Important files and their roles
-9. Work in progress, bugs, known issues
-10. What's missing, future plans
-
-Let me go through the code and analyze it:
-
-## Analysis
-
-### What the code does:
-This appears to be a **content-addressable storage (CAS)** system called "promisebase" or "pitbase". It's a deduplicating database that stores data by its cryptographic hash rather than by location. Key features include:
-
-- **Content-addressable storage**: Data is identified by its SHA-256/SHA-512 hash
-- **Deduplication**: Identical content only stored once
-- **Merkle trees**: For organizing and verifying data integrity
-- **Streaming support**: Can handle large files via chunking
-- **FUSE filesystem interface**: Mount the database as a filesystem
-- **Container integration**: Can store and run Docker containers
-- **Database operations**: Put/get blocks, trees, and streams
-
-### Who wrote it:
-Based on the code, this appears to be written by **stevegt** (Steve GT). Evidence:
-- Multiple imports from `github.com/stevegt/goadapt`
-- Author references in comments and file paths
-- The user directory `/home/stevegt/lab/promisebase/`
-
-### When and context:
-Looking at the Go version and dependencies:
-- Go 1.15 (released August 2020)
-- Uses go-fuse v2, modern Docker client
-- References to COVID-era remote work patterns
-- This appears to be written around 2020-2021 timeframe
-
-### Architecture:
-
-
-The project is structured with specialized components addressing different system needs. I see modular packages handling core storage, filesystem interactions, and command-line interfaces. Each component plays a crucial role in creating a robust content-addressable storage system with advanced data management capabilities.
-
-Key technical challenges involve ensuring data integrity, optimizing performance, and developing safe multi-process access mechanisms. The current implementation provides foundational functionality but requires strategic refinement across filesystem, networking, and distributed computing domains.
-</think>
-
----FILE-START filename="/home/stevegt/lab/promisebase/slides/overview.md"---
 class: center, middle
 
 # PromiseBase: A Content-Addressable Storage System
@@ -222,6 +171,10 @@ promisebase/
 - Supports both leaf nodes (blocks) and internal nodes (trees)
 - File format: plain text list of child addresses
 
+---
+
+# Disk Storage Format
+
 **Path Structure:**
 ```
 block/sha256/d17/370/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd98387708196425ab2
@@ -256,7 +209,6 @@ class  algo  subdir   full hash for easy debugging
 - `rfc/`: Design documents explaining architecture decisions
 
 **Configuration & Build:**
-- `go.mod`: Dependency management, Go 1.15 requirement
 - `Makefile`: Test automation, coverage reporting, profiling
 - `covertest.sh`: Advanced test runner with coverage enforcement
 
@@ -401,29 +353,3 @@ class: center, middle
 - Open source exploration of cutting-edge concepts
 
 *Built with Go, FUSE, and innovative storage algorithms*
----FILE-END filename="/home/stevegt/lab/promisebase/slides/overview.md"---
-
-<references>
-[1] https://supabase.com/docs/guides/deployment/branching/github-integration
-[2] https://doc.cocalc.com/howto/remarkjs-slideshow.html
-[3] https://lab.abilian.com/Tech/Databases%20&%20Persistence/Content%20Addressable%20Storage%20(CAS)/
-[4] https://github.com/gnab/remark
-[5] https://www.richard-towers.com/2020/06/06/content-addressable-storage-postgres.html
-[6] https://pkg.go.dev/github.com/keybase/go-merkle-tree
-[7] https://github.com/dennwc/cas
-[8] https://github.com/cbergoon/merkletree
-[9] https://dl.acm.org/doi/10.5555/2851099
-[10] https://github.com/restic/chunker
-[11] https://www.abebooks.com/first-edition/Go-Programming-Language-Kernighan-Brian-Donovan/32034914036/bd
-[12] https://edu.anarcho-copy.org/Programming%20Languages/Go/The%20Go%20Programming%20Language%20-%20Donovan,%20Alan%20A.%20A.%20_%20Kernigha_6127.pdf
-[13] https://blog.gopheracademy.com/advent-2014/fuse-zipfs/
-[14] https://github.com/stevegt/goadapt
-[15] https://pkg.go.dev/github.com/hanwen/go-fuse/v2/fs
-[16] https://github.com/hanwen/go-fuse
-[17] https://www.loginradius.com/blog/engineering/what-is-the-new-go-1-15
-[18] https://ehyaei.github.io/MPIThemes/articles/articles/08_remarkJS_presentation.html
-[19] https://go.dev/blog/go1.15
-[20] https://www.kernel.org/doc/html/next/filesystems/fuse.html
-[21] https://www.youtube.com/watch?v=khyn-f1hvBo
-[22] https://go.dev/doc/go1.15
-</references>
