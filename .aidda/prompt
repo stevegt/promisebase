@@ -1,11 +1,11 @@
 revise slide show 
 
-Revise the slide show in remarkjs format describing the codebase,
-ensuring it covers the following points:
+Update the slide show describing the codebase, ensuring it covers the
+following points:
 
 - Why it's important
 - Who wrote it
-    - list ALL contributors to the codebase
+    - list ALL co-authors in the codebase
 - When they wrote it and what was going on in the world at that time
 - How they wrote it (agile, mob programming, etc) 
 - What tools were used to write it (mob.sh, mob-consensus, etc)
@@ -17,10 +17,15 @@ ensuring it covers the following points:
 - Work in progress, bugs, known issues
 - What's missing, future plans
 
+Keep it in remarkjs format, see the existing slides in
+./slides/README.md, make minimal changes to existing slides, add new
+slides as needed, and save it to ./slides/README.md.
+
 Out:
     ./slides/README.md
 In:
     ./slides/README.md
+    /tmp/contributors
     ./Makefile
     ./db/chunker_test.go
     ./db/stream_test.go

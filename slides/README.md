@@ -35,59 +35,76 @@ PromiseBase tackles several critical problems in modern computing:
 
 ---
 
-# Who Wrote This?
+# Who Wrote Promisebase?
 
-The primary author is **stevegt** (Steve GT), based on:
-- Git repository ownership and commit history
-- Import paths referencing `github.com/stevegt/goadapt`
-- File paths showing `/home/stevegt/lab/promisebase/`
-- Copyright and attribution patterns in the code
+PromiseBase was written by:
 
-This appears to be a personal research project exploring content-addressable storage systems, likely building on experience with distributed systems, containerization, and storage technologies.
+- **Matt Nordling** (m@nordling.org) 
+- **Ryan Hair** (xfactor529@gmail.com) 
+- **Steve Traugott** (stevegt@t7a.org) 
+- **Angela Traugott** (angela@t7a.org)
+- **Jessica Traugott** (jessica@t7a.org)
+
+Previous related work by:
+
+- Colin Bradley
+- Courtney Chu
 
 ---
 
-# When Was This Written?
+# When Was Promisebase Written?
 
-**Timeline: Approximately 2020-2021**
+**Timeline: 2020-2021**
 
-Evidence from the codebase:
-- **Go 1.15** specified in go.mod (released August 2020)
-- Modern dependencies like go-fuse v2, Docker client APIs
-- References to container technologies and distributed systems patterns
 
-**World Context (2020-2021):**
+**Global Context:**
 - **COVID-19 pandemic**: Massive shift to remote work and distributed computing
 - **Container explosion**: Docker and Kubernetes becoming ubiquitous
 - **Edge computing**: Need for efficient data distribution to edge nodes
-- **Storage costs**: Growing concern about cloud storage expenses
-- **Supply chain**: Increased focus on reproducible builds and software supply chain security
+- **Supply chain**: Software and hardware supply chain security concerns
+- **Decentralization**: Growing interest in decentralized systems and peer-to-peer networks
 
-This timing makes sense - remote work highlighted inefficiencies in data distribution and storage.
+This timing makes sense - remote work highlighted inefficiencies in data distribution, computation, and storage.
+
+---
+
+# How Was Promisebase Written?
+
+**Development Methodology:**
+
+- Mob programming and pair programming using:
+    - [mob.sh](http://mob.sh)
+    - [mob-consensus](https://gist.github.com/stevegt/2c04ee0e9500ff1727eff60e538934a1)
+
+**Agile Development Practices:**
+- Iterative development with frequent testing cycles
+- Test-driven development with comprehensive coverage requirements
+
+**Quality Assurance:**
+- Automated testing with `covertest.sh` enforcing minimum coverage
+- Performance benchmarking and memory testing
+- Error checking with `errcheck` and linting with `golint`
+- Comprehensive integration tests using Google's cmdtest framework
 
 ---
 
 # What Tools Were Used?
 
-**Programming Language:**
-- **Go 1.15+**: Modern Go with modules, strong concurrency support
-
 **Key Dependencies:**
 - **go-fuse v2**: FUSE filesystem interface for Linux/macOS
 - **restic/chunker**: Rabin fingerprinting for content-defined chunking
-- **Docker client**: Container integration and image management
+- **Docker client library**: Container integration and image management
 - **msgpack**: Binary serialization for efficient data storage
 
 **Development Tools:**
 - **Standard Go tooling**: go test, go build, coverage analysis
 - **Docker/Skopeo**: Container image manipulation
-- **inotify**: Filesystem watching for daemon functionality
-- **Markdown/RemarkJS**: Documentation and presentations
 
 **Testing & Quality:**
-- Comprehensive test suite with coverage reporting
-- Benchmark tests for performance validation
+- Comprehensive test suite with coverage reporting (`covertest.sh`)
+- Benchmark tests for performance validation (`memtest.sh`)
 - Error checking with custom goadapt library
+- Integration testing with cmdtest framework
 
 ---
 
@@ -127,6 +144,34 @@ This timing makes sense - remote work highlighted inefficiencies in data distrib
 - **Preimage attack prevention**: Salt data with type prefixes ("block\n", "tree\n")
 - **Cryptographic verification**: All content automatically verified on read
 - **Immutable storage**: Content addresses cannot be forged
+
+---
+
+# High-Level Architecture Diagram
+
+```txt
+  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             
+  │   pb CLI    │  │  FUSE Mount │  │   pitd      │            
+  │  Interface  │  │  Interface  │  │  Daemon     │             
+  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘             
+  ┌──────────────────────────────────────────────────────────┐  
+  │                 Core Database Engine                     │  
+  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │  
+  │  │   Blocks    │ │    Trees    │ │      Streams        │ │  
+  │  │ (Content)   │ │ (Merkle)    │ │   (Symlinks)        │ │  
+  │  └─────────────┘ └─────────────┘ └─────────────────────┘ │  
+  ┌──────────────────────────────────────────────────────────┐  
+  │              Storage Layer                               │  
+  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │  
+  │  │ Chunker     │ │ WORM Files  │ │  Path Management    │ │  
+  │  │ (Rabin)     │ │ (Content)   │ │  (Hash Addressing)  │ │  
+  │  └─────────────┘ └─────────────┘ └─────────────────────┘ │  
+  ┌──────────────────────────────────────────────────────────┐ 
+  │                 Disk Storage                             │
+  │   block/sha256/abc/def/abcdef...  tree/sha256/123/456/   │ 
+  │   stream/mystream -> tree/sha256/...                     │
+  └──────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -173,7 +218,17 @@ promisebase/
 
 ---
 
-# Disk Storage Format
+# Disk Storage 
+
+**WORM Storage (Write Once Read Many):**
+- Immutable files with cryptographic verification
+- Automatic hash computation during write
+- Content salting prevents preimage attacks
+
+**Path Resolution:**
+- Multi-level directory structure (depth configurable)
+- Hash-based addressing with collision resistance
+- Canonical vs. absolute path resolution
 
 **Path Structure:**
 ```
@@ -181,11 +236,6 @@ block/sha256/d17/370/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd983877081964
 └─┬─┘ └──┬─┘ └┬┘ └┬┘ └────────────────────┬────────────────────┘
 class  algo  subdir   full hash for easy debugging
 ```
-
-**WORM Files (Write Once Read Many):**
-- Immutable storage with cryptographic verification
-- Automatic hash computation during write
-- File headers prevent preimage attacks
 
 ---
 
@@ -241,6 +291,13 @@ class  algo  subdir   full hash for easy debugging
 - Cross-node data synchronization and caching
 - Accounting and payment systems for resource usage
 - Digital signatures and access control
+- Integration with other CAS systems (IPFS, Perkeep)
+- Windows and macOS support improvements
+- Better container runtime integration
+- Enhanced streaming for very large datasets
+- Self-hosting capabilities
+- Production deployment tooling
+- Enhanced monitoring and management tools
 
 ---
 
@@ -289,5 +346,5 @@ Uses Rabin fingerprinting to create consistent chunk boundaries, maximizing dedu
 
 class: center, middle
 
-# Questions & Discussion
+# Questions & Demonstration
 
