@@ -1,22 +1,26 @@
-create slide show 
+revise slide show 
 
-Create a detailed slide show in remerkjs format describing the codebase:
+Revise the slide show in remarkjs format describing the codebase,
+ensuring it covers the following points:
 
 - Why it's important
 - Who wrote it
+    - list ALL contributors to the codebase
 - When they wrote it and what was going on in the world at that time
-- What tools were used to write it
+- How they wrote it (agile, mob programming, etc) 
+- What tools were used to write it (mob.sh, mob-consensus, etc)
 - What the code does
 - How it is organized
+    - add a slide with a high-level diagram of the architecture
 - Key algorithms and data structures
 - Important files and their roles
 - Work in progress, bugs, known issues
 - What's missing, future plans
 
-
 Out:
     ./slides/README.md
 In:
+    ./slides/README.md
     ./Makefile
     ./db/chunker_test.go
     ./db/stream_test.go

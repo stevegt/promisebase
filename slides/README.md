@@ -197,26 +197,21 @@ class  algo  subdir   full hash for easy debugging
 - `tree.go`: Merkle tree operations, traversal, verification
 - `chunker.go`: Content-defined chunking using Rabin fingerprinting
 - `path.go`: Address parsing, directory structure management
+- `pitbase.go`: Utilities, logging, hash algorithms, object interface
 
 **User Interfaces:**
 - `cmd/pb/pbmain.go`: Full-featured command-line interface (881 lines)
 - `fuse/fuse.go`: FUSE filesystem implementation for mounting database
 - `server/server.go`: Network daemon with container integration
 
-**Infrastructure:**
-- `db/pitbase.go`: Utilities, logging, hash algorithms, object interface
-- Various `*_test.go`: Comprehensive test suite with benchmarks
-- `rfc/`: Design documents explaining architecture decisions
-
-**Configuration & Build:**
+**Development & Testing:**
 - `Makefile`: Test automation, coverage reporting, profiling
 - `covertest.sh`: Advanced test runner with coverage enforcement
+- `rfc/`: Design documents explaining architecture decisions
 
 ---
 
 # Work in Progress & Current Issues
-
-**From TODO.md and code comments:**
 
 **Multi-process Safety**: 
 - Current implementation not safe for concurrent access
@@ -239,60 +234,13 @@ class  algo  subdir   full hash for easy debugging
 
 ---
 
-# Known Bugs & Limitations
-
-**From code analysis and comments:**
-
-**FUSE Interface:**
-- Write operations not fully implemented
-- Limited to read-only access in current state
-- macOS compatibility issues noted
-
-**Error Handling:**
-- Some file handle management issues
-- Potential resource leaks in container operations
-- Network error recovery not implemented
-
-**Storage Format:**
-- File format is stable but may need versioning
-- Path structure locked in, hard to change later
-- Subdirectory depth fixed at database creation
-
-**Testing Gaps:**
-- Multi-process access scenarios
-- Network layer testing incomplete
-- Long-running daemon stability untested
-
----
-
 # What's Missing: Future Plans
 
-**From ROADMAP.md and RFCs:**
-
-**Distributed Systems:**
 - Peer-to-peer networking for content distribution  
 - Consensus mechanisms for distributed operation
 - Cross-node data synchronization and caching
-
-**Advanced Features:**
 - Accounting and payment systems for resource usage
 - Digital signatures and access control
-- Garbage collection for unused content
-
-**Performance & Scalability:**
-- Parallel chunk processing
-- Database compaction and optimization
-- Better memory management for large datasets
-
-**User Experience:**
-- Web interface for database browsing
-- Integration with popular development tools
-- Better documentation and tutorials
-
-**Enterprise Features:**
-- Backup and disaster recovery
-- Monitoring and alerting
-- Multi-tenancy support
 
 ---
 
@@ -337,19 +285,9 @@ Uses Rabin fingerprinting to create consistent chunk boundaries, maximizing dedu
 - Multiple access methods (CLI, FUSE, network)
 - Extensible design for future protocols
 
-This represents a thoughtful exploration of content-addressable storage with practical applications in modern computing infrastructure.
-
 ---
 
 class: center, middle
 
 # Questions & Discussion
 
-**PromiseBase demonstrates the power of content-addressable storage**
-
-- Revolutionary approach to data deduplication
-- Strong foundation for distributed systems  
-- Practical applications in container management
-- Open source exploration of cutting-edge concepts
-
-*Built with Go, FUSE, and innovative storage algorithms*
