@@ -73,6 +73,8 @@ This timing makes sense - remote work highlighted inefficiencies in data distrib
 **Development Methodology:**
 
 - Mob programming and pair programming using:
+    - [remote mob programming](https://www.remotemobprogramming.org/)
+      rules
     - [mob.sh](http://mob.sh)
     - [mob-consensus](https://gist.github.com/stevegt/2c04ee0e9500ff1727eff60e538934a1)
 
