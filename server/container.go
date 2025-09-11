@@ -115,21 +115,14 @@ func (cntr *Container) createimg() (err error) {
 	defer Return(&err)
 
 	// create docker image
+	// XXX use docker API instead of CLI
 	create := exec.Command("docker", "create", cntr.Image)
+	out, err := create.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker create failed: %v:\n %s", err, out)
+	}
 
-	createOut, err := create.StdoutPipe()
-	Ck(err)
-
-	err = create.Start()
-	Ck(err)
-
-	containerId, err := ioutil.ReadAll(createOut)
-	Ck(err)
-
-	err = create.Wait()
-	Ck(err)
-
-	cntr.Cid = strings.TrimSpace(string(containerId))
+	cntr.Cid = strings.TrimSpace(string(out))
 	fmt.Fprintf(os.Stderr, "container id: %q\n", cntr.Cid)
 
 	return
