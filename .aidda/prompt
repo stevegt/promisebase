@@ -19,7 +19,10 @@ stevegt@spirit:~/lab/promisebase/server$ find /tmp/tdb7
 /tmp/tdb7/index.json
 /tmp/tdb7/oci-layout
 
-Implement the recommendations in .aidda/response to fix this.
+See .aidda/response for a description of the problem, but don't use
+the code there as-is. Try to avoid unpacking the OCI layout into a
+temp directory -- try to do everything via io.Reader and io.Writer
+streams.
 
 In:
     .aidda/response

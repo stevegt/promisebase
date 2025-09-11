@@ -1,438 +1,1116 @@
-<think>
-Looking at this error and the code, the user is getting an error when trying to unpack an OCI archive:
-
-```
-/home/stevegt/lab/promisebase/server/container.go:296: file manifest.json not found in tar
-```
-
-Looking at the code, this error is coming from the `oci2tar` function in `container.go`. The code is trying to use `tarball.Image()` from the go-containerregistry library to load an OCI image from a tarball, but it's failing because it can't find `manifest.json`.
-
-From the search results, I can see this is a common issue. The key insights are:
-
-1. From search result [19]: "The Docker manifest.json is not part of OCI spec" and "manifest.json has been removed since buildkit v0.12.x, as it was a bug and should not have been there in the first place"
-
-2. From search result [7]: The go-containerregistry library has separate packages for different formats - the `tarball` package is for "docker save" style tarballs which include `manifest.json`, while there's a separate `layout` package for OCI image layouts.
-
-3. From search result [11]: The tarball packages are specifically for "docker save style image tarballs" and there's a separate package `v1/layout` for OCI image layouts.
-
-4. From multiple search results, an OCI archive has a different structure than a Docker tarball - it contains `oci-layout`, `index.json`, and a `blobs/` directory instead of `manifest.json`.
-
-Looking at the directory structure in the error output:
-```
-/tmp/tdb7
-/tmp/tdb7/blobs
-/tmp/tdb7/blobs/sha256
-/tmp/tdb7/blobs/sha256/41691e1851314e2f37eee22c2a9969500d0dcab259f1357f447ef28155f22efc
-
-
-/tmp/tdb7/blobs/sha256/0f5f445df8ccbd8a062ad3d02d459e8549d9998c62a5b7cbf77baf68aa73bf5b
-/tmp/tdb7/blobs/sha256/df20fa9351a15782c64e6dddb2d4a6f50bf6d3688060a34c4014b0d9a752eb4c
-/tmp/tdb7/index.json
-/tmp/tdb7/oci-layout
-```
-
-I need to switch to using the OCI layout package instead of the Docker tarball package to correctly handle this image format.
-
-The core issue involves understanding the structural differences between Docker and OCI archive formats. By leveraging the appropriate package, I can properly parse and process the image metadata and layers. The `layout` package provides the right approach for working with OCI archives, ensuring accurate image handling and conversion.
-
-The comprehensive report will explore technical nuances across container image specifications, offering an in-depth technical analysis that thoroughly examines the implementation challenges and provides precise solutions.
-</think>
-
-# Troubleshooting OCI Archive Unpacking: Resolving manifest.json Not Found Error
-
-This comprehensive analysis examines a critical error encountered when attempting to unpack OCI (Open Container Initiative) archives in Go applications, specifically the "file manifest.json not found in tar" error. The investigation reveals fundamental differences between OCI archive formats and Docker tarball formats, leading to a detailed exploration of proper OCI archive handling using the go-containerregistry library. The solution involves transitioning from the tarball package to the layout package, implementing proper OCI image layout parsing, and ensuring compatibility with modern container image specifications. This analysis provides both theoretical background on container image formats and practical implementation guidance for developers working with OCI-compliant container images.
-
-## Understanding Container Image Format Specifications
-
-The container ecosystem has evolved significantly over the past decade, with standardization efforts culminating in the Open Container Initiative specifications. These specifications define how container images should be structured, stored, and transported across different platforms and registries. The fundamental challenge that developers face today stems from the coexistence of legacy Docker formats and modern OCI-compliant formats, each with distinct structural characteristics and handling requirements.
-
-The Docker image format, established during Docker's early development, introduced the concept of layered container images with a specific tarball structure. This format includes a `manifest.json` file at the root level of the archive, along with individual layer tarballs and a `repositories` file for metadata[17]. The manifest.json file serves as the primary descriptor, containing references to image configurations and layer information necessary for container runtime engines to properly reconstruct the filesystem and execution environment.
-
-In contrast, the OCI image specification represents a more mature and standardized approach to container image packaging. The OCI format is designed around content-addressable storage principles, where each component of an image is identified by its cryptographic hash rather than arbitrary naming schemes[15]. This approach ensures image integrity, enables efficient deduplication, and supports multi-architecture image distributions through a hierarchical manifest structure.
-
-The OCI image layout specification defines three core components that must be present in any compliant image archive. The `oci-layout` file serves as a version identifier, indicating which version of the OCI image layout specification is being used[12]. The `index.json` file functions as the entry point for the container image, containing references to one or more image manifests that may represent different architectures or platforms[10]. The `blobs` directory contains all content-addressable components, organized by hash algorithm and storing the actual image data including configurations, manifests, and filesystem layers.
-
-This structural difference creates significant challenges when attempting to process OCI archives using tools and libraries designed for Docker's legacy format. The absence of `manifest.json` in OCI archives is not an oversight or error, but rather a deliberate design decision that reflects the evolution toward more robust and standardized container image handling. Understanding this distinction is crucial for developers who need to work with modern container images and registries that have adopted OCI specifications.
-
-The practical implications of these format differences extend beyond simple file structure variations. OCI archives support features that are not available in legacy Docker tarballs, including built-in support for multi-architecture images, enhanced metadata through annotations, and improved content integrity verification. These capabilities require different parsing and processing approaches, necessitating updates to existing codebases that may have relied on Docker-specific format assumptions.
-
-## The Problem with Current Implementation Analysis
-
-The error message "file manifest.json not found in tar" reveals a fundamental mismatch between the expected input format and the actual OCI archive structure being processed. This error originates from the `oci2tar` function in the provided code, which attempts to use the `tarball.Image()` function from the go-containerregistry library to process what is actually an OCI layout archive rather than a Docker-style tarball.
-
-The go-containerregistry library provides distinct packages for handling different container image formats, each optimized for specific use cases and format requirements. The `tarball` package is specifically designed for processing Docker's legacy tarball format, which includes the `manifest.json` file that the current implementation expects to find[17]. When this package encounters an OCI archive structure with `index.json` and `oci-layout` files instead of `manifest.json`, it fails with the observed error message.
-
-Examining the current implementation reveals several problematic assumptions about the input format. The `oci2tar` function creates an opener function that passes the input reader directly to `tarball.Image()`, assuming that the input stream contains a Docker-style tarball. However, the debug output clearly shows that the actual input is an OCI layout with the characteristic directory structure containing `blobs/sha256/` subdirectories, `index.json`, and `oci-layout` files.
-
-The structural analysis of the failing archive demonstrates the presence of all required OCI components. The `index.json` file serves as the image index, pointing to image manifests stored in the content-addressable blob storage under `blobs/sha256/`. The `oci-layout` file indicates the OCI specification version, and the blob files contain the actual image data including configurations and filesystem layers. This structure is completely valid according to OCI specifications but incompatible with the Docker tarball processing logic currently employed.
-
-The confusion may arise from the terminology and the fact that OCI archives are often distributed as tar files, leading developers to assume they can be processed using Docker tarball libraries. However, the internal structure of these tar files follows OCI layout specifications rather than Docker's legacy format. This distinction is crucial because the parsing logic, metadata extraction, and layer reconstruction processes differ significantly between the two formats.
-
-Another complicating factor is the evolution of container build tools and their output formats. Modern tools like BuildKit have transitioned to producing OCI-compliant outputs by default, removing the legacy `manifest.json` file that was previously included for backward compatibility[19]. This change reflects the broader industry movement toward OCI standardization but can break existing tools and codebases that haven't been updated to handle the newer format.
-
-The impact of this implementation mismatch extends beyond the immediate parsing failure. Even if the code could be modified to work around the missing `manifest.json` file, the fundamental approach of using Docker-specific processing logic would likely result in incorrect handling of OCI-specific features such as multi-architecture support, advanced annotations, and content-addressable blob references. Proper resolution requires adopting OCI-aware processing methods rather than attempting to retrofit Docker-specific logic.
-
-## OCI Layout Package Integration and Implementation
-
-The solution to the manifest.json not found error requires transitioning from the `tarball` package to the `layout` package provided by go-containerregistry. The layout package is specifically designed to handle OCI image layouts, providing native support for the directory structure and metadata format used in OCI archives[11]. This transition involves several key changes to the image processing pipeline, from initial archive extraction through final filesystem layer reconstruction.
-
-The first step in implementing OCI layout support involves modifying the archive extraction and processing logic. Instead of attempting to pass the OCI archive directly to tarball processing functions, the code must first extract the archive to a temporary directory, then use the layout package to parse the OCI structure. This approach aligns with the OCI specification's expectation that images will be processed as directory hierarchies rather than single tar streams.
-
-The layout package provides the `layout.Path` type for representing OCI image layouts on disk, along with associated methods for reading image indexes, manifests, and layer data. The typical usage pattern involves creating a layout.Path instance pointing to the extracted OCI directory, then using this instance to access image components through the standard v1.Image interface provided by go-containerregistry. This approach maintains compatibility with existing image processing code while enabling proper OCI format handling.
-
-Image index processing represents a critical component of OCI layout handling that differs significantly from Docker tarball processing. The `index.json` file can contain multiple manifest entries, each potentially representing different architectures or platform variants of the same logical image. Proper implementation must account for this multi-manifest structure, either by selecting a specific manifest based on platform requirements or by providing mechanisms for the caller to specify their preferred manifest.
-
-The manifest selection process requires careful consideration of platform compatibility and user requirements. In many cases, applications will want to select the manifest that matches the current runtime platform, typically linux/amd64 for most server deployments. However, the implementation should provide flexibility for cases where specific platform variants are required or where multi-architecture support is needed. The OCI specification includes platform descriptors within manifest entries specifically to enable this type of intelligent selection.
-
-Layer extraction and processing also require modifications to account for the content-addressable storage model used in OCI layouts. Unlike Docker tarballs where layers are stored with predictable filenames, OCI layouts store layers as blobs identified by their cryptographic hashes. The manifest provides the mapping between logical layer ordering and physical blob storage, requiring the implementation to follow these references to reconstruct the proper layer sequence.
-
-The blob storage structure within OCI layouts follows a specific pattern where files are organized by hash algorithm (typically sha256) and then by the actual hash value. This organization enables efficient deduplication and integrity verification but requires different access patterns compared to Docker's sequential layer files. The layout package abstracts these details, providing methods to access layers through the standard v1.Layer interface regardless of the underlying storage organization.
-
-Error handling becomes more complex with OCI layouts due to the increased number of potential failure points and the more sophisticated metadata structures involved. Unlike Docker tarballs where parsing failures are typically straightforward to diagnose, OCI layout processing can fail at multiple levels including index parsing, manifest resolution, platform selection, and blob retrieval. Robust implementations must provide clear error messages and handle partial failures gracefully.
-
-## Corrected Implementation Code and Architecture
-
-The corrected implementation requires substantial modifications to the existing `oci2tar` function and related container processing logic. The new approach must properly handle OCI layout extraction, image index parsing, and layer reconstruction using the appropriate go-containerregistry packages. Here is the comprehensive corrected implementation:
-
-```go
+---FILE-START filename="/home/stevegt/lab/promisebase/server/container.go"---
 package pit
 
 import (
-    "context"
-    "fmt"
-    "io"
-    "os"
-    "path/filepath"
-    
-    "github.com/codeclysm/extract/v3"
-    "github.com/google/go-containerregistry/pkg/name"
-    "github.com/google/go-containerregistry/pkg/v1"
-    "github.com/google/go-containerregistry/pkg/v1/layout"
-    "github.com/google/go-containerregistry/pkg/v1/mutate"
-    . "github.com/stevegt/goadapt"
+	"archive/tar"
+	"context"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/codeclysm/extract/v3"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/opencontainers/runtime-tools/generate"
+
+	pb "github.com/t7a/pitbase/db"
+
+	. "github.com/stevegt/goadapt"
 )
 
-// oci2tar extracts the root filesystem from an OCI image layout
-// provided as an io.Reader and returns it as a tar stream io.ReadCloser.
+// tempDirReadCloser wraps an io.ReadCloser and a temporary directory path.
+// When closed it will close the underlying reader and remove the temp directory.
+type tempDirReadCloser struct {
+	io.ReadCloser
+	tmpDir string
+}
+
+func (t *tempDirReadCloser) Close() error {
+	err1 := t.ReadCloser.Close()
+	err2 := os.RemoveAll(t.tmpDir)
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
+type Container struct {
+	Path string
+	Args []string
+	Cid  string
+	Name string
+	Rc   int
+	Errc chan error
+	dir  string
+	pit  *Pit
+	*exec.Cmd
+}
+
+// startContainer starts a container from a db tree
+func (pit *Pit) startContainer(cntr *Container) (err error) {
+	defer Return(&err)
+
+	err = cntr.initdir()
+	Ck(err, "initdir failed")
+
+	err = cntr.initconfig()
+	Ck(err, "initconfig failed")
+
+	err = cntr.createRootFsFromTree()
+	Ck(err, "createrootfs failed")
+
+	err = cntr.start()
+	Ck(err, "start failed")
+
+	return
+}
+
+func (cntr *Container) Delete() (err error) {
+	// XXX check to see if container is already gone
+	runc := exec.Command("sudo", "runc", "delete", cntr.Name)
+	// XXX log?
+	runc.Stdout = os.Stdout
+	runc.Stderr = os.Stderr
+	err = runc.Start()
+	Ck(err)
+	err = runc.Wait()
+	Ck(err)
+	// XXX remove bundle dir
+	return
+}
+
+func (cntr *Container) Wait() (err error) {
+	err = cntr.Cmd.Wait()
+	cntr.Rc = cntr.Cmd.ProcessState.ExitCode()
+	return
+}
+
+func (cntr *Container) initdir() (err error) {
+	defer Return(&err)
+
+	// XXX correct dir?
+	dir, err := ioutil.TempDir("", "pitd")
+	Ck(err)
+	// log.Debugf(os.Stderr, "bundle dir: %s\n", dir)
+	err = os.Chdir(dir)
+	Ck(err)
+
+	cntr.dir = dir
+
+	return
+}
+
+func (cntr *Container) initconfig() (err error) {
+	defer Return(&err)
+
+	err = os.Chdir(cntr.dir)
+	Ck(err)
+
+	// create config file and set permissions
+	config, err := os.OpenFile("config.json", os.O_RDWR|os.O_CREATE, 0755)
+	Ck(err)
+
+	spec, err := generate.New("linux")
+
+	var exportOpts generate.ExportOptions
+	// exportOpts.Seccomp = true
+
+	spec.SetProcessTerminal(true)
+	spec.SetProcessArgs(cntr.Args)
+
+	//write to config.json
+	err = spec.Save(config, exportOpts)
+	Ck(err)
+
+	return
+}
+
+func (cntr *Container) createimg() (err error) {
+	defer Return(&err)
+
+	// create docker image
+	// XXX use docker API instead of CLI
+	create := exec.Command("docker", "create", cntr.Path)
+	out, err := create.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker create failed: %v:\n %s", err, out)
+	}
+
+	cntr.Cid = strings.TrimSpace(string(out))
+	fmt.Fprintf(os.Stderr, "container id: %q\n", cntr.Cid)
+
+	return
+}
+
+// creatrootfsFromDockerInage creates a root filesystem in the rootfs directory of the
+// current working directory by exporting the docker image and untarring it
+// XXX deprecate
+func (cntr *Container) createRootfsFromDockerInage() (err error) {
+	defer Return(&err)
+
+	err = os.Chdir(cntr.dir)
+	Ck(err)
+
+	err = os.MkdirAll("rootfs", 0755)
+	Ck(err)
+
+	// export docker image
+	export := exec.Command("docker", "export", cntr.Cid)
+	// export.Stderr = os.Stderr
+	export.Stderr = nil
+
+	// untar to rootfs
+	// XXX use archive/tar instead of CLI
+	tarCmd := exec.Command("tar", "-C", "rootfs", "-xvf", "-")
+	tarCmd.Stderr = os.Stderr
+	tarCmd.Stdout = nil
+
+	// pipe the export output to the tar input
+	tarpipe, err := tarCmd.StdinPipe()
+	Ck(err)
+	export.Stdout = tarpipe
+
+	fmt.Fprintf(os.Stderr, "starting tar\n")
+	err = tarCmd.Start()
+	Ck(err)
+
+	fmt.Fprintf(os.Stderr, "starting export\n")
+	err = export.Start()
+	Ck(err)
+
+	fmt.Fprintf(os.Stderr, "export waiting\n")
+	err = export.Wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "export: %v\n", err)
+	}
+
+	tarpipe.Close()
+
+	fmt.Fprintf(os.Stderr, "tar waiting\n")
+	err = tarCmd.Wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tar: %v\n", err)
+	}
+
+	return
+}
+
+// createRootFsFromTree creates a runc-compatible root filesystem in the rootfs
+// subdirectory of the current working directory by unpacking the image tree
+// from the database.  An image tree is an OCI archive that has been
+// stored in the database.
+func (cntr *Container) createRootFsFromTree() (err error) {
+	defer Return(&err)
+
+	err = os.Chdir(cntr.dir)
+	Ck(err)
+
+	err = os.MkdirAll("rootfs", 0755)
+	Ck(err)
+
+	path, err := pb.Path{}.New(cntr.pit.Db, cntr.Path)
+	Ck(err)
+	// tree is an io.Reader containing an OCI archive of the image
+	tree, err := cntr.pit.Db.GetTree(path)
+	Ck(err)
+
+	// convert the oci archive to a tar stream using our new implementation
+	tarRd, err := oci2tar(tree, "rootfs")
+	Ck(err)
+	defer tarRd.Close()
+
+	// unpack the tar stream to the rootfs directory
+	err = extract.Tar(context.Background(), tarRd, "rootfs", nil)
+	Ck(err)
+	return
+}
+
+func (cntr *Container) start() (err error) {
+	defer Return(&err)
+
+	fmt.Fprintf(os.Stderr, "starting container\n")
+	if cntr.Name == "" {
+		_, cntr.Name = filepath.Split(cntr.dir)
+	}
+	cntr.Cmd.Path = "/usr/bin/sudo"
+	cntr.Cmd.Args = []string{"sudo", "runc", "run", cntr.Name}
+	err = cntr.Start()
+	Ck(err)
+	fmt.Println("container started")
+
+	return
+}
+
+// ImportImage imports a container image into the database and returns
+// a tree.  The image name must be a docker image name, e.g.
+// "docker.io/library/ubuntu:latest".  The image is stored in the database
+// as an OCI archive.
+func (pit *Pit) ImportImage(algo, img string) (tree *pb.Tree, err error) {
+	tmpfile, err := ioutil.TempFile("", "*.oci")
+	Ck(err)
+	path := tmpfile.Name()
+	defer os.Remove(path)
+	cmd := exec.Command("skopeo", "copy", img, fmt.Sprintf("oci-archive:%s", path))
+	fmt.Println(cmd.Args)
+	err = cmd.Run()
+	Ck(err)
+	imgrd, err := os.Open(path)
+	Ck(err)
+	tree, err = pit.Db.PutStream(algo, imgrd)
+	Ck(err)
+	return
+}
+
+// oci2tar extracts the root filesystem from an OCI archive provided as an io.Reader.
+// It does so by reading the tar stream into an in-memory temporary directory,
+// using the layout package to parse the OCI image layout,
+// selecting an appropriate image manifest, and then returning a tar stream
+// for the flattened filesystem. The returned ReadCloser will remove the temporary
+// directory when closed.
 func oci2tar(reader io.Reader, rootfsPath string) (tar io.ReadCloser, err error) {
-    defer Return(&err)
-    
-    // Create a temporary directory to extract the OCI layout
-    tmpDir, err := os.MkdirTemp("", "oci-layout-*")
-    if err != nil {
-        return nil, fmt.Errorf("failed to create temp directory: %w", err)
-    }
-    defer os.RemoveAll(tmpDir)
-    
-    // Extract the OCI archive to the temporary directory
-    err = extract.Tar(context.Background(), reader, tmpDir, nil)
-    if err != nil {
-        return nil, fmt.Errorf("failed to extract OCI archive: %w", err)
-    }
-    
-    // Verify this is a valid OCI layout
-    layoutPath := layout.Path(tmpDir)
-    if !layoutPath.Valid() {
-        return nil, fmt.Errorf("invalid OCI layout structure in %s", tmpDir)
-    }
-    
-    // Read the image index
-    index, err := layoutPath.ImageIndex()
-    if err != nil {
-        return nil, fmt.Errorf("failed to read image index: %w", err)
-    }
-    
-    // Get the image manifest - for single-platform images, use the first manifest
-    // For multi-platform images, this should be enhanced to select based on platform
-    img, err := getImageFromIndex(index, "linux", "amd64")
-    if err != nil {
-        return nil, fmt.Errorf("failed to get image from index: %w", err)
-    }
-    
-    // Extract the flattened filesystem into a tar stream  
-    rootfsReader := mutate.Extract(img)
-    
-    // Return the tar stream reader
-    return rootfsReader, nil
+	// Create a temporary directory to hold the OCI layout in memory.
+	tmpDir, err := os.MkdirTemp("", "oci-layout-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	// Extract the OCI archive (tar stream) into the temporary directory.
+	err = extract.Tar(context.Background(), reader, tmpDir, nil)
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, fmt.Errorf("failed to extract OCI archive: %w", err)
+	}
+
+	// Load the OCI layout from the temporary directory.
+	lp, err := layout.FromPath(tmpDir)
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, fmt.Errorf("failed to load OCI layout from temp directory: %w", err)
+	}
+
+	// Read the image index from the layout.
+	index, err := lp.ImageIndex()
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, fmt.Errorf("failed to read image index: %w", err)
+	}
+
+	// Get the image manifest - for single-platform images, we use the first matching option.
+	img, err := getImageFromIndex(index, "linux", "amd64")
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, fmt.Errorf("failed to get image from index: %w", err)
+	}
+
+	// Extract the flattened filesystem into a tar stream.
+	rootfsReader := mutate.Extract(img)
+	// Wrap the reader so that when closed the temp directory is removed.
+	return &tempDirReadCloser{
+		ReadCloser: rootfsReader,
+		tmpDir:     tmpDir,
+	}, nil
 }
 
 // getImageFromIndex selects an appropriate image from a multi-manifest index
 // based on the specified OS and architecture requirements
-func getImageFromIndex(index v1.ImageIndex, targetOS, targetArch string) (v1.Image, error) {
-    // Get the index manifest
-    indexManifest, err := index.IndexManifest()
-    if err != nil {
-        return nil, fmt.Errorf("failed to get index manifest: %w", err)
-    }
-    
-    // Look for a manifest that matches our target platform
-    for _, desc := range indexManifest.Manifests {
-        if desc.Platform != nil && 
-           desc.Platform.OS == targetOS && 
-           desc.Platform.Architecture == targetArch {
-            
-            // Found a matching platform, get the image
-            img, err := index.Image(desc.Digest)
-            if err != nil {
-                return nil, fmt.Errorf("failed to get image for digest %s: %w", desc.Digest, err)
-            }
-            return img, nil
-        }
-    }
-    
-    // If no platform-specific manifest found, try to use the first manifest
-    // This handles cases where the index contains only one manifest without platform info
-    if len(indexManifest.Manifests) > 0 {
-        desc := indexManifest.Manifests[0]
-        img, err := index.Image(desc.Digest)
-        if err != nil {
-            return nil, fmt.Errorf("failed to get first image from index: %w", err) 
-        }
-        return img, nil
-    }
-    
-    return nil, fmt.Errorf("no suitable image manifest found in index")
+func getImageFromIndex(index interface {
+	ImageIndex() (interface {
+		IndexManifest() (*mutate.IndexManifest, error)
+	}, error)
+	Image(digest any) (interface{}, error)
+}, targetOS, targetArch string) (interface{}, error) {
+	// We first get the index manifest.
+	indexManifest, err := index.ImageIndex().IndexManifest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get index manifest: %w", err)
+	}
+
+	// Look for a manifest that matches our target platform.
+	for _, desc := range indexManifest.Manifests {
+		if desc.Platform != nil &&
+			desc.Platform.OS == targetOS &&
+			desc.Platform.Architecture == targetArch {
+			// Found a matching platform, get the image.
+			img, err := index.Image(desc.Digest)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get image for digest %s: %w", desc.Digest, err)
+			}
+			return img, nil
+		}
+	}
+
+	// If no platform-specific manifest is found, try to use the first manifest.
+	if len(indexManifest.Manifests) > 0 {
+		desc := indexManifest.Manifests[0]
+		img, err := index.Image(desc.Digest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get first image from index: %w", err)
+		}
+		return img, nil
+	}
+
+	return nil, fmt.Errorf("no suitable image manifest found in index")
 }
 
-// createRootFsFromTree creates a runc-compatible root filesystem with improved error handling
-func (cntr *Container) createRootFsFromTree() (err error) {
-    defer Return(&err)
+// XXX remove
+func extractTarToDir(tarReader io.ReadCloser, destDir string) error {
+	tr := tar.NewReader(tarReader)
 
-    err = os.Chdir(cntr.dir)
-    if err != nil {
-        return fmt.Errorf("failed to change to container directory: %w", err)
-    }
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
 
-    err = os.MkdirAll("rootfs", 0755)
-    if err != nil {
-        return fmt.Errorf("failed to create rootfs directory: %w", err)
-    }
+		target := filepath.Join(destDir, header.Name)
 
-    path, err := pb.Path{}.New(cntr.pit.Db, cntr.Path)
-    if err != nil {
-        return fmt.Errorf("failed to create path object: %w", err)
-    }
-    
-    // tree is an io.Reader containing an oci archive of the image
-    tree, err := cntr.pit.Db.GetTree(path)
-    if err != nil {
-        return fmt.Errorf("failed to get tree from database: %w", err)
-    }
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return err
+			}
 
-    // Convert the OCI archive to a tar stream using the corrected function
-    var tarRd io.ReadCloser
-    tarRd, err = oci2tar(tree, "rootfs")
-    if err != nil {
-        return fmt.Errorf("failed to convert OCI archive to tar stream: %w", err)
-    }
-    defer tarRd.Close()
+			file, err := os.Create(target)
+			if err != nil {
+				return err
+			}
 
-    // Unpack the tar stream to the rootfs directory
-    err = extract.Tar(context.Background(), tarRd, "rootfs", nil)
-    if err != nil {
-        return fmt.Errorf("failed to extract tar stream to rootfs: %w", err)
-    }
-    
-    return nil
+			_, err = io.Copy(file, tr)
+			file.Close()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
-```
+---FILE-END filename="/home/stevegt/lab/promisebase/server/container.go"---
 
-The corrected implementation introduces several key improvements over the original approach. First, it properly handles OCI layout extraction by creating a temporary directory and extracting the archive contents before attempting to parse the image structure. This approach aligns with the OCI specification's expectation that layouts will be processed as directory hierarchies rather than tar streams.
 
-The `getImageFromIndex` function addresses the multi-manifest nature of OCI image indexes by implementing platform-aware manifest selection. This function examines each manifest descriptor in the index, comparing platform specifications against target requirements to select the most appropriate image variant. The implementation includes fallback logic to handle cases where platform information is not specified or where only a single manifest is present.
-
-Error handling has been significantly enhanced throughout the implementation, with specific error messages that help diagnose issues at different stages of the processing pipeline. Each error is wrapped with context information that indicates which operation failed and provides details about the specific failure condition. This approach facilitates debugging and troubleshooting in production environments.
-
-The integration with the existing container framework maintains compatibility with the current architecture while enabling proper OCI format support. The modified `createRootFsFromTree` function continues to work with the existing database and path abstractions but now uses the corrected OCI processing logic internally.
-
-## Advanced OCI Layout Features and Considerations
-
-Beyond the basic functionality required to resolve the manifest.json error, proper OCI layout handling opens up access to advanced features that are not available in legacy Docker tarball formats. These features include comprehensive multi-architecture support, sophisticated annotation systems, and enhanced content integrity verification mechanisms that provide significant benefits for production container deployments.
-
-Multi-architecture image support represents one of the most significant advantages of OCI layouts over Docker tarballs. The OCI specification enables a single image reference to encompass multiple platform variants, each optimized for specific CPU architectures or operating systems. This capability is particularly valuable in heterogeneous computing environments where applications may need to run on different processor architectures or in scenarios where cross-platform compatibility is required.
-
-The implementation of multi-architecture support requires careful consideration of platform selection algorithms and fallback strategies. Production systems should implement intelligent platform matching that considers not only the primary architecture and operating system but also architecture variants, ABI compatibility, and feature requirements. The platform selection logic should be configurable to accommodate different deployment scenarios and requirements.
-
-Content integrity verification becomes significantly more sophisticated with OCI layouts due to the content-addressable storage model and the cryptographic hash verification built into the specification. Every component of an OCI image, from individual file system layers to configuration metadata, is identified and verified using cryptographic hashes. This approach provides strong guarantees about image integrity and authenticity that extend beyond what is possible with traditional tarball formats.
-
-The annotation system in OCI specifications enables rich metadata attachment at multiple levels of the image hierarchy. Annotations can be applied to image indexes, individual manifests, and even specific layers, providing a flexible mechanism for conveying build information, security metadata, provenance data, and custom application-specific information. Proper handling of annotations requires parsing and preserving this metadata throughout the image processing pipeline.
-
-Layer deduplication represents another significant advantage of OCI layouts, particularly in environments with multiple related images or frequent image updates. The content-addressable storage model enables automatic deduplication of identical layers across different images, reducing storage requirements and improving transfer efficiency. However, this capability requires proper implementation of blob management and reference counting to ensure that shared layers are handled correctly.
-
-Security considerations become more complex with OCI layouts due to the increased attack surface and the more sophisticated metadata structures involved. Implementations must validate all components of the image structure, verify cryptographic hashes for all content-addressable blobs, and ensure that manifest references are properly validated. The distributed nature of OCI blob storage also requires careful handling of symlinks and path traversal vulnerabilities.
-
-Performance optimization opportunities arise from the structured nature of OCI layouts and the content-addressable storage model. Implementations can leverage parallel processing for blob retrieval, implement sophisticated caching strategies based on content hashes, and optimize network transfers by avoiding redundant data transfer for shared layers. However, these optimizations require careful implementation to avoid introducing race conditions or consistency issues.
-
-## Testing and Validation Strategies
-
-Comprehensive testing of OCI layout processing requires a multi-layered approach that validates functionality at different levels of the processing pipeline. Unit tests should verify individual components such as index parsing, manifest selection, and blob retrieval, while integration tests should validate end-to-end processing of complete OCI archives. Additionally, compatibility testing should ensure proper handling of images from different registries and build tools.
-
-The test suite should include validation of various OCI archive structures, from simple single-platform images to complex multi-architecture distributions with extensive annotation metadata. Test cases should cover edge conditions such as missing blobs, corrupted manifests, and invalid platform specifications to ensure robust error handling and graceful degradation in failure scenarios.
-
-Performance testing becomes particularly important for OCI layout processing due to the potentially complex structure of multi-architecture images and the overhead associated with content-addressable storage access patterns. Benchmarks should measure processing time, memory usage, and I/O patterns for images of different sizes and complexities to identify potential bottlenecks and optimization opportunities.
-
-Compatibility testing should validate proper handling of OCI archives generated by different tools and registries. The OCI specification allows for some variation in implementation details, and different build tools may produce archives with different structural characteristics or metadata formats. Comprehensive compatibility testing helps ensure that the implementation can handle the full range of OCI-compliant inputs that may be encountered in production environments.
-
-Security testing should focus on validation of input sanitization, path traversal prevention, and proper handling of malformed or malicious image structures. The complex metadata structures in OCI layouts provide multiple potential attack vectors that must be carefully validated. Security tests should include fuzzing of input data and validation of behavior when processing images with unexpected or malicious content.
-
-Here is an example of comprehensive test cases for the corrected implementation:
-
-```go
+---FILE-START filename="/home/stevegt/lab/promisebase/server/server.go"---
 package pit
 
 import (
-    "context"
-    "os"
-    "path/filepath"
-    "testing"
-    
-    "github.com/google/go-containerregistry/pkg/v1/layout"
-    . "github.com/stevegt/goadapt"
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/google/shlex"
+	log "github.com/sirupsen/logrus"
+	. "github.com/stevegt/goadapt"
+	pb "github.com/t7a/pitbase/db"
+	"github.com/vmihailenco/msgpack"
 )
 
-func TestOCILayoutProcessing(t *testing.T) {
-    // Test with a known OCI archive
-    pit := setup(t)
-    
-    // Import an image that we know produces OCI format  
-    src := "docker://docker.io/library/alpine:3.12.0"
-    tree, err := pit.ImportImage("sha256", src)
-    tassert(t, err == nil, "ImportImage failed: %v", err)
-    tassert(t, tree != nil, "tree is nil")
-    
-    // Test the corrected OCI processing
-    cntr := &Container{
-        Path: "tree/" + tree.Path.Addr,
-        pit:  pit,
-    }
-    
-    err = cntr.initdir()
-    tassert(t, err == nil, "initdir failed: %v", err)
-    
-    err = cntr.createRootFsFromTree()
-    tassert(t, err == nil, "createRootFsFromTree failed: %v", err)
-    
-    // Verify that the rootfs was created correctly
-    rootfsPath := filepath.Join(cntr.dir, "rootfs")
-    tassert(t, exists(rootfsPath), "rootfs directory not created")
-    
-    // Check for expected Alpine Linux files
-    binPath := filepath.Join(rootfsPath, "bin", "busybox")
-    tassert(t, exists(binPath), "busybox binary not found")
-    
-    etcPath := filepath.Join(rootfsPath, "etc", "alpine-release")
-    tassert(t, exists(etcPath), "alpine-release file not found")
+// XXX init(), caller(), and GetGID() are copies of the same from
+// pitbase.go and all should be moved to a common lib
+func init() {
+	var debug string
+	debug = os.Getenv("DEBUG")
+	if debug == "1" {
+		log.SetLevel(log.DebugLevel)
+	}
+	log.SetReportCaller(true)
+	formatter := &log.TextFormatter{
+		CallerPrettyfier: caller(),
+		FieldMap: log.FieldMap{
+			log.FieldKeyFile: "caller",
+		},
+	}
+	formatter.TimestampFormat = "15:04:05.999999999"
+	log.SetFormatter(formatter)
 }
 
-func TestOCILayoutValidation(t *testing.T) {
-    // Create a temporary directory with invalid OCI layout
-    tmpDir := t.TempDir()
-    
-    // Test with missing oci-layout file
-    layoutPath := layout.Path(tmpDir)
-    tassert(t, !layoutPath.Valid(), "should not validate without oci-layout file")
-    
-    // Create minimal valid OCI layout
-    err := os.WriteFile(filepath.Join(tmpDir, "oci-layout"), 
-        []byte(`{"imageLayoutVersion": "1.0.0"}`), 0644)
-    tassert(t, err == nil, "failed to create oci-layout: %v", err)
-    
-    err = os.WriteFile(filepath.Join(tmpDir, "index.json"),
-        []byte(`{"schemaVersion": 2, "manifests": []}`), 0644)
-    tassert(t, err == nil, "failed to create index.json: %v", err)
-    
-    err = os.MkdirAll(filepath.Join(tmpDir, "blobs", "sha256"), 0755)
-    tassert(t, err == nil, "failed to create blobs directory: %v", err)
-    
-    // Now it should validate
-    tassert(t, layoutPath.Valid(), "should validate with proper structure")
+// caller returns string presentation of log caller which is formatted as
+// `/path/to/file.go:line_number`. e.g. `/internal/app/api.go:25`
+// https://stackoverflow.com/questions/63658002/is-it-possible-to-wrap-logrus-logger-functions-without-losing-the-line-number-pr
+func caller() func(*runtime.Frame) (function string, file string) {
+	return func(f *runtime.Frame) (function string, file string) {
+		p, _ := os.Getwd()
+		return "", fmt.Sprintf("%s:%d gid %d", strings.TrimPrefix(f.File, p), f.Line, GetGID())
+	}
 }
 
-func TestMultiArchitectureSelection(t *testing.T) {
-    // This test would require creating or obtaining a multi-arch OCI image
-    // and verifying that the platform selection logic works correctly
-    
-    // For now, we test the selection algorithm with mock data
-    // In a complete implementation, this would use real multi-arch images
-    pit := setup(t)
-    
-    // Test platform selection logic would go here
-    // This is a placeholder for comprehensive multi-arch testing
+// GetGID returns the goroutine ID of its calling function, for logging purposes.
+func GetGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
 }
 
-func TestErrorHandling(t *testing.T) {
-    pit := setup(t)
-    
-    // Test with invalid path
-    cntr := &Container{
-        Path: "invalid/path/that/does/not/exist", 
-        pit:  pit,
-    }
-    
-    err := cntr.initdir()
-    tassert(t, err == nil, "initdir should succeed")
-    
-    err = cntr.createRootFsFromTree()
-    tassert(t, err != nil, "should fail with invalid path")
-    
-    // Test with corrupted OCI archive would go here
-    // This requires creating test fixtures with various corruption scenarios
+type ExistsError struct {
+	Dir string
 }
-```
 
-The testing approach should also include integration with continuous integration systems to ensure that changes to the OCI processing logic are automatically validated against a comprehensive test suite. Automated testing should include both positive test cases that verify correct functionality and negative test cases that ensure proper error handling and security validation.
+func (e *ExistsError) Error() string {
+	return fmt.Sprintf("directory not empty: %s", e.Dir)
+}
 
-## Performance Optimization and Production Considerations
+type Pit struct {
+	Dir     string
+	Db      *pb.Db
+	watcher *fsnotify.Watcher
+	Events  chan fsnotify.Event
+}
 
-Production deployment of OCI layout processing requires careful attention to performance characteristics and resource utilization patterns. The content-addressable storage model and complex metadata structures in OCI layouts can introduce performance challenges that differ significantly from those encountered with simpler Docker tarball formats. Understanding and optimizing these performance characteristics is crucial for scalable container processing systems.
+func Create(dir string) (pit *Pit, err error) {
+	defer Return(&err)
 
-Memory usage patterns in OCI layout processing tend to be more complex than those in Docker tarball processing due to the need to maintain references to multiple manifest structures, blob metadata, and content-addressable indexes. Implementations should use streaming processing techniques where possible to minimize memory footprint, particularly when handling large images or processing multiple images concurrently.
+	// if directory exists, make sure it's empty
+	if canstat(dir) {
+		var files []os.FileInfo
+		files, err = ioutil.ReadDir(dir)
+		if len(files) > 0 {
+			return nil, &ExistsError{Dir: dir}
+		}
+		Ck(err)
+	}
 
-I/O optimization becomes particularly important when dealing with OCI layouts due to the potentially scattered nature of blob storage and the multiple metadata files that must be accessed. Efficient implementations should minimize the number of disk operations by batching reads, implementing intelligent prefetching strategies, and using memory mapping techniques where appropriate for large blob files.
+	// create pit dir
+	err = mkdir(dir, 1777)
+	Ck(err)
 
-Caching strategies can provide significant performance benefits for OCI layout processing, particularly in environments where the same images are processed repeatedly or where multiple related images share common layers. Content-addressable caching based on blob hashes can eliminate redundant processing and storage operations while ensuring consistency across different image processing operations.
+	/*
+		XXX turn this on and use it
+		XXX this should be in /var/run
+		// the ipc dir is where processes create sockets
+		// - needs to be world writeable with sticky bit on
+		err = mkdir(filepath.Join(dir, "ipc"), 1777)
+		Ck(err)
+	*/
 
-Concurrency considerations become more complex with OCI layouts due to the potential for shared blob storage and the need to maintain consistency across multiple manifest references. Implementations should use appropriate locking strategies to prevent race conditions while maximizing parallelization opportunities for independent operations such as blob retrieval and layer extraction.
+	// create db dir tree
+	_, err = pb.Db{Dir: dir}.Create()
+	Ck(err)
 
-Error recovery and resilience mechanisms should account for the distributed nature of OCI blob storage and the potential for partial failures during image processing. Robust implementations should implement retry logic for transient failures, provide mechanisms for resuming interrupted operations, and ensure that partial failures do not leave the system in an inconsistent state.
+	return Open(dir)
+}
 
-Resource cleanup becomes more important with OCI layouts due to the temporary directory structures and blob extraction operations required for processing. Implementations should use proper defer statements and cleanup handlers to ensure that temporary resources are properly released even in error conditions, preventing resource leaks that could accumulate over time in long-running systems.
+func Open(dir string) (pit *Pit, err error) {
+	defer Return(&err)
 
-Monitoring and observability should provide visibility into the different stages of OCI processing, including index parsing time, manifest selection decisions, blob retrieval performance, and overall processing throughput. This information is valuable for identifying performance bottlenecks and optimizing system behavior in production environments.
+	pit = &Pit{Dir: dir}
 
-## Conclusion and Future Directions
+	db, err := pb.Open(dir)
+	Ck(err)
+	pit.Db = db
 
-The resolution of the manifest.json not found error represents more than a simple bug fix; it represents a fundamental transition from legacy Docker formats to modern OCI-compliant container image processing. This transition enables access to advanced features such as multi-architecture support, enhanced security through content-addressable storage, and improved metadata handling through the annotation system.
+	// create a watcher
+	pit.watcher, err = fsnotify.NewWatcher()
+	Ck(err)
 
-The corrected implementation provides a solid foundation for OCI layout processing but represents just the beginning of a more comprehensive modernization effort. Future enhancements should focus on implementing full multi-architecture support with intelligent platform selection, leveraging advanced OCI features such as rich annotations and content addressing, and optimizing performance for production deployment scenarios.
+	pit.Events = pit.watcher.Events
 
-The broader implications of this transition extend beyond individual applications to encompass the entire container ecosystem. As registries, build tools, and runtime engines continue their migration toward OCI compliance, applications that properly support OCI formats will be better positioned to take advantage of ecosystem improvements and new capabilities as they become available.
+	// watch the pit dir // XXX ipc
+	err = pit.watcher.Add(pit.Dir)
+	Ck(err)
 
-Security considerations will continue to evolve as the OCI specifications mature and as new threat models emerge in containerized environments. The content-addressable storage model provides strong integrity guarantees, but implementations must remain vigilant about emerging security challenges and ensure that their OCI processing logic properly validates all aspects of image structure and content.
+	return pit, nil
+}
 
-The performance optimization opportunities enabled by OCI layouts, particularly around content deduplication and parallel processing, represent significant potential benefits for large-scale container processing systems. Organizations that invest in proper OCI implementation and optimization will likely see substantial improvements in storage efficiency, network utilization, and overall system performance.
+// Listen on a new UNIX domain socket
+// https://eli.thegreenplace.net/2019/unix-domain-sockets-in-go/
+func (pit *Pit) Listen(id string) (listener net.Listener, err error) {
+	fn := filepath.Join(pit.Dir, id)
+	listener, err = net.Listen("unix", fn)
+	Ck(err)
+	return
+}
 
-This analysis demonstrates the importance of staying current with evolving container standards and the potential consequences of relying on legacy format assumptions in rapidly evolving ecosystems. The transition from Docker tarballs to OCI layouts is just one example of the ongoing evolution in container technologies, and successful systems must be designed with flexibility and adaptability in mind to accommodate future changes and improvements in the container ecosystem.
+// Connect to an existing UNIX domain socket
+func (pit *Pit) Connect(id string) (conn io.ReadWriteCloser, err error) {
+	fn := filepath.Join(pit.Dir, id)
+	log.Debugf("client connecting %s", fn)
+	conn, err = net.Dial("unix", fn)
+	return
+}
 
-<references>
-[1] https://community.home-assistant.io/t/solved-no-manifest-json-file-found-manifest-json/882637
-[2] https://depot.dev/blog/building-container-layers-from-scratch
-[3] https://www.redhat.com/en/blog/7-transports-features
-[4] https://docs.sylabs.io/guides/3.6/user-guide/singularity_and_docker.html
-[5] https://osbuild.org/docs/developer-guide/projects/osbuild/modules/stages/org.osbuild.oci-archive/
-[6] https://github.com/containers/skopeo/issues/1889
-[7] https://github.com/containers/libpod/issues/4646
-[8] https://www.cyphar.com/blog/post/20190121-ociv2-images-i-tar
-[9] https://blog.devops.dev/oci-container-images-from-scratch-d3611e468e6e
-[10] https://www.suse.com/c/build-a-container-image-from-scratch/
-[11] https://github.com/google/go-containerregistry/issues/651
-[12] https://docs.project-ocre.org/architecture/containers/image_components/
-[13] https://oras.land/docs/how_to_guides/distributing_oci_layouts/
-[14] https://dev.to/sherinek/a-gophers-journey-to-the-center-of-container-images-12g2
-[15] https://ravichaganti.com/blog/2022-10-28-understanding-container-images-oci-image-specification/
-[16] https://ravichaganti.com/blog/2022-11-28-building-container-images-using-no-tools/
-[17] https://pkg.go.dev/github.com/google/go-containerregistry/pkg/v1/tarball
-[18] https://forums.pmmp.io/threads/manifest-json-not-found-in-the-archive-root.7066/
-[19] https://github.com/aquasecurity/trivy/discussions/5135
-[20] https://blog.quarkslab.com/digging-into-the-oci-image-specification.html
-</references>
+// handle a single connection from a client
+func (pit *Pit) handle(conn net.Conn) {
+	log.Debugf("handling conn")
+
+	var req Request
+	var res Response
+	decoder := msgpack.NewDecoder(conn)
+	encoder := msgpack.NewEncoder(conn)
+	for {
+		// read message from conn
+		log.Debugf("reading request")
+		err := decoder.Decode(&req)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Errorf("decode: %v", err)
+		}
+		log.Debugf("got request %#v", req)
+
+		// pass req to runContainer
+		cntr := &Container{
+			Path: string(req.Addr),
+			Args: []string(req.Args),
+			Cmd: &exec.Cmd{
+				Stdin:  conn,
+				Stdout: conn,
+				Stderr: os.Stderr,
+			},
+		}
+
+		err = pit.startContainer(cntr)
+		if err != nil {
+			log.Errorf("startContainer: %v", err)
+		}
+
+		// return results to client
+		// status := <-statusChan
+		// XXX populate res
+		// XXX send rc in msgpack Response
+		err = encoder.Encode(res)
+		if err != nil {
+			log.Errorf("encode: %v", err)
+		}
+
+	}
+}
+
+// Serve requests on a UNIX domain socket
+func (pit *Pit) Serve(fn string) (err error) {
+	defer Return(&err)
+
+	// listen on socket at fn
+	log.Debugf("listening on %s", fn)
+	listener, err := pit.Listen(fn)
+	Ck(err)
+
+	go func() {
+
+		for {
+			// accept connection from client
+			log.Debugf("accepting on %s", fn)
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Errorf("accept: %v", err)
+			}
+
+			// pass conn to handle()
+			go pit.handle(conn)
+		}
+
+	}()
+	return
+}
+
+type Addr string
+type Callback func(Request) error
+
+type Dispatcher struct {
+	callbacks map[Addr][]Callback
+}
+
+func NewDispatcher() *Dispatcher {
+	m := make(map[Addr][]Callback)
+	return &Dispatcher{callbacks: m}
+}
+
+// Register records callback as a function which Dispatch() will later
+// call.
+func (dp *Dispatcher) Register(callback Callback, addr Addr) {
+	dp.callbacks[addr] = append(dp.callbacks[addr], callback)
+	return
+}
+
+// Dispatch calls any functions that were previously registered with
+// req.Addr, passing req as an argument to each function.
+func (dp *Dispatcher) Dispatch(req *Request) (err error) {
+	for _, callback := range dp.callbacks[req.Addr] {
+		err = callback(*req)
+	}
+	return
+}
+
+type Request struct {
+	Addr Addr
+	Args []string
+}
+
+// Parse splits txt and returns the parts in a Request struct.
+func Parse(txt string) (req *Request, err error) {
+	defer Return(&err)
+	parts, err := shlex.Split(txt)
+	Ck(err)
+	ErrnoIf(len(parts) < 3, syscall.EINVAL, txt)
+	req = &Request{}
+	req.Addr = Addr(parts[0])
+	req.Args = parts[1:]
+	return
+}
+
+func (req *Request) Compare(b *Request) (ok bool) {
+	if req.Addr != b.Addr {
+		return false
+	}
+	if len(req.Args) != len(b.Args) {
+		return false
+	}
+	for i, arg := range req.Args {
+		if arg != b.Args[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Response.State
+const (
+	RUNNING = iota
+	DONE
+)
+
+type Response struct {
+	Stdout io.Writer
+	Stderr io.Writer
+	Rc     int
+	State  int // see constants above
+}
+
+// PipeFd takes an io.Reader and returns the read end of a UNIX
+// in-memory pipe -- see `man 2 pipe`.  We spawn a goroutine here to
+// read from the io.Reader and write to the write end of the pipe.
+func PipeFd(rd io.Reader) (fd uintptr, status chan error, err error) {
+	defer Return(&err)
+	rfile, wfile, err := os.Pipe()
+	Ck(err)
+	status = make(chan error)
+	go func() {
+		_, err := io.Copy(wfile, rd)
+		status <- err
+	}()
+	fd = rfile.Fd()
+	return
+}
+
+// r2w converts an io.Reader to an io.Writer
+func r2w(rd io.ReadCloser) (wr io.WriteCloser, errchan chan error) {
+	errchan = make(chan error)
+	go func() {
+		_, err := io.Copy(wr, rd)
+		if err != nil {
+			errchan <- err
+		}
+		err = wr.Close()
+		if err != nil {
+			errchan <- err
+		}
+	}()
+	return
+}
+
+func dbdir() (dir string, err error) {
+	dir, ok := os.LookupEnv("PITDIR")
+	if !ok {
+		dir, err = os.Getwd()
+	}
+	return
+}
+
+func canstat(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
+}
+
+func mkdir(dir string, mode os.FileMode) (err error) {
+	if _, err = os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, mode)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+---FILE-END filename="/home/stevegt/lab/promisebase/server/server.go"---
+
+
+---FILE-START filename="/home/stevegt/lab/promisebase/server/server_test.go"---
+package pit
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/stevegt/readercomp"
+	"github.com/vmihailenco/msgpack"
+)
+
+const tmpPitPrefix = "pit"
+
+// test boolean condition
+func tassert(t *testing.T, cond bool, txt string, args ...interface{}) {
+	t.Helper() // cause file:line info to show caller
+	if !cond {
+		t.Fatalf(txt, args...)
+	}
+}
+
+func setup(t *testing.T) *Pit {
+	var err error
+	var dir string
+
+	debug := os.Getenv("DEBUG")
+	if debug == "1" {
+		dir, err = ioutil.TempDir("", tmpPitPrefix)
+		tassert(t, err == nil, "%v", err)
+		fmt.Println(dir)
+		// manual cleanup
+	} else {
+		dir = t.TempDir()
+		// automatic cleanup
+	}
+	pit, err := Create(dir)
+	tassert(t, err == nil, "%v", err)
+
+	return pit
+}
+
+func TestMsgPack(t *testing.T) {
+	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
+	req, err := Parse(txt)
+	tassert(t, err == nil, "%v", err)
+
+	buf, err := msgpack.Marshal(req)
+	tassert(t, err == nil, "%v", err)
+
+	var got Request
+	err = msgpack.Unmarshal(buf, &got)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, req.Compare(&got), "got %#v", got)
+}
+
+func TestPitDir(t *testing.T) {
+	err := os.Setenv("PITDIR", "/dev/null")
+	tassert(t, err == nil, "%v", err)
+	got, err := dbdir()
+	tassert(t, err == nil, "%v", err)
+	tassert(t, got == "/dev/null", "got %q", got)
+
+	dir, err := os.Getwd()
+	tassert(t, err == nil, "%v", err)
+	err = os.Unsetenv("PITDIR")
+	tassert(t, err == nil, "%v", err)
+	got, err = dbdir()
+	tassert(t, err == nil, "%v", err)
+	tassert(t, dir == got, "expected %q got %q", dir, got)
+}
+
+func TestParser(t *testing.T) {
+	txt := "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b hello world"
+	req, err := Parse(txt)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, req.Addr == "sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b", "%#v", req)
+	tassert(t, len(req.Args) == 2, "%#v", req)
+	tassert(t, req.Args[0] == "hello", "%#v", req)
+	tassert(t, req.Args[1] == "world", "%#v", req)
+}
+
+func TestDispatcher(t *testing.T) {
+	dp := NewDispatcher()
+
+	// create some simple callbacks
+	ok1 := false
+	cb1 := func(req Request) error {
+		ok1 = true
+		return nil
+	}
+
+	ok1b := false
+	cb1b := func(req Request) error {
+		ok1b = true
+		return nil
+	}
+
+	// create another callback
+	ok2 := false
+	cb2 := func(req Request) error {
+		ok2 = true
+		return nil
+	}
+
+	// register callbacks
+	addr1 := Addr("sha256/1adab0720df1e5e62a8d2e7866a4a84dafcdfb71dde10443fdac950d8066623b")
+	txt1 := addr1 + " hello world"
+	dp.Register(cb1, addr1)
+	dp.Register(cb1b, addr1)
+	addr2 := Addr("sha256/4f52047d917c0082d7eaafa55f97afe2b84c306ce2c4e46b0ed1ff238d8d3af0")
+	txt2 := addr2 + " hello again world"
+	dp.Register(cb2, addr2)
+
+	// dispatch first request
+	req, err := Parse(string(txt1))
+	tassert(t, err == nil, "%v", err)
+	err = dp.Dispatch(req)
+	tassert(t, ok1, "first callback not called")
+	tassert(t, ok1b, "second callback for same addr not called")
+	tassert(t, !ok2, "unexpected callback called")
+
+	// dispatch second request
+	req, err = Parse(string(txt2))
+	tassert(t, err == nil, "%v", err)
+	err = dp.Dispatch(req)
+	tassert(t, ok2, "callback for second addr not called")
+}
+
+func TestPipeFd(t *testing.T) {
+	// create an io.Reader
+	expect := "somedata"
+	rd := bytes.NewReader([]byte(expect))
+
+	// convert it to a file descriptor
+	fd, status, err := PipeFd(rd)
+	tassert(t, err == nil, "%v", err)
+
+	// convert it to an os.File
+	file := os.NewFile(fd, "foo")
+
+	// check results
+	buf := make([]byte, 32768)
+	n, err := file.Read(buf)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, n == len(expect), "%v", err)
+	tassert(t, string(buf[:n]) == expect, "got %v", buf[:n])
+
+	copyerr := <-status
+	tassert(t, copyerr == nil, "%#v", copyerr)
+}
+
+/*
+func TestServe(t *testing.T) {
+	pit := setup(t)
+	fn := "pit.sock"
+
+	err := pit.Serve(fn)
+	tassert(t, err == nil, "%#v", err)
+
+	// simulate a client
+	time.Sleep(time.Second)
+	conn, err := pit.Connect(fn)
+	tassert(t, err == nil, "%v", err)
+	err = echoTestSocket(t, conn, "docker.io/library/alpine:3.12.0", "hello")
+	tassert(t, err == nil, "%v", err)
+	conn.Close()
+}
+*/
+
+func TestSocket(t *testing.T) {
+	pit := setup(t)
+	fn := "pit.sock"
+
+	listener, err := pit.Listen(fn)
+	tassert(t, err == nil, "%v", err)
+
+	req, err := Parse("some/hash/path echo hello")
+	tassert(t, err == nil, "%v", err)
+
+	// simulate a client
+	go func() {
+		time.Sleep(time.Second)
+		conn, err := pit.Connect(fn)
+		tassert(t, err == nil, "%v", err)
+		encoder := msgpack.NewEncoder(conn)
+		err = encoder.Encode(req)
+		tassert(t, err == nil, "%v", err)
+		conn.Close()
+	}()
+
+	conn, err := listener.Accept()
+	tassert(t, err == nil, "%v", err)
+	var got Request
+	decoder := msgpack.NewDecoder(conn)
+	err = decoder.Decode(&got)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, req.Compare(&got), "got %#v", got)
+}
+
+func TestInotify(t *testing.T) {
+	// https://pkg.go.dev/github.com/fsnotify/fsnotify#readme-usage
+	pit := setup(t)
+
+	// create a file in the pit dir
+	fn := filepath.Join(pit.Dir, "foo")
+	err := ioutil.WriteFile(fn, []byte(""), 0644)
+	tassert(t, err == nil, "%v", err)
+
+	event, ok := <-pit.Events
+	tassert(t, ok, "%#v", "not ok")
+	tassert(t, event.Op&fsnotify.Create > 0, "event %#v", event)
+}
+
+func TestRunHubTree(t *testing.T) {
+	pit := setup(t)
+
+	src := "docker://docker.io/library/alpine:3.12.0"
+	// pull container image and save it as a stream
+	tree, err := pit.ImportImage("sha256", src)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, tree != nil, "%v", tree)
+
+	// run the image from the pitbase stream
+	addr := "tree/" + tree.Path.Addr
+	t.Logf("addr: %s", addr)
+	err = echoTest(t, pit, addr, "hello")
+	tassert(t, err == nil, "%v", err)
+}
+
+func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
+	fmt.Println("echoTest starting")
+	expectrd := bytes.NewReader([]byte(expect + "\n"))
+	emptyrd := bytes.NewReader([]byte(""))
+
+	cntr := &Container{
+		Path: img,
+		Args: []string{"/bin/echo", expect},
+		Cmd: &exec.Cmd{
+			Stdin: nil,
+		},
+		pit: pit,
+	}
+	stdout, err := cntr.Cmd.StdoutPipe()
+	tassert(t, err == nil, "%v", err)
+	stderr, err := cntr.Cmd.StderrPipe()
+	tassert(t, err == nil, "%v", err)
+
+	err = pit.startContainer(cntr)
+	tassert(t, err == nil, "%v", err)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		fmt.Println("starting readercomp stdout")
+		ok, err := readercomp.Equal(expectrd, stdout, 128)
+		tassert(t, err == nil, "%v", err)
+		tassert(t, ok, "stream mismatch")
+		wg.Done()
+	}()
+
+	go func() {
+		fmt.Println("starting readercomp stderr")
+		ok, err := readercomp.Equal(emptyrd, stderr, 128)
+		tassert(t, err == nil, "%v", err)
+		tassert(t, ok, "stream mismatch")
+		wg.Done()
+	}()
+
+	fmt.Println("starting wg.Wait")
+	wg.Wait()
+
+	fmt.Println("starting cntr.Wait")
+	err = cntr.Wait()
+	tassert(t, err == nil, "%#v", err)
+	fmt.Println("wait done")
+
+	// cntr.Delete()
+
+	return
+}
+
+func TestImageSave(t *testing.T) {
+	pit := setup(t)
+
+	src := "docker://docker.io/library/alpine:3.12.0"
+	// pull container image and save it as a stream
+	tree, err := pit.ImportImage("sha256", src)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, tree != nil, "%v", tree)
+
+	// should be a tarball
+	out, err := shellin(tree, "file", "-")
+	tassert(t, err == nil, "%v", err)
+	outstr := string(out)
+	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, "%v", outstr)
+}
+
+func TestImageTree(t *testing.T) {
+	pit := setup(t)
+
+	src := "docker://docker.io/library/alpine:3.12.0"
+	// pull container image and save it as an oci archive in a db tree
+	tree, err := pit.ImportImage("sha256", src)
+	tassert(t, err == nil, "%v", err)
+	tassert(t, tree != nil, "%v", tree)
+
+	// use the 'file' command to verify that the stream is a tarball
+	out, err := shellin(tree, "file", "-")
+	tassert(t, err == nil, "%v", err)
+	outstr := string(out)
+	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, "%v", outstr)
+
+	// unpack image into a runc-compatible directory tree
+	cntr := &Container{
+		Path: "tree/" + tree.Addr,
+		pit:  pit,
+	}
+
+	err = cntr.initdir()
+	tassert(t, err == nil, "%v", err)
+
+	err = cntr.createRootFsFromTree()
+	tassert(t, err == nil, "%v", err)
+
+	tpath := filepath.Join(cntr.dir, "rootfs/bin/busybox")
+	tassert(t, exists(tpath), "not found: %s", tpath)
+}
+
+func shellin(stdin io.Reader, path string, args ...string) (out []byte, err error) {
+	cmd := exec.Command(path, args...)
+	cmd.Stdin = stdin
+	out, err = cmd.CombinedOutput()
+	return
+}
+
+func exists(path string) (found bool) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+---FILE-END filename="/home/stevegt/lab/promisebase/server/server_test.go"---
