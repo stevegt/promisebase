@@ -1,28 +1,38 @@
-revise slide show 
+troubleshoot oci archive unpack
 
-Update the slide show describing the codebase, ensuring it covers the
-following points:
+I'm getting this error when running the tests:
 
-- Why it's important
-- Who wrote it
-    - list ALL co-authors in the codebase
-- When they wrote it and what was going on in the world at that time
-- How they wrote it (agile, mob programming, etc) 
-- What tools were used to write it (mob.sh, mob-consensus, etc)
-- What the code does
-- How it is organized
-    - add a slide with a high-level diagram of the architecture
-- Key algorithms and data structures
-- Important files and their roles
-- Work in progress, bugs, known issues
-- What's missing, future plans
+=== RUN   TestRunHubTree
+[skopeo copy docker://docker.io/library/alpine:3.12.0 oci-archive:/tmp/4165362856.oci]
+    server_test.go:259: addr: tree/sha256/56cdde4a9eb1d8cc4d5a06ab67d263c6e546ddf80768d61e63e64cbc64ec437d
+echoTest starting
+    server_test.go:288: /home/stevegt/lab/promisebase/server/container.go:50: createrootfs failed: /home/stevegt/lab/promisebase/server/container.go:296: file manifest.json not found in tar
+--- FAIL: TestRunHubTree (2.79s)
 
-Keep it in remarkjs format, see the existing slides in
-./slides/README.md, make minimal changes to existing slides, add new
-slides as needed, and save it to ./slides/README.md.
+stevegt@spirit:~/lab/promisebase/server$ find /tmp/tdb7
+/tmp/tdb7
+/tmp/tdb7/blobs
+/tmp/tdb7/blobs/sha256
+/tmp/tdb7/blobs/sha256/41691e1851314e2f37eee22c2a9969500d0dcab259f1357f447ef28155f22efc
+/tmp/tdb7/blobs/sha256/0f5f445df8ccbd8a062ad3d02d459e8549d9998c62a5b7cbf77baf68aa73bf5b
+/tmp/tdb7/blobs/sha256/df20fa9351a15782c64e6dddb2d4a6f50bf6d3688060a34c4014b0d9a752eb4c
+/tmp/tdb7/index.json
+/tmp/tdb7/oci-layout
 
+Implement the recommendations in .aidda/response to fix this.
+
+In:
+    .aidda/response
+    ./server/container.go
+    ./server/server.go
+    ./server/server_test.go
 Out:
-    ./slides/README.md
+    ./server/container.go
+    ./server/server.go
+    ./server/server_test.go
+
+.stop
+
 In:
     ./slides/README.md
     /tmp/contributors
