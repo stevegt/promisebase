@@ -245,25 +245,18 @@ func TestInotify(t *testing.T) {
 	tassert(t, event.Op&fsnotify.Create > 0, "event %#v", event)
 }
 
-func TestRunHub(t *testing.T) {
-	pit := setup(t)
-
-	// get the image from docker hub
-	err := echoTest(t, pit, "docker.io/library/alpine:3.12.0", "hello")
-	tassert(t, err == nil, "%v", err)
-}
-
-func TestRunTree(t *testing.T) {
+func TestRunHubTree(t *testing.T) {
 	pit := setup(t)
 
 	src := "docker://docker.io/library/alpine:3.12.0"
 	// pull container image and save it as a stream
-	tree, err := pit.imageSave("sha256", src)
+	tree, err := pit.ImportImage("sha256", src)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, tree != nil, "%v", tree)
 
 	// run the image from the pitbase stream
 	addr := "tree/" + tree.Path.Addr
+	t.Logf("addr: %s", addr)
 	err = echoTest(t, pit, addr, "hello")
 	tassert(t, err == nil, "%v", err)
 }
@@ -275,8 +268,8 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 	emptyrd := bytes.NewReader([]byte(""))
 
 	cntr := &Container{
-		Image: img,
-		Args:  []string{"/bin/echo", expect},
+		Path: img,
+		Args: []string{"/bin/echo", expect},
 		Cmd: &exec.Cmd{
 			Stdin: nil,
 			// Stdout: stdout,
@@ -284,6 +277,7 @@ func echoTest(t *testing.T, pit *Pit, img, expect string) (err error) {
 			// Stderr: os.Stderr,
 			// Stderr: nil,
 		},
+		pit: pit,
 	}
 	stdout, err := cntr.Cmd.StdoutPipe()
 	tassert(t, err == nil, "%v", err)
@@ -399,7 +393,7 @@ func TestImageSave(t *testing.T) {
 
 	src := "docker://docker.io/library/alpine:3.12.0"
 	// pull container image and save it as a stream
-	tree, err := pit.imageSave("sha256", src)
+	tree, err := pit.ImportImage("sha256", src)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, tree != nil, "%v", tree)
 
@@ -407,7 +401,7 @@ func TestImageSave(t *testing.T) {
 	out, err := shellin(tree, "file", "-")
 	tassert(t, err == nil, "%v", err)
 	outstr := string(out)
-	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
+	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, "%v", outstr)
 
 }
 
@@ -415,21 +409,23 @@ func TestImageTree(t *testing.T) {
 	pit := setup(t)
 
 	src := "docker://docker.io/library/alpine:3.12.0"
-	// pull container image and save it as a tree
-	tree, err := pit.imageSave("sha256", src)
+	// pull container image and save it as an oci archive in a db tree
+	tree, err := pit.ImportImage("sha256", src)
 	tassert(t, err == nil, "%v", err)
 	tassert(t, tree != nil, "%v", tree)
 
-	// should be a tarball
+	// use the 'file' command to verify that the stream is a tarball
+	// XXX should use archive/tar instead of shelling out
+	// XXX do we really need this at all?
 	out, err := shellin(tree, "file", "-")
 	tassert(t, err == nil, "%v", err)
 	outstr := string(out)
-	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, outstr)
+	tassert(t, strings.Index(outstr, "POSIX tar archive") >= 0, "%v", outstr)
 
 	// unpack image into a runc-compatible directory tree
 	cntr := &Container{
-		Image: "tree/" + tree.Addr,
-		pit:   pit,
+		Path: "tree/" + tree.Addr,
+		pit:  pit,
 	}
 
 	err = cntr.initdir()

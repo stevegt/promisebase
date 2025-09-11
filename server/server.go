@@ -170,8 +170,8 @@ func (pit *Pit) handle(conn net.Conn) {
 
 		// pass req to runContainer
 		cntr := &Container{
-			Image: string(req.Addr),
-			Args:  []string(req.Args),
+			Path: string(req.Addr),
+			Args: []string(req.Args),
 			Cmd: &exec.Cmd{
 				Stdin:  conn,
 				Stdout: conn,
@@ -394,39 +394,6 @@ func xeq(interpreterPath *pb.Path, args ...string) (stdout, stderr io.Reader, rc
 	return
 }
 */
-
-func (pit *Pit) imageSave(algo, img string) (tree *pb.Tree, err error) {
-	tmpfile, err := ioutil.TempFile("", "*.oci")
-	Ck(err)
-	path := tmpfile.Name()
-	defer os.Remove(path)
-	cmd := exec.Command("skopeo", "copy", img, fmt.Sprintf("oci-archive:%s", path))
-	fmt.Println(cmd.Args)
-	// fmt.Println(tmpfile.Name(), dest)
-	err = cmd.Run()
-	Ck(err)
-	imgrd, err := os.Open(path)
-	Ck(err)
-	tree, err = pit.Db.PutStream(algo, imgrd)
-	Ck(err)
-
-	/*
-		ctx := context.Background()
-		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-
-		// pull container image
-		pullrd, err := cli.ImagePull(ctx, img, types.ImagePullOptions{})
-		if err != nil {
-			panic(err)
-		}
-		io.Copy(os.Stdout, pullrd)
-
-		// save image as a stream
-		saverd, err := cli.ImageSave(ctx, []string{img})
-		tree, err = pit.Db.PutStream(algo, saverd)
-	*/
-	return
-}
 
 func canstat(path string) bool {
 	_, err := os.Stat(path)
