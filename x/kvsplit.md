@@ -1,4 +1,3 @@
----FILE-START filename="/home/stevegt/lab/promisebase/x/kvsplit.md"---
 # Splitting the Database Package into "db" and "kv"
 
 This document outlines a plan to refactor the current `db` package into two distinct packages: `kv` and `db`. The aim is to isolate low-level key–value storage operations in the `kv` package and let the `db` package focus on higher-level functionality (such as Merkle tree management, block deduplication, stream handling, etc.) while using the `kv` package as its storage layer.
@@ -34,9 +33,9 @@ This document outlines a plan to refactor the current `db` package into two dist
 ### 1. Define the kv Interface
 
 - Create a new package directory (e.g. `x/kv`) that will contain the key–value store code.
-- In this package, define a minimal interface (`Store`) for operations. For example:
+- In this package, define a minimal interface (`KvStore`) for operations. For example:
 
-  - A type `Store` with methods:
+  - A type `KvStore` with methods:
     - `Put(key string, value []byte) error`
     - `Get(key string) ([]byte, error)`
     - `Delete(key string) error`
@@ -44,7 +43,7 @@ This document outlines a plan to refactor the current `db` package into two dist
 
 - Develop a simple file–based implementation using standard library functions (e.g. using `os` and `ioutil`). For instance, keys could be mapped onto file paths relative to a base directory established at store creation time.
 
-- Include a basic constructor such as `NewStore(rootDir string) (Store, error)` that ensures the storage directory exists and establishes any configuration (such as directory depth or file naming conventions).
+- Include a basic constructor such as `NewKvStore(rootDir string) (KvStore, error)` that ensures the storage directory exists and establishes any configuration (such as directory depth or file naming conventions).
 
 ### 2. Refactor the db Package
 
@@ -90,4 +89,3 @@ The goal of this refactoring is to enforce a clean separation between low-level 
 
 This plan provides a roadmap for gradually migrating existing code, supported by comprehensive testing and clear interface boundaries between `kv` and `db`.
 
----FILE-END filename="/home/stevegt/lab/promisebase/x/kvsplit.md"---

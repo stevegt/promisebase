@@ -1,3 +1,36 @@
+plan kv split from db
+
+In x/kvsplit.md, describe a plan to split the current db package into
+two packages, db and kv, where db uses kv as its storage layer.  The
+kv package should be a simple key-value store with a minimal
+interface, and db should implement all the higher-level functionality
+on top of kv.
+
+In:
+    db/tree.go
+    db/stream.go
+    db/file.go
+    db/blob.go
+    db/path_test.go
+    db/db_test.go
+    db/pitbase.go
+    db/chunker.go
+    db/tree_test.go
+    db/account.go
+    db/blob_test.go
+    db/chunker_test.go
+    db/doc.go
+    db/db.go
+    db/path.go
+    db/statlink_test.go
+    db/stream_test.go
+    db/bench_test.go
+    db/pitbase_test.go
+Out:
+    x/kvsplit.md
+
+.stop
+
 troubleshoot oci archive unpack
 
 I'm getting this error when running the tests:
