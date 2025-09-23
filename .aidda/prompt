@@ -1,3 +1,33 @@
+refactor data model
+
+Create a graphviz diagram of the data model in the db package, showing
+the main types and their relationships.  
+
+In:
+    db/tree.go
+    db/stream.go
+    db/file.go
+    db/blob.go
+    db/path_test.go
+    db/db_test.go
+    db/pitbase.go
+    db/chunker.go
+    db/tree_test.go
+    db/account.go
+    db/blob_test.go
+    db/chunker_test.go
+    db/doc.go
+    db/db.go
+    db/path.go
+    db/statlink_test.go
+    db/stream_test.go
+    db/bench_test.go
+    db/pitbase_test.go
+Out:
+    x/model.dot
+
+.stop
+
 plan kv split from db
 
 In x/kvsplit.md, describe a plan to split the current db package into
