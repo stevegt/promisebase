@@ -1,3 +1,41 @@
+consider replacing Path with CIDs
+
+Examine the provided files and consider the impact and workload of
+replacing the current Path type in the db package with IFPS-style
+v1 CIDs (Content Identifiers).  Discuss the advantages and disadvantages
+of using CIDs for addressing content in the database, including
+compatibility with existing systems, ease of use, and performance.
+
+In:
+    cmd/pb/pbmain.go
+    db/tree.go
+    db/stream.go
+    db/file.go
+    db/blob.go
+    db/path_test.go
+    db/db_test.go
+    db/pitbase.go
+    db/tree_test.go
+    db/blob_test.go
+    db/chunker_test.go
+    db/db.go
+    db/path.go
+    db/statlink_test.go
+    db/stream_test.go
+    db/bench_test.go
+    db/pitbase_test.go
+    fuse/fuse.go
+    server/container.go
+    server/server_test.go
+    server/server.go
+    slides/main.go
+    x/model.dot
+    x/kvsplit.md
+Out:
+    x/path-to-cid.md
+
+.stop
+
 refactor data model
 
 Create a graphviz diagram of the data model in the db package, showing

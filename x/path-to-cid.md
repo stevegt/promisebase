@@ -1,0 +1,113 @@
+# Replacing the Path Type with IPFS–style CIDs in Promisebase
+
+This document discusses the impact, workload, and trade–offs of
+replacing the current `Path` type in the database package with
+IPFS–style version 1 Content Identifiers (CIDs).
+
+## Overview
+
+Currently, the `Path` type encodes file location information
+(absolute, relative, canonical) along with components like class,
+algorithm, and hash fields. In contrast, IPFS v1 CIDs are
+self–describing content identifiers that encapsulate the hash
+algorithm, the raw content’s multihash, and an optional multicodec
+marker. Replacing our custom `Path` type with CIDs would align
+Promisebase with the IPFS ecosystem and could simplify content
+verification and interoperability.
+
+## Advantages
+
+1. **Interoperability & Standards Compliance**  
+   - CIDs are widely used and standardized in the IPFS community. This
+     makes integration with other content–addressable and distributed
+     systems easier.
+   - Tools and libraries in the IPFS ecosystem already support CIDs,
+     easing adoption and potential future interoperability.
+
+2. **Content Integrity and Self–Description**  
+   - CIDs embed the hash algorithm identifier along with the hash
+     digest, ensuring that the addressing format is explicit.
+   - This self–describing nature increases reliability when verifying
+     data integrity.
+
+3. **Simplification of Addressing**  
+   - Replacing a bespoke `Path` type with CIDs can simplify internal
+     code by reducing the multiple ways to derive or represent a
+     content address.
+   - Developers and users familiar with IPFS will find the CID format
+     easier to reason about.
+
+4. **Future Proofing**  
+   - The multicodec and multi–hash design of CIDs allow for support of
+     different hash functions and potentially other codecs in the
+     future without redesigning the addressing scheme.
+   - Upgrades and additions become easier since the CID encapsulates
+     versioning and algorithm metadata.
+
+## Disadvantages and Challenges
+
+1. **Backward Compatibility Issues**  
+   - The current system relies on a specific string representation
+     (including path components such as class, algorithm, relative
+     subdirectories, etc.). Switching to CIDs may break compatibility
+     with existing data stored using the Path type.
+   - A migration strategy must be devised to convert legacy paths into
+     the CID format or support both formats simultaneously during
+     transition.
+
+2. **Refactoring Workload**  
+   - A significant portion of the codebase (e.g. tree, blob, file
+     management, and various tests) directly references the Path type.
+     Refactoring across multiple packages (db, hashkv, kv, etc.) will
+     require careful planning and robust testing.
+   - The output formats of functions like `GetPath()`, `PutBlock()`,
+     and `PutTree()` will need to be revised, affecting both internal
+     logic and external tools that use the current canonical paths.
+
+3. **Performance and Overhead Considerations**  
+   - Computing and storing CIDs may incur slightly increased
+     computational overhead because of the multicodec and multihash
+     encoding. The size of a CID is typically larger than the raw hash
+     string extracted from Path.
+   - This overhead might be negligible in many cases, yet for
+     performance–critical paths, profiling would be needed.
+
+4. **Ease of Use and Developer Familiarity**  
+   - Developers who are accustomed to the current separation of
+     “class”, “algo”, and “hash” may need time to learn the
+     standardized CID representation.
+   - Debugging and logging might also need adjustments since the
+     human–readable form of a CID is different from the current
+     canonical path format.
+
+## Considerations for Integration
+
+- **Migration Strategy:**  
+  It is essential to weigh whether to completely replace the Path type
+  or to support a dual mode (both legacy paths and CIDs) during the
+  transition period. Conversion utilities could be developed to
+  migrate existing databases.
+
+- **Testing and Documentation:**  
+  Extensive tests must be updated or added to cover scenarios with
+  CIDs. Documentation for developers and users should clearly describe
+  the new addressing scheme and its implications on operations like
+  deduplication, block retrieval, and stream linking.
+
+- **Impact on Existing Systems:**  
+  Any external tool or client relying on the current file–based,
+  human–readable path structure may require updates. However, the
+  benefits in standardization and interoperability can outweigh these
+  issues in the long term.
+
+## Conclusion
+
+Switching from a custom `Path` type to IPFS–style CIDs offers
+substantial benefits in terms of standardization, content
+verification, and interoperability with established distributed
+systems. However, it also presents challenges, including backward
+compatibility, increased refactoring effort, and potential performance
+overhead. The decision to replace should consider a careful migration
+strategy, comprehensive testing, and updated documentation to ensure
+that both internal systems and external users can adapt smoothly.
+
