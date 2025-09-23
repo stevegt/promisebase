@@ -1,10 +1,27 @@
 plan kv split from db
 
 In x/kvsplit.md, describe a plan to split the current db package into
-two packages, db and kv, where db uses kv as its storage layer.  The
-kv package should be a simple key-value store with a minimal
-interface, and db should implement all the higher-level functionality
-on top of kv.
+three packages: 
+
+- db: the high-level database functionality 
+- hashkv: a key-value store that uses content-addressed storage (CAS) with hashing
+- kv: a simple key-value store with a minimal interface
+
+The db package should support all the current functionality, but use
+hashkv as its storage layer.  
+
+The hashkv package should provide an io.Reader/io.Writer interface for 
+storing and retrieving data -- writing data returns its hash, and reading
+data requires its hash.  The hashkv package should use the kv package
+as its storage layer.
+
+The kv package should provide a simple key-value store interface,
+supporting basic operations like Get, Put, and Delete.  Keys must be
+alphanumeric strings, and must not contain slashes.  Values are
+arbitrary byte slices.
+
+Identify which existing files should go into each package, which modifications
+are needed to make them fit, and any new files that need to be created.
 
 In:
     db/tree.go
@@ -26,6 +43,7 @@ In:
     db/stream_test.go
     db/bench_test.go
     db/pitbase_test.go
+    x/kvsplit.md
 Out:
     x/kvsplit.md
 
