@@ -6,3 +6,5 @@ pitbase.test
 .grok-*
 local
 
+# storm backup files
+*.bak.md
