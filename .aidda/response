@@ -1,61 +1,111 @@
----FILE-START filename="/home/stevegt/lab/promisebase/x/path-to-cid.md"---
-# Replacing the Path Type with IPFS–style CIDs in Promisebase
+---FILE-START filename="/home/stevegt/lab/promisebase/x/gitlike-refs.md"---
+# Implementing Gitlike Refs in Promisebase
 
-This document discusses the impact, workload, and trade–offs of replacing the current `Path` type in the database package with IPFS–style version 1 Content Identifiers (CIDs).
+A pure–hash–keyed store forces users to work directly with long, awkward hash strings. In contrast, Git lets users refer to objects with human–friendly “refs” (for example, refs/heads/main or refs/tags/v1.0) that can be moved or updated as needed. In Promisebase this can be achieved by maintaining a separate mutable mapping from friendly names to content–addressable identifiers (canonical addresses).
+
+Below are some ideas and an outline for implementing a Gitlike refs system in Promisebase:
+
+---
 
 ## Overview
 
-Currently, the `Path` type encodes file location information (absolute, relative, canonical) along with components like class, algorithm, and hash fields. In contrast, IPFS v1 CIDs are self–describing content identifiers that encapsulate the hash algorithm, the raw content’s multihash, and an optional multicodec marker. Replacing our custom `Path` type with CIDs would align Promisebase with the IPFS ecosystem and could simplify content verification and interoperability.
+Promisebase currently stores data objects (blocks, trees, streams) using their cryptographic hash as the sole address. While this ensures content integrity, it forces users and applications to remember or copy long hash strings when referring to important data.
 
-## Advantages
+A refs system would:
+• Allow users to create, update, and delete human–readable references.
+• Organize refs hierarchically (e.g. refs/heads/main, refs/tags/v1.0).
+• Act as mutable pointers to immutable content objects so that a branch update can simply change which hash a ref points to.
 
-1. **Interoperability & Standards Compliance**  
-   - CIDs are widely used and standardized in the IPFS community. This makes integration with other content–addressable and distributed systems easier.
-   - Tools and libraries in the IPFS ecosystem already support CIDs, easing adoption and potential future interoperability.
+---
 
-2. **Content Integrity and Self–Description**  
-   - CIDs embed the hash algorithm identifier along with the hash digest, ensuring that the addressing format is explicit.
-   - This self–describing nature increases reliability when verifying data integrity.
+## Design Considerations
 
-3. **Simplification of Addressing**  
-   - Replacing a bespoke `Path` type with CIDs can simplify internal code by reducing the multiple ways to derive or represent a content address.
-   - Developers and users familiar with IPFS will find the CID format easier to reason about.
+### 1. Storage Location and Format
 
-4. **Future Proofing**  
-   - The multicodec and multi–hash design of CIDs allow for support of different hash functions and potentially other codecs in the future without redesigning the addressing scheme.
-   - Upgrades and additions become easier since the CID encapsulates versioning and algorithm metadata.
+**Where to store refs?**  
+A simple solution is to reserve a top–level directory (for example, "refs") under the database’s root directory (db.Dir). Each ref is represented by a file whose pathname reflects its hierarchy. For example:
+  
+  • refs/heads/main  
+  • refs/tags/v1.0  
 
-## Disadvantages and Challenges
+**File Content:**  
+The content of a ref file is the canonical content address (for example, "sha256/3d4f1ab0047e0b567fabe45acb91a239...") of a block or tree. This is analogous to Git’s plain–text ref files containing a hash.
 
-1. **Backward Compatibility Issues**  
-   - The current system relies on a specific string representation (including path components such as class, algorithm, relative subdirectories, etc.). Switching to CIDs may break compatibility with existing data stored using the Path type.
-   - A migration strategy must be devised to convert legacy paths into the CID format or support both formats simultaneously during transition.
+### 2. Operations on Refs
 
-2. **Refactoring Workload**  
-   - A significant portion of the codebase (e.g. tree, blob, file management, and various tests) directly references the Path type. Refactoring across multiple packages (db, hashkv, kv, etc.) will require careful planning and robust testing.
-   - The output formats of functions like `GetPath()`, `PutBlock()`, and `PutTree()` will need to be revised, affecting both internal logic and external tools that use the current canonical paths.
+The following operations should be supported:
 
-3. **Performance and Overhead Considerations**  
-   - Computing and storing CIDs may incur slightly increased computational overhead because of the multicodec and multihash encoding. The size of a CID is typically larger than the raw hash string extracted from Path.
-   - This overhead might be negligible in many cases, yet for performance–critical paths, profiling would be needed.
+- **Create a Ref:**  
+  When creating a new ref, Promisebase should write the canonical address to the new file under the refs/ tree.
 
-4. **Ease of Use and Developer Familiarity**  
-   - Developers who are accustomed to the current separation of “class”, “algo”, and “hash” may need time to learn the standardized CID representation.
-   - Debugging and logging might also need adjustments since the human–readable form of a CID is different from the current canonical path format.
+- **Update a Ref:**  
+  Updating a ref is as simple as overwriting the file with a new canonical address. This allows branch movements or tag updates.
 
-## Considerations for Integration
+- **Delete a Ref:**  
+  Deleting a ref file removes the pointer, similar to Git deleting a ref entry.
 
-- **Migration Strategy:**  
-  It is essential to weigh whether to completely replace the Path type or to support a dual mode (both legacy paths and CIDs) during the transition period. Conversion utilities could be developed to migrate existing databases.
+- **Read a Ref:**  
+  Opening and reading the file returns the hash the ref currently points to.
 
-- **Testing and Documentation:**  
-  Extensive tests must be updated or added to cover scenarios with CIDs. Documentation for developers and users should clearly describe the new addressing scheme and its implications on operations like deduplication, block retrieval, and stream linking.
+### 3. Leveraging Existing Features
 
-- **Impact on Existing Systems:**  
-  Any external tool or client relying on the current file–based, human–readable path structure may require updates. However, the benefits in standardization and interoperability can outweigh these issues in the long term.
+Promisebase already has some mechanisms that can be leveraged:
+
+- **Stream Linking via Symlinks:**  
+  The current implementation of streams (for instance, the LinkStream method in the Tree type) creates symlinks that point to a tree’s canonical path. This same idea can be applied to refs. Instead of (or in addition to) using plain files, a ref could be implemented as a symlink whose target is the underlying canonical path. This makes it easy to “move” a ref by updating the symlink’s target.
+
+- **Path Assembly:**  
+  The existing Path type already computes a canonical representation (combining class, algorithm, and hash). Refs can directly store or point to such canonical paths. Code that resolves content from a canonical path (via GetTree, GetBlock, etc.) may be reused when a ref is looked up.
+
+- **Filesystem and Fuse Integration:**  
+  The FUSE layer in Promisebase creates a virtual filesystem where files represent stored content (for example, a “new” file for writing data or the “hello.txt” file in the hello example). A dedicated directory for refs could be added to the FUSE view so that a user sees a “refs” folder with human–readable names, making manual exploration and updates possible using ordinary shell tools.
+
+---
+
+## Implementation Outline
+
+1. **Create a Refs Package or Module:**  
+   Although a full system could be implemented inside the db package, it might be preferable to create a separate module (for example, within x/ or a new subpackage) that wraps refs operations.
+
+2. **Define the Refs Interface:**  
+   Create utility functions such as:
+  
+   • `SetRef(name string, target string) error` – writes the canonical address to the file (or sets the symlink target).
+   • `GetRef(name string) (target string, error)` – reads and returns the target hash.
+   • `DeleteRef(name string) error` – removes a ref.
+   • `ListRefs(prefix string) ([]string, error)` – lists refs under a given prefix (e.g., "refs/heads/").
+
+3. **File/Directory Layout:**  
+   In the Promisebase directory (db.Dir), create a new directory called "refs". Refs are stored underneath according to their pathname. Ensure that creating or updating refs uses safe file writing (for example, using the renameio package as done in other parts of Promisebase).
+
+4. **Integrate with Existing High–Level Logic:**  
+   The high–level functions in the db package (e.g. PutTree, PutBlock) remain unchanged. Instead, external tools or the FUSE layer can provide commands to create or update refs so that users can refer to content by friendly names.
+
+5. **FUSE Integration Option:**  
+   On the FUSE side, add a directory (or a pseudo–directory) called "refs" that maps the ref names to files whose contents are the corresponding canonical paths. This allows for an intuitive UI where users can navigate to, for example, /mnt/db/refs/heads/main and then see or follow the pointer to the actual data.
+
+6. **Testing and Migration:**  
+   Develop unit tests to ensure that:
+   - Reading, writing, updating, and deleting refs work correctly.
+   - Ref updates properly update the underlying target.
+   - The integration (if using FUSE) shows the refs correctly.
+
+---
+
+## Trade–Offs and Future Work
+
+- **Flexibility vs. Complexity:**  
+  By introducing refs, Promisebase becomes easier to use for common workflows (like branching and tagging). However, an additional layer of indirection is added. Care must be taken to ensure consistency between refs and underlying content.
+
+- **Backward Compatibility:**  
+  Existing systems that work directly with canonical addresses may need to be updated or provided with conversion utilities.
+
+- **Interfacing with External Tools:**  
+  A well–defined refs mechanism could eventually enable interoperability with other version–controlled or distributed systems that use Git–like ref semantics.
+
+---
 
 ## Conclusion
 
-Switching from a custom `Path` type to IPFS–style CIDs offers substantial benefits in terms of standardization, content verification, and interoperability with established distributed systems. However, it also presents challenges, including backward compatibility, increased refactoring effort, and potential performance overhead. The decision to replace should consider a careful migration strategy, comprehensive testing, and updated documentation to ensure that both internal systems and external users can adapt smoothly.
-
----FILE-END filename="/home/stevegt/lab/promisebase/x/path-to-cid.md"---
+Implementing Gitlike refs in Promisebase allows users to interact with data through human–friendly names rather than raw hashes. By storing refs under a reserved "refs" directory (either as plain text files or symlinks) and leveraging the existing Path and stream–linking mechanisms, Promisebase can provide mutable pointers to immutable content. This adds a valuable usability layer, and—as in Git—refs can be easily updated, deleted, and organized hierarchically to suit varied use cases.
+---FILE-END filename="/home/stevegt/lab/promisebase/x/gitlike-refs.md"---

@@ -1,0 +1,145 @@
+# Implementing Gitlike Refs in Promisebase
+
+A pure–hash–keyed store forces users to work directly with long,
+awkward hash strings. In contrast, Git lets users refer to objects
+with human–friendly “refs” (for example, refs/heads/main or
+refs/tags/v1.0) that can be moved or updated as needed. In Promisebase
+this can be achieved by maintaining a separate mutable mapping from
+friendly names to content–addressable identifiers (canonical
+addresses).
+
+Below are some ideas and an outline for implementing a Gitlike refs
+system in Promisebase:
+
+---
+
+## Overview
+
+Promisebase currently stores data objects (blocks, trees, streams)
+using their cryptographic hash as the sole address. While this ensures
+content integrity, it forces users and applications to remember or
+copy long hash strings when referring to important data.
+
+A refs system would:
+- Allow users to create, update, and delete human–readable references.
+- Organize refs hierarchically (e.g. refs/heads/main, refs/tags/v1.0).
+- Act as mutable pointers to immutable content objects so that a
+  branch update can simply change which CID a ref points to.
+
+---
+
+## Design Considerations
+
+### 1. Storage Location and Format
+
+**Where to store refs?**  
+
+A simple solution is to reserve a top–level directory (for example,
+"refs") under the database’s root directory (db.Dir). Each ref is
+represented by a file whose pathname reflects its hierarchy. For
+example:
+  
+  - refs/heads/main  
+  - refs/tags/v1.0  
+
+**File Content:**  
+
+The content of a ref file is the CID (content identifier) of the
+object, for example,
+"bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku". This is
+analogous to Git’s plain–text ref files containing a hash.
+
+### 2. Operations on Refs
+
+The following operations should be supported:
+
+- **Create a Ref:**  
+  When creating a new ref, Promisebase should write the CID to the new file under the refs/ tree.
+
+- **Update a Ref:**  
+  Updating a ref is as simple as overwriting the file with a new CID. This allows branch movements or tag updates.
+
+- **Delete a Ref:**  
+  Deleting a ref file removes the pointer, similar to Git deleting a ref entry.
+
+- **Read a Ref:**  
+  Opening and reading the file returns the CID the ref currently points to.
+
+### 3. Leveraging Existing Features
+
+Promisebase already has some mechanisms that can be leveraged:
+
+**Stream Linking via Symlinks:**  
+
+The current implementation of streams (for instance, the LinkStream
+method in the Tree type) creates symlinks that point to a tree’s
+canonical path. This same idea can be applied to refs. Instead of
+(or in addition to) using plain files, a ref could be implemented as
+a symlink whose target is the underlying canonical path. This makes
+it easy to “move” a ref by updating the symlink’s target.
+
+**Path Assembly:**  
+
+The existing Path type already computes a canonical representation
+(combining class, algorithm, and hash). Refs can directly store or
+point to such canonical paths. Code that resolves content from a
+canonical path (via GetTree, GetBlock, etc.) may be reused when a ref
+is looked up. XXX deprecate Paths in favor of CIDs
+
+**Filesystem and Fuse Integration:**  
+
+The FUSE layer in Promisebase creates a virtual filesystem where files
+represent stored content (for example, a “new” file for writing data
+or the “hello.txt” file in the hello example). A dedicated directory
+for refs could be added to the FUSE view so that a user sees a “refs”
+folder with human–readable names, making manual exploration and
+updates possible using ordinary shell tools.
+
+---
+
+## Implementation Outline
+
+1. **Create a Refs Package or Module:**  
+   Although a full system could be implemented inside the db package, it might be preferable to create a separate module (for example, within x/ or a new subpackage) that wraps refs operations.
+
+2. **Define the Refs Interface:**  
+   Create utility functions such as:
+  
+   - `SetRef(name string, target string) error` – writes the canonical address to the file (or sets the symlink target).
+   - `GetRef(name string) (target string, error)` – reads and returns the target hash.
+   - `DeleteRef(name string) error` – removes a ref.
+   - `ListRefs(prefix string) ([]string, error)` – lists refs under a given prefix (e.g., "refs/heads/").
+
+3. **File/Directory Layout:**  
+   In the Promisebase directory (db.Dir), create a new directory called "refs". Refs are stored underneath according to their pathname. Ensure that creating or updating refs uses safe file writing (for example, using the renameio package as done in other parts of Promisebase).
+
+4. **Integrate with Existing High–Level Logic:**  
+   The high–level functions in the db package (e.g. PutTree, PutBlock) remain unchanged. Instead, external tools or the FUSE layer can provide commands to create or update refs so that users can refer to content by friendly names.
+
+5. **FUSE Integration Option:**  
+   On the FUSE side, add a directory (or a pseudo–directory) called "refs" that maps the ref names to files whose contents are the corresponding canonical paths. This allows for an intuitive UI where users can navigate to, for example, /mnt/db/refs/heads/main and then see or follow the pointer to the actual data.
+
+6. **Testing and Migration:**  
+   Develop unit tests to ensure that:
+   - Reading, writing, updating, and deleting refs work correctly.
+   - Ref updates properly update the underlying target.
+   - The integration (if using FUSE) shows the refs correctly.
+
+---
+
+## Trade–Offs and Future Work
+
+- **Flexibility vs. Complexity:**  
+  By introducing refs, Promisebase becomes easier to use for common workflows (like branching and tagging). However, an additional layer of indirection is added. Care must be taken to ensure consistency between refs and underlying content.
+
+- **Backward Compatibility:**  
+  Existing systems that work directly with canonical addresses may need to be updated or provided with conversion utilities.
+
+- **Interfacing with External Tools:**  
+  A well–defined refs mechanism could eventually enable interoperability with other version–controlled or distributed systems that use Git–like ref semantics.
+
+---
+
+## Conclusion
+
+Implementing Gitlike refs in Promisebase allows users to interact with data through human–friendly names rather than raw hashes. By storing refs under a reserved "refs" directory (either as plain text files or symlinks) and leveraging the existing Path and stream–linking mechanisms, Promisebase can provide mutable pointers to immutable content. This adds a valuable usability layer, and—as in Git—refs can be easily updated, deleted, and organized hierarchically to suit varied use cases.

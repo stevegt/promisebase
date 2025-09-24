@@ -1,3 +1,52 @@
+explore gitlike refs
+
+A pure-hash-keyed store is awkward to use, because users have to
+remember the hashes of the things they care about.  Git solves this
+problem by using "refs" -- human-readable names that point to hashes.
+Refs can be moved to point to different hashes, and can be organized
+into a hierarchy (e.g. refs/heads/main, refs/tags/v1.0).
+
+Consider how to implement a similar refs system for the provided code.
+Note any existing features that could be leveraged.
+
+
+In:
+    ./fuse/fuse.go
+    ./fuse/fuse_test.go
+    ./server/container.go
+    ./server/server_test.go
+    ./server/server.go
+    ./db/tree.go
+    ./db/stream.go
+    ./db/file.go
+    ./db/blob.go
+    ./db/path_test.go
+    ./db/db_test.go
+    ./db/pitbase.go
+    ./db/chunker.go
+    ./db/tree_test.go
+    ./db/account.go
+    ./db/blob_test.go
+    ./db/chunker_test.go
+    ./db/doc.go
+    ./db/db.go
+    ./db/path.go
+    ./db/statlink_test.go
+    ./db/stream_test.go
+    ./db/bench_test.go
+    ./db/pitbase_test.go
+    ./cmd/pitd/pitdmain.go
+    ./cmd/pitd/pitd_test.go
+    ./cmd/pb/pb_test.go
+    ./cmd/pb/pbmain.go
+    ./client/client.go
+    x/model.dot
+    x/kvsplit.md
+    x/path-to-cid.md
+Out:
+    x/gitlike-refs.md
+
+.stop
 consider replacing Path with CIDs
 
 Examine the provided files and consider the impact and workload of
