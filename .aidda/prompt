@@ -1,19 +1,14 @@
-improve command sourcing doc
+add designs to command sourcing doc
 
-Improve the documentation in x/command-sourcing.md to better explain
-that command sourcing is a method of recording agent intent, and that
-it is not the same as event sourcing.  Explain how command sourcing
-enables reproducibility and auditing, and how it can be used to
-reconstruct system state.  Provide examples of how commands can be
-sourced and replayed.  
+Improve the documentation in x/command-sourcing.md by adding designs
+for command sourcing that would work with the current codebase or a
+derivative.
 
-Make clear that command sourcing does not provide a "rollback"
-feature, because commands are not necessarily reversible.  Instead,
-command sourcing provides a way to understand how the system reached
-its current state, and to reproduce that state in replicas and peers.
-There is a "rollback" available by reverting to a previous snapshot
-and replaying commands from that point, but this is not the same as
-a transactional rollback.
+Imagine several different designs, and describe each one along with
+pros and cons.  Consider the tradeoffs of each design, and how it
+would affect the current codebase.  Estimate a probability of success
+to each design, along with your confidence level in that estimate.
+
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
