@@ -1,9 +1,22 @@
-consider replacing Path with CIDs
+consider ways to track ref changes
 
-Revise x/path-to-cid.md and x/gitlike-refs.md based on an assumption
-that we will replace the current Path type in the given codebase with
-IFPS-style v1 CIDs (Content Identifiers).
+If we use git-like refs, we want a way to track changes to refs, so
+that we can implement features like "show me all the changes to this
+ref over time".  It would be best if this could be done using a
+hypergraph-based approach similar to git commits, without changing the
+existing data model too much.  In other words, unlike with git, we
+want refs to be first-class objects that change over time via commits,
+rather than just being pointers to commits.
 
+Imagine several possible approaches, and describe the pros and cons of each.
+
+Sysmsg: 
+    You are an expert Go programmer. Please make the requested changes to
+    the given code or documentation. do not modify documentation text
+    arbitrarily -- make only the minimal changes needed.  Always wrap
+    lines at 70 characters.  Use proper markdown formatting -- do not
+    indent paragraphs.  Do not use any special characters - use only
+    hyphens for bullets.  
 In:
     cmd/pb/pbmain.go
     db/tree.go
@@ -32,8 +45,7 @@ In:
     x/path-to-cid.md
     x/gitlike-refs.md
 Out:
-    x/path-to-cid.md
-    x/gitlike-refs.md
+    x/refchanges.md
 
 .stop
 
