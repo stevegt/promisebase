@@ -1,4 +1,3 @@
----FILE-START filename="/home/stevegt/lab/promisebase/x/command-sourcing.md"---
 # Command Sourcing for Tracking Ref and Other Changes
 
 Command sourcing is a technique that records a sequence of
@@ -58,4 +57,3 @@ track changes, including ref updates and other modifications. While this
 approach introduces some overhead and design challenges, its benefits in
 auditability, reproducibility, and transparency can significantly
 increase system reliability and accountability.
----FILE-END filename="/home/stevegt/lab/promisebase/x/command-sourcing.md"---

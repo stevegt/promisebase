@@ -1,14 +1,15 @@
-consider ways to track ref changes
+consider command sourcing as a way to track ref and other changes
 
-If we use git-like refs, we want a way to track changes to refs, so
-that we can implement features like "show me all the changes to this
-ref over time".  It would be best if this could be done using a
-hypergraph-based approach similar to git commits, without changing the
-existing data model too much.  In other words, unlike with git, we
-want refs to be first-class objects that change over time via commits,
-rather than just being pointers to commits.
+Command-sourcing is a way to record all changes to a system as a sequence
+of commands that can be replayed to reconstruct the state of the system
+at any point in time.  This is similar to event sourcing, but focuses on
+the commands that caused the changes, rather than the events that
+resulted from the changes.
 
-Imagine several possible approaches, and describe the pros and cons of each.
+Imagine several approaches to implementing command-sourcing in the
+current codebase, for instance in tracking ref changes.  Describe pros
+and cons of each approach, and discuss other ways in which
+command-sourcing might be useful.
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
@@ -44,8 +45,10 @@ In:
     x/kvsplit.md
     x/path-to-cid.md
     x/gitlike-refs.md
-Out:
     x/refchanges.md
+    x/command-sourcing.md
+Out:
+    x/command-sourcing.md
 
 .stop
 
