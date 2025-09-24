@@ -1,45 +1,84 @@
 ---FILE-START filename="/home/stevegt/lab/promisebase/x/command-sourcing.md"---
 # Command Sourcing for Tracking Ref and Other Changes
 
-Command sourcing is a technique that records a sequence of
-commands that modify the state of a system. Rather than only storing
-the final state or resulting events, this approach logs every command
-that causes changes. In Promisebase, command sourcing can be used to
-track ref updates as well as other state modifications.
+Command sourcing is a technique that records a sequence of commands that
+modify the state of a system. Rather than only storing the final state or
+resulting events, this approach logs every command that causes changes.
+In Promisebase, command sourcing is used to capture agent intent. Each
+command reflects what an agent intended to do rather than just the fact that
+an event occurred. This clear recording of intent, along with associated
+parameters and metadata, enables rigorous reproducibility and auditing.
+
+## How Command Sourcing Enables Reproducibility and Auditing
+
+By storing every instruction that modified the system state, command
+sourcing provides a full audit trail. For example, if an agent issued a
+command to update a ref from one content identifier to another, the command
+log would record the previous CID, the new CID, a timestamp, and other
+metadata such as user or process information. Replaying the recorded
+commands in order allows a replica or peer to reconstruct the exact state.
+This process is particularly useful when replicating data across distributed
+nodes or when debugging a series of state transitions.
+
+Note that while the command log enables state reconstruction, it does not
+offer a traditional transactional rollback. Since many commands represent
+irreversible changes, they cannot be simply undone. Instead, to "rollback"
+a system, one would revert to a previous snapshot and replay the subsequent
+commands to arrive at a consistent state.
 
 ## Approaches to Command Sourcing
 
 - Append-only log of commands:  
-  Each ref update is recorded as a new entry appended to a log. The
-  log contains details such as the previous CID, the new CID, a
-  timestamp, and metadata like user information. This gives an
-  immutable timeline of ref changes.
+  Each ref update or state change is recorded as a new log entry that
+  details the agent’s intent along with the previous state, the new state,
+  and a timestamp. For example, an entry might read: "Update ref 
+  `refs/heads/main`: from CID_A to CID_B at 2023-10-01T12:34:56Z".
 
 - Transaction log with reversible commands:  
-  Commands are stored with enough data to reverse their effects if
-  necessary. With this method, it is possible to rollback to a prior
-  state when a ref update causes an error or when concurrent changes
-  need resolution.
+  Commands are stored with sufficient detail so that, if feasible, their
+  effects could be reversed. However, since not all commands are reversible,
+  this approach does not provide a full transactional rollback feature.
+  Instead, it records intent for audit and replay purposes.
 
 - Integration with event sourcing:  
-  Command sourcing may be combined with an event‐based model. In such a
-  design, commands are transformed into events that are stored in an
-  event log. The full history of operations may then be replayed to
-  reconstruct any state.
+  Command sourcing may be combined with an event-based model. In this design,
+  commands are transformed into events that are stored in an immutable log.
+  The full history of operations may then be replayed to reconstruct any state.
+  Although similar in spirit, event sourcing focuses on state changes while
+  command sourcing documents the originating requests.
 
 ## Pros and Cons
 
 - Pros:
-  - Provides a clear audit trail for all operations.
-  - Enables replay to regenerate the current state.
-  - Enhances transparency for ref updates and state changes.
-  - Facilitates debugging and retrospective analysis.
+  - Provides a clear audit trail for all operations and captures agent intent.
+  - Enables replay of commands to regenerate or verify the current state.
+  - Enhances transparency for ref updates and state transitions.
+  - Facilitates debugging and retrospective analysis by showing exact
+    instructions that were issued.
 
 - Cons:
-  - May introduce performance overhead from frequent logging.
-  - Increases complexity in managing command consistency.
-  - Requires careful design to avoid duplicate state data.
-  - Could lead to larger storage needs for extensive logs.
+  - May introduce performance overhead due to frequent logging.
+  - Increases complexity in ensuring that commands precisely represent
+    intent without duplication.
+  - Does not offer a “rollback” in the transactional sense since commands
+    are not necessarily reversible.
+  - Could lead to larger storage needs for extensive command histories.
+
+## Examples: Sourcing and Replaying Commands
+
+Imagine an agent issues the following commands:
+- "Set ref `refs/heads/main` from CID_A to CID_B at 2023-10-01T10:00:00Z"
+- "Update block content for object X with new data Y at 2023-10-01T10:05:00Z"
+
+These commands are recorded sequentially in an append-only log. To
+reconstruct the system state, a replica can:
+1. Start from a known snapshot.
+2. Replay each command in the log in order, applying each change.
+3. The final state will mirror the state achieved in the original system.
+
+If a rollback is ever needed, one would revert to an earlier snapshot and
+then replay the subsequent commands. This is not a transactional rollback,
+but a controlled method to reproduce system state.
 
 ## Additional Use Cases
 
@@ -53,9 +92,15 @@ applied to:
 
 ## Conclusion
 
-Implementing command sourcing in Promisebase offers a robust method to
-track changes, including ref updates and other modifications. While this
-approach introduces some overhead and design challenges, its benefits in
-auditability, reproducibility, and transparency can significantly
-increase system reliability and accountability.
+Implementing command sourcing in Promisebase offers a robust method to track
+changes by recording the precise commands (agent intent) that led to the
+current system state. This approach enables reproducibility, auditing, and
+transparent debugging by allowing the entire history to be replayed to
+reconstruct state. Note that command sourcing does not provide a true
+rollback mechanism, as commands are not inherently reversible. Instead,
+one may revert to a previous snapshot and replay the commands, which is
+fundamentally different from a transactional rollback. Despite some
+overhead and complexity, the benefits in system accountability and state
+reproducibility make command sourcing a valuable feature in Promisebase.
+
 ---FILE-END filename="/home/stevegt/lab/promisebase/x/command-sourcing.md"---

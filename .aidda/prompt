@@ -1,15 +1,19 @@
-consider command sourcing as a way to track ref and other changes
+improve command sourcing doc
 
-Command-sourcing is a way to record all changes to a system as a sequence
-of commands that can be replayed to reconstruct the state of the system
-at any point in time.  This is similar to event sourcing, but focuses on
-the commands that caused the changes, rather than the events that
-resulted from the changes.
+Improve the documentation in x/command-sourcing.md to better explain
+that command sourcing is a method of recording agent intent, and that
+it is not the same as event sourcing.  Explain how command sourcing
+enables reproducibility and auditing, and how it can be used to
+reconstruct system state.  Provide examples of how commands can be
+sourced and replayed.  
 
-Imagine several approaches to implementing command-sourcing in the
-current codebase, for instance in tracking ref changes.  Describe pros
-and cons of each approach, and discuss other ways in which
-command-sourcing might be useful.
+Make clear that command sourcing does not provide a "rollback"
+feature, because commands are not necessarily reversible.  Instead,
+command sourcing provides a way to understand how the system reached
+its current state, and to reproduce that state in replicas and peers.
+There is a "rollback" available by reverting to a previous snapshot
+and replaying commands from that point, but this is not the same as
+a transactional rollback.
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
