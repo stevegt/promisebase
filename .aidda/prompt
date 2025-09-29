@@ -9,10 +9,10 @@ pros and cons.  Consider the tradeoffs of each design, and how it
 would affect the current codebase.  Estimate a probability of success
 to each design, along with your confidence level in that estimate.
 
-Imagine one or more designs that use the current codebase to implenent
+Imagine one or more designs that use the current codebase to implement
 a git-like hypergraph model, where each edge points at previous edges,
-and an edge can contain both data and commands.  See XXX message
-format for an example of how this might work.
+and an edge can contain both data and commands.  See message-format.md
+for an example of how this might work.
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
@@ -50,6 +50,7 @@ In:
     x/gitlike-refs.md
     x/refchanges.md
     x/command-sourcing.md
+    x/message-format.md
 Out:
     x/command-sourcing.md
 
