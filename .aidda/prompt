@@ -14,6 +14,10 @@ a git-like hypergraph model, where each edge points at previous edges,
 and an edge can contain both data and commands.  See message-format.md
 for an example of how this might work.
 
+For example, we might have a graph where each message is a hyperedge,
+with the tails (parents) being one or more previous messages, similar
+to a git commit.  
+
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
     the given code or documentation. do not modify documentation text
