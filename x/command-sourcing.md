@@ -1,24 +1,25 @@
 # Command Sourcing for Tracking Ref and Other Changes
 
-Command sourcing is a technique that records a sequence
-of commands that modify the state of a system. Rather than only
-storing the final state or resulting events, this approach logs
-every command that causes changes. In Promisebase, command sourcing
-is used to capture agent intent. Each command reflects what an agent
-intended to do rather than just the fact that an event occurred. This
-clear recording of intent, along with associated parameters and
-metadata, enables rigorous reproducibility and auditing.
+Command sourcing is a technique that records a sequence of commands
+that modify the state of a system. Rather than only storing the final
+state or resulting events, this approach logs every command that
+causes changes. In Promisebase, command sourcing is used to capture
+agent intent. Each command reflects what an agent intended to do rather
+than just the fact that an event occurred. This clear recording of
+intent, along with associated parameters and metadata, enables rigorous
+reproducibility and auditing.
 
 ## How Command Sourcing Enables Reproducibility and Auditing
 
 By storing every instruction that modified the system state, command
-sourcing provides a full audit trail. For example, if an agent issued
-a command to update a ref from one content identifier to another, the
+sourcing provides a full audit trail. For example, if an agent issued a
+command to update a ref from one content identifier to another, the
 command log would record the previous CID, the new CID, a timestamp,
 and other metadata such as user or process information. Replaying the
 recorded commands in order allows a replica or peer to reconstruct the
 exact state. This process is particularly useful when replicating data
-across distributed nodes or when debugging a series of state transitions.
+across distributed nodes or when debugging a series of state
+transitions.
 
 Note that while the command log enables state reconstruction, it does
 not offer a traditional transactional rollback. Since many commands
@@ -106,7 +107,8 @@ codebase, performance, and complexity.
   event stream. Periodic snapshots capture the full state for faster
   recovery.
 - Pros:
-  - Enables efficient state reconstruction by replaying only recent events.
+  - Enables efficient state reconstruction by replaying only recent
+    events.
   - Provides rich auditability and supports recovery scenarios.
   - The event format can be standardized for future integration.
 - Cons:
@@ -128,7 +130,8 @@ codebase, performance, and complexity.
   - Supports branching and merging of command histories for concurrent
     updates.
 - Cons:
-  - Considerably more complex to implement and maintain the commit graph.
+  - Considerably more complex to implement and maintain the commit
+    graph.
   - Traversal and replay may incur performance overhead in large histories.
 - Estimated probability of success is about 75 percent with medium to low
   confidence because of the high complexity.
@@ -163,8 +166,7 @@ codebase, performance, and complexity.
   - Concurrency and conflict resolution in the hypergraph may pose
     challenges.
 - Estimated probability of success is about 70 percent with medium
-  confidence given the complexity and reliance on existing DAG
-  components.
+  confidence.
 
 ## Conclusion
 
@@ -179,4 +181,33 @@ the commands, which is fundamentally different from a transactional
 rollback. Despite some overhead and complexity, the benefits in system
 accountability and state reproducibility make command sourcing a valuable
 feature in Promisebase.
+
+## Additional Design Ideas
+
+Beyond the alternatives described above, further designs using the
+existing codebase can be considered. These proposals focus on leveraging
+a hypergraph model to integrate both data and command history in a
+single structure.
+
+- **6. Git-like Hypergraph Model for Unified Sourcing:**  
+  In this design, every message is treated as a hyperedge in a directed
+  acyclic hypergraph. Each hyperedge records the command parameters alongside
+  pointers to one or more parent edges. This creates a \"commit\" history used
+  both for ref updates and data changes.  
+  - Pros:
+    - Unifies command sourcing and data storage in a consistent model.
+    - Allows easy lookup by hash since each edge is content addressed.
+    - Facilitates branching, merging, and even automated conflict resolution.
+  - Cons:
+    - Requires extensive refactoring of the current command logging
+      routines.
+    - Hyperedge traversal may be costly in very large histories.
+    - The complexity of merging disparate command sequences can
+      introduce subtle bugs.
+
+These additional designs illustrate viable paths for evolving command
+sourcing in Promisebase. The choice between a unified hypergraph model
+or leveraging an external graph database will depend on performance
+needs, desired simplicity, and the long-term scalability goals of the
+system.
 

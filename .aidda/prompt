@@ -18,6 +18,10 @@ For example, we might have a graph where each message is a hyperedge,
 with the tails (parents) being one or more previous messages, similar
 to a git commit.  
 
+Imagine how, if we had such a graph, we could implement a way to
+easily search for a given object by hash, whether that object is a
+command, an argument, or a result.
+
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
     the given code or documentation. do not modify documentation text
