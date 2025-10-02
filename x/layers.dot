@@ -5,26 +5,29 @@ digraph Layers {
 
   UI [label="User Interfaces\n(CLI, Web, FUSE)"];
   Msg [label="Message & Timeline\nLayer"];
+  HGraph [label="Hypergraph\nLayer\n(Git-like, Threads)"];
   DB [label="High-Level Database\n(db) Layer"];
   HashKV [label="Content-Addressable\n(hashkv) Layer"];
   KV [label="KV Layer\n(Raw File Storage)"];
   Archive [label="Archive Storage\n(Backup/History)"];
 
-  // UI and Msg are independent roots.
+  // Multiple roots: UI, Msg, and HGraph have no incoming edges.
   UI -> DB [label="0.90", color="green"];
   Msg -> DB [label="0.85", color="green"];
+  HGraph -> DB [label="0.80", color="green"];
 
-  // Additional alternative connections from the roots.
+  // Alternative connections from roots.
   UI -> HashKV [label="0.65", color="red"];
   Msg -> HashKV [label="0.80", color="green"];
   Msg -> KV [label="0.70", color="yellow"];
+  HGraph -> Archive [label="0.70", color="yellow"];
 
   // Primary flow from DB downwards.
   DB -> HashKV [label="0.90", color="green"];
   DB -> KV [label="0.70", color="yellow"];
   DB -> Archive [label="0.50", color="yellow"];
 
-  // From HashKV to storage.
+  // From HashKV to storage backends.
   HashKV -> KV [label="0.95", color="green"];
   HashKV -> Archive [label="0.55", color="yellow"];
 }

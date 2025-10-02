@@ -1,15 +1,14 @@
 revise layers.dot
 
-Reverse the direction of the arrows in x/layers.dot so that they
-point from the higher-level layers to the lower-level layers.  Keep
-the lower-level storage layers at the bottom and the high-level
-interfaces at the top.  
-
 Imagine more alternative designs for the layering of the system. The
 result should look like a graph with multiple roots and multiple
 leaves.  Color each edge by the estimated probability that the
 combination of layers will work well together, with green for the most
 promising combinations and red for the least promising combinations.  
+
+The "Message and Timeline" layer should be split into two layers: "Message
+Layer" and "Timeline and Versioning".  Both should point at the
+hypergraph layer.  
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
