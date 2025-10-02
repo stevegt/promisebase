@@ -1,4 +1,3 @@
----FILE-START filename="/home/stevegt/lab/promisebase/x/layers.md"---
 # Layered Architecture Overview
 
 The Promisebase codebase can be structured into multiple layers.
@@ -67,4 +66,3 @@ Additional interface layers, such as FUSE mounts or web and CLI
 frontends, may be built on top of the DB layer to provide user
 interaction with the system.
 
----FILE-END filename="/home/stevegt/lab/promisebase/x/layers.md"---
