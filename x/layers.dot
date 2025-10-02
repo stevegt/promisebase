@@ -4,30 +4,39 @@ digraph Layers {
   fontname="monospace"];
 
   UI [label="User Interfaces\n(CLI, Web, FUSE)"];
-  Msg [label="Message & Timeline\nLayer"];
+  Message [label="Message Layer"];
+  Timeline [label="Timeline and Versioning"];
+  Ingest [label="Ingestion Layer"];
   HGraph [label="Hypergraph\nLayer\n(Git-like, Threads)"];
   DB [label="High-Level Database\n(db) Layer"];
   HashKV [label="Content-Addressable\n(hashkv) Layer"];
   KV [label="KV Layer\n(Raw File Storage)"];
   Archive [label="Archive Storage\n(Backup/History)"];
+  Analytics [label="Analytics & Indexing"];
 
-  // Multiple roots: UI, Msg, and HGraph have no incoming edges.
+  // Multiple roots: UI, Message, Timeline, and
+  // Ingest have no incoming edges.
   UI -> DB [label="0.90", color="green"];
-  Msg -> DB [label="0.85", color="green"];
+  Message -> HGraph [label="0.88", color="green"];
+  Timeline -> HGraph [label="0.88", color="green"];
+  Ingest -> DB [label="0.75", color="yellow"];
   HGraph -> DB [label="0.80", color="green"];
 
   // Alternative connections from roots.
   UI -> HashKV [label="0.65", color="red"];
-  Msg -> HashKV [label="0.80", color="green"];
-  Msg -> KV [label="0.70", color="yellow"];
+  Message -> HashKV [label="0.80", color="green"];
+  Timeline -> HashKV [label="0.80", color="green"];
+  Ingest -> KV [label="0.70", color="yellow"];
   HGraph -> Archive [label="0.70", color="yellow"];
 
   // Primary flow from DB downwards.
   DB -> HashKV [label="0.90", color="green"];
   DB -> KV [label="0.70", color="yellow"];
   DB -> Archive [label="0.50", color="yellow"];
+  DB -> Analytics [label="0.60", color="yellow"];
 
   // From HashKV to storage backends.
   HashKV -> KV [label="0.95", color="green"];
   HashKV -> Archive [label="0.55", color="yellow"];
+  HashKV -> Analytics [label="0.60", color="yellow"];
 }
