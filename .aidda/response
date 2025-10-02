@@ -30,9 +30,9 @@ digraph Layers {
   Ingest -> KV [label="0.70", color="yellow"];
 
   // Ref integration via storage backends.
-  HashKV -> Refs [label="0.85", color="green"];
-  UI -> Refs [label="0.80", color="green"];
-  Message -> Refs [label="0.75", color="yellow"];
+  Refs -> HashKV [label="0.85", color="green"];
+  Refs -> KV [label="0.85", color="green"];
+  HGraph -> Refs [label="0.90", color="green"];
 
   // Primary flow from DB downwards.
   DB -> HashKV [label="0.90", color="green"];
@@ -41,6 +41,8 @@ digraph Layers {
   // Directory tree import/export module.
   DB -> DirTree [label="0.85", color="green"];
   DirTree -> KV [label="0.80", color="green"];
+  DirTree -> HashKV [label="0.80", color="green"];
+  DirTree -> Refs [label="0.85", color="green"];
 
   // Container image layer pointing to directory tree.
   UI -> ContainerImage [label="0.75", color="yellow"];

@@ -6,14 +6,10 @@ leaves.  Color each edge by the estimated probability that the
 combination of layers will work well together, with green for the most
 promising combinations and red for the least promising combinations.  
 
-Something's wrong with refs -- it should be referring to the kv or
-hashkv layer.
+Refs should point at both kv and hashkv layers.  git-like should point
+at refs.
 
-Remove archive layer and analytics layer -- they are not part of
-the core system.  
-
-Add some sort of "directory tree import/export" layer.  Add a
-"container image" layer that points to it.  
+"directory tree import/export" layer should point at hashkv and refs.
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
