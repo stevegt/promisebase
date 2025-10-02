@@ -1,20 +1,4 @@
-add layers doc
-
-Write a new document in x/layers.md describing a possible layered
-architecture for the current codebase.  Describe at least three layers,
-and how they would interact.  
-
-I'm thinking the layers might be something like:
-- a low-level key-value store layer, with a simple interface for
-  storing and retrieving byte slices by key; optionally this layer
-  might have an io.Reader/io.Writer interface for storing and
-  retrieving large blobs of data
-- a mid-level content-addressed storage (CAS) layer, which uses the
-  key-value store layer as its storage backend, and provides an
-  interface for storing and retrieving data by its hash; this layer
-  would handle chunking large blobs of data into smaller pieces, and
-  storing them in the key-value store layer; it would also handle
-  deduplication of data
+revise layers doc
 
 I have in mind something like a message storage layer or module -- I'm
 not sure how this fits in, but it seems like messages should always

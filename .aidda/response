@@ -3,14 +3,16 @@
 The Promisebase codebase can be structured into multiple layers.
 This document describes a possible separation into at least three
 distinct layers that work together to provide content-addressable
-storage, high-level domain logic, and user interfaces.
+storage, high-level domain logic, and user interfaces. In addition, a
+message storage module supporting DAGs and timeline or hypergraph
+structures can be used to record event histories.
 
 ## 1. Storage/KV Layer
 This is the lowest level and is responsible for raw data storage.
 It provides a minimal key-value interface with operations such as:
 - Get, Put, and Delete for arbitrary byte sequences.
-- Enforced key naming rules (alphanumeric, no slashes) to ensure
-  file safety.
+- Enforced key naming rules (alphanumeric, no slashes) to ensure file
+  safety.
 - A simple file-based backend that can later be replaced if needed.
 
 The KV layer underlies all other layers by mapping keys to stored bytes,
@@ -42,6 +44,23 @@ This layer depends on the hashkv layer for all low-level read/write
 operations and focuses on the semantics of the data rather than on the
 details of its storage.
 
+## 4. Message and Timeline Layer
+A separate module can handle message storage and event timelines. In this
+layer, each message includes the hash(es) of its parent message(s) to form
+a directed acyclic graph (DAG). This structure records the sequence of
+commands or events, much like a commit history or worldline. In parallel,
+a tree or hypergraph structure can be used to store timelines for events
+or commands, enabling the tracing of multiple concurrent branches.
+
+- Pros:
+  - Provides a clear historical record of changes using a DAG structure.
+  - Enhances auditability and permits reconstruction of event histories.
+  - Supports complex workflows by representing branching timelines.
+- Cons:
+  - Increases system complexity and may require extensive refactoring.
+  - Maintenance of a DAG or hypergraph can incur additional overhead.
+  - Integration with other modules demands careful consistency checks.
+
 ## Layer Interactions
 - The **DB layer** calls functions in the hashkv layer to store and
   retrieve high-level objects (blocks, trees, streams). It uses the
@@ -52,12 +71,16 @@ details of its storage.
 - The **KV layer** underpins the system by providing basic storage,
   leaving higher-level concerns (such as content addressing and domain
   logic) to the upper layers.
+- The **Message and Timeline layer** interacts with the DB layer to
+  record messages as DAG nodes and to manage timelines for events or
+  commands. It supplies interfaces for tracing history and supports
+  command sourcing.
 
 By cleanly separating responsibilities, the system benefits in terms
 of modularity, testing, and the ability to swap out implementations at
 each layer if needed.
 
-Additional interface layers, such as FUSE mounts or web and CLI frontends,
-may be built on top of the DB layer to provide user interaction with the
-system.
+Additional interface layers, such as FUSE mounts or web and CLI
+frontends, may be built on top of the DB layer to provide user
+interaction with the system.
 ---FILE-END filename="/home/stevegt/lab/promisebase/x/layers.md"---
