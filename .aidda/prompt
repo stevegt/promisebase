@@ -4,6 +4,30 @@ Write a new document in x/layers.md describing a possible layered
 architecture for the current codebase.  Describe at least three layers,
 and how they would interact.  
 
+I'm thinking the layers might be something like:
+- a low-level key-value store layer, with a simple interface for
+  storing and retrieving byte slices by key; optionally this layer
+  might have an io.Reader/io.Writer interface for storing and
+  retrieving large blobs of data
+- a mid-level content-addressed storage (CAS) layer, which uses the
+  key-value store layer as its storage backend, and provides an
+  interface for storing and retrieving data by its hash; this layer
+  would handle chunking large blobs of data into smaller pieces, and
+  storing them in the key-value store layer; it would also handle
+  deduplication of data
+
+I have in mind something like a message storage layer or module -- I'm
+not sure how this fits in, but it seems like messages should always
+include the hash(es) of their parent(s), so that the message history
+is a directed acyclic graph (DAG).  
+
+I also have in mind something like a tree or hypergraph structure for
+storing timelines or worldlines of events or commands.  I'm also not
+sure how this fits in.
+
+Discuss how these layers or modules might interact, and pros and cons
+of each approach.
+
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
     the given code or documentation. do not modify documentation text
@@ -41,6 +65,7 @@ In:
     x/refchanges.md
     x/command-sourcing.md
     x/message-format.md
+    x/layers.md
 Out:
     x/layers.md
 
