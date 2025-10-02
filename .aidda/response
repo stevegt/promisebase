@@ -1,26 +1,32 @@
 ---FILE-START filename="/home/stevegt/lab/promisebase/x/layers.dot"---
 digraph Layers {
-  rankdir=BT;
+  rankdir=TB;
   node [shape=box, style=filled, fillcolor=white,
   fontname="monospace"];
 
-  KV [label="KV Layer\n(Raw File Storage)"];
-  HashKV [label="Content-Addressable\n(hashkv) Layer"];
-  DB [label="High-Level Database\n(db) Layer"];
-  Msg [label="Message & Timeline\nLayer"];
   UI [label="User Interfaces\n(CLI, Web, FUSE)"];
+  Msg [label="Message & Timeline\nLayer"];
+  DB [label="High-Level Database\n(db) Layer"];
+  HashKV [label="Content-Addressable\n(hashkv) Layer"];
+  KV [label="KV Layer\n(Raw File Storage)"];
+  Archive [label="Archive Storage\n(Backup/History)"];
 
-  // Connect KV to HashKV with a high success probability
-  KV -> HashKV [label="0.95", color="green"];
-  // Connect HashKV to DB
-  HashKV -> DB [label="0.90", color="green"];
-  // Connect DB to Message/Timeline layer
-  DB -> Msg [label="0.85", color="green"];
-  // Connect DB to UI layer (primary interface)
-  DB -> UI [label="0.90", color="green"];
-  // Allow Message layer to also feed UI
-  Msg -> UI [label="0.75", color="yellow"];
-  // A fallback path from HashKV directly to UI is less promising
-  HashKV -> UI [label="0.65", color="red"];
+  // UI and Msg are independent roots.
+  UI -> DB [label="0.90", color="green"];
+  Msg -> DB [label="0.85", color="green"];
+
+  // Additional alternative connections from the roots.
+  UI -> HashKV [label="0.65", color="red"];
+  Msg -> HashKV [label="0.80", color="green"];
+  Msg -> KV [label="0.70", color="yellow"];
+
+  // Primary flow from DB downwards.
+  DB -> HashKV [label="0.90", color="green"];
+  DB -> KV [label="0.70", color="yellow"];
+  DB -> Archive [label="0.50", color="yellow"];
+
+  // From HashKV to storage.
+  HashKV -> KV [label="0.95", color="green"];
+  HashKV -> Archive [label="0.55", color="yellow"];
 }
 ---FILE-END filename="/home/stevegt/lab/promisebase/x/layers.dot"---

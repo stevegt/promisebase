@@ -1,15 +1,15 @@
-create layers.dot
+revise layers.dot
 
-Imagine alternative designs for the layering of the system. In a
-graphviz dot file, create a graph with rankdir=BT, with the possible
-low-level storage layers at the bottom, the possible high-level
-interfaces at the top, and the various possible intermediate layers
-in between.  Connect the layers with edges representing possible
-compositions.  The result should look like a graph with multiple
-roots and multiple leaves.  Color each edge by the estimated
-probability that the combination of layers will work well together,
-with green for the most promising combinations and red for the least
-promising combinations.  
+Reverse the direction of the arrows in x/layers.dot so that they
+point from the higher-level layers to the lower-level layers.  Keep
+the lower-level storage layers at the bottom and the high-level
+interfaces at the top.  
+
+Imagine more alternative designs for the layering of the system. The
+result should look like a graph with multiple roots and multiple
+leaves.  Color each edge by the estimated probability that the
+combination of layers will work well together, with green for the most
+promising combinations and red for the least promising combinations.  
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
@@ -49,6 +49,7 @@ In:
     x/command-sourcing.md
     x/message-format.md
     x/layers.md
+    x/layers.dot
 Out:
     x/layers.dot
 
