@@ -1,16 +1,15 @@
-revise layers doc
+create layers.dot
 
-I have in mind something like a message storage layer or module -- I'm
-not sure how this fits in, but it seems like messages should always
-include the hash(es) of their parent(s), so that the message history
-is a directed acyclic graph (DAG).  
-
-I also have in mind something like a tree or hypergraph structure for
-storing timelines or worldlines of events or commands.  I'm also not
-sure how this fits in.
-
-Discuss how these layers or modules might interact, and pros and cons
-of each approach.
+Imagine alternative designs for the layering of the system. In a
+graphviz dot file, create a graph with rankdir=BT, with the possible
+low-level storage layers at the bottom, the possible high-level
+interfaces at the top, and the various possible intermediate layers
+in between.  Connect the layers with edges representing possible
+compositions.  The result should look like a graph with multiple
+roots and multiple leaves.  Color each edge by the estimated
+probability that the combination of layers will work well together,
+with green for the most promising combinations and red for the least
+promising combinations.  
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
@@ -51,7 +50,7 @@ In:
     x/message-format.md
     x/layers.md
 Out:
-    x/layers.md
+    x/layers.dot
 
 .stop
 
