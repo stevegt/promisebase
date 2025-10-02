@@ -10,13 +10,14 @@ digraph Layers {
   Ingest [label="Ingestion Layer"];
   HGraph [label="Hypergraph\nLayer\n(Git-like, Threads)"];
   DB [label="High-Level Database\n(db) Layer"];
+  Refs [label="Refs\n(Branch/Tag Management)"];
   HashKV [label="Content-Addressable\n(hashkv) Layer"];
   KV [label="KV Layer\n(Raw File Storage)"];
   Archive [label="Archive Storage\n(Backup/History)"];
   Analytics [label="Analytics & Indexing"];
 
-  // Multiple roots: UI, Message, Timeline, and
-  // Ingest have no incoming edges.
+  // Multiple roots: UI, Message, Timeline, and Ingest have
+  // no incoming edges.
   UI -> DB [label="0.90", color="green"];
   Message -> HGraph [label="0.88", color="green"];
   Timeline -> HGraph [label="0.88", color="green"];
@@ -30,11 +31,20 @@ digraph Layers {
   Ingest -> KV [label="0.70", color="yellow"];
   HGraph -> Archive [label="0.70", color="yellow"];
 
+  // Ref layer integration.
+  DB -> Refs [label="0.85", color="green"];
+  UI -> Refs [label="0.80", color="green"];
+  Message -> Refs [label="0.75", color="yellow"];
+
   // Primary flow from DB downwards.
   DB -> HashKV [label="0.90", color="green"];
   DB -> KV [label="0.70", color="yellow"];
   DB -> Archive [label="0.50", color="yellow"];
   DB -> Analytics [label="0.60", color="yellow"];
+
+  // Flow from Refs to other layers.
+  Refs -> Archive [label="0.80", color="green"];
+  Refs -> Analytics [label="0.70", color="yellow"];
 
   // From HashKV to storage backends.
   HashKV -> KV [label="0.95", color="green"];

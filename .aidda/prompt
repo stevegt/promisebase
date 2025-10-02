@@ -6,9 +6,8 @@ leaves.  Color each edge by the estimated probability that the
 combination of layers will work well together, with green for the most
 promising combinations and red for the least promising combinations.  
 
-The "Message and Timeline" layer should be split into two layers: "Message
-Layer" and "Timeline and Versioning".  Both should point at the
-hypergraph layer.  
+How should refs be handled in this diagram?  Should they be a separate
+layer, or part of the db layer?  
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
