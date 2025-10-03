@@ -11,6 +11,7 @@ digraph Layers {
   DB [label="High-Level Database\n(db) Layer"];
   Refs [label="Refs\n(KV-based)"];
   HashKV [label="Content-Addressable\n(hashkv) Layer"];
+  Rabin [label="Rabin Chunking"];
   KV [label="KV Layer\n(Raw File Storage)"];
   DirTree [label="Directory Tree\nImport/Export"];
   ContainerImage [label="Container Image"];
@@ -37,6 +38,10 @@ digraph Layers {
   DB -> HashKV [label="0.90", color="green"];
   DB -> KV [label="0.70", color="yellow"];
 
+  // Introduce Rabin Chunking layer between HashKV and KV.
+  HashKV -> Rabin [label="0.95", color="green"];
+  Rabin -> KV [label="0.95", color="green"];
+
   // Directory tree import/export module.
   DB -> DirTree [label="0.85", color="green"];
   DirTree -> KV [label="0.80", color="green"];
@@ -47,6 +52,5 @@ digraph Layers {
   UI -> ContainerImage [label="0.75", color="yellow"];
   ContainerImage -> DirTree [label="0.90", color="green"];
 
-  // Flow from hashkv to KV storage.
-  HashKV -> KV [label="0.95", color="green"];
+  // Flow from HashKV to KV storage is now via Rabin.
 }

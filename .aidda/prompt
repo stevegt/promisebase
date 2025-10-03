@@ -6,10 +6,8 @@ leaves.  Color each edge by the estimated probability that the
 combination of layers will work well together, with green for the most
 promising combinations and red for the least promising combinations.  
 
-Refs should point at both kv and hashkv layers.  git-like should point
-at refs.
-
-"directory tree import/export" layer should point at hashkv and refs.
+Add a rabin chunking layer before things get added to the base kv
+store.
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
