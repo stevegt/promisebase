@@ -6,8 +6,10 @@ leaves.  Color each edge by the estimated probability that the
 combination of layers will work well together, with green for the most
 promising combinations and red for the least promising combinations.  
 
-Add a rabin chunking layer before things get added to the base kv
-store.
+- Show two kv stores -- one for refs and the other for hashed objects.
+- the refs layer points at the refs kv store
+- the hashkv layer points at the hashed objects kv store
+- rabin chunking is above hashkv and points at hashkv
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to

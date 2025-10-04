@@ -6,18 +6,19 @@ digraph Layers {
 
   UI [label="User Interfaces\n(CLI, Web, FUSE)"];
   Message [label="Message Layer"];
-  Timeline [label="Timeline and Versioning"];
+  Timeline [label="Timeline & Versioning"];
   Ingest [label="Ingestion Layer"];
   HGraph [label="Hypergraph\nLayer\n(Git-like, Threads)"];
   DB [label="High-Level Database\n(db) Layer"];
-  Refs [label="Refs\n(KV-based)"];
+  Refs [label="Refs\n(Logical Ref Layer)"];
   HashKV [label="Content-Addressable\n(hashkv) Layer"];
   Rabin [label="Rabin Chunking"];
-  KV [label="KV Layer\n(Raw File Storage)"];
+  KV_Hashed [label="KV Store\n(Hashed Objects)"];
+  KV_Refs [label="KV Store\n(Refs)"];
   DirTree [label="Directory Tree\nImport/Export"];
   ContainerImage [label="Container Image"];
 
-  // Multiple roots with no incoming edges.
+  // Primary flows from multiple roots.
   UI -> DB [label="0.90", color="green"];
   Message -> HGraph [label="0.88", color="green"];
   Timeline -> HGraph [label="0.88", color="green"];
@@ -28,31 +29,32 @@ digraph Layers {
   UI -> HashKV [label="0.65", color="red"];
   Message -> HashKV [label="0.80", color="green"];
   Timeline -> HashKV [label="0.80", color="green"];
-  Ingest -> KV [label="0.70", color="yellow"];
+  Ingest -> KV_Hashed [label="0.70", color="yellow"];
+  UI -> Refs [label="0.70", color="yellow"];
 
-  // Ref integration via storage backends.
-  Refs -> HashKV [label="0.85", color="green"];
-  Refs -> KV [label="0.85", color="green"];
+  // Ref integration via storage backend.
   HGraph -> Refs [label="0.90", color="green"];
+  Refs -> KV_Refs [label="0.85", color="green"];
 
-  // Primary flow from DB downwards.
+  // High-level DB flows.
   DB -> HashKV [label="0.90", color="green"];
-  DB -> KV [label="0.70", color="yellow"];
+  DB -> KV_Hashed [label="0.70", color="yellow"];
 
-  // Introduce Rabin Chunking layer between HashKV and KV.
+  // Rabin chunking is placed above hashkv.
   HashKV -> Rabin [label="0.95", color="green"];
-  Rabin -> KV [label="0.95", color="green"];
+  Rabin -> KV_Hashed [label="0.95", color="green"];
 
-  // Directory tree import/export module.
+  // Directory tree module integrates with several layers.
   DB -> DirTree [label="0.85", color="green"];
-  DirTree -> KV [label="0.80", color="green"];
+  DirTree -> KV_Hashed [label="0.80", color="green"];
   DirTree -> HashKV [label="0.80", color="green"];
   DirTree -> Refs [label="0.85", color="green"];
 
-  // Container image layer pointing to directory tree.
+  // Container image layer as an alternative UI leaf.
   UI -> ContainerImage [label="0.75", color="yellow"];
   ContainerImage -> DirTree [label="0.90", color="green"];
 
-  // Flow from HashKV to KV storage is now via Rabin.
+  // Alternative paths from Refs directly to KV.
+  Refs -> KV_Refs [label="0.85", color="green"];
 }
 ---FILE-END filename="/home/stevegt/lab/promisebase/x/layers.dot"---
