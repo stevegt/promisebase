@@ -1,15 +1,15 @@
-revise layers.dot
+discuss layers.dot
 
-Imagine more alternative designs for the layering of the system. The
-result should look like a graph with multiple roots and multiple
-leaves.  Color each edge by the estimated probability that the
-combination of layers will work well together, with green for the most
-promising combinations and red for the least promising combinations.  
-
-- Show two kv stores -- one for refs and the other for hashed objects.
-- the refs layer points at the refs kv store
-- the hashkv layer points at the hashed objects kv store
-- rabin chunking is above hashkv and points at hashkv
+Discuss the design of the layering of the system as expressed in
+layers.dot. The dot file shows various layers of the system,
+Each layer points to the layer below it.  Each edge is labeled with
+the estimated probability that the combination of layers will work well
+together.  The layers at the top of the diagram are the highest-level
+layers, and the layers at the bottom are the lowest-level layers that
+interact directly with the storage system.  Each edge is colored to
+indicate the estimated probability that the combination of layers will
+work well together, with green for the most promising combinations and
+red for the least promising combinations.
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
@@ -51,7 +51,7 @@ In:
     x/layers.md
     x/layers.dot
 Out:
-    x/layers.dot
+    x/layers.md
 
 .stop
 

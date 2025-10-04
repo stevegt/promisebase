@@ -1,60 +1,86 @@
----FILE-START filename="/home/stevegt/lab/promisebase/x/layers.dot"---
-digraph Layers {
-  rankdir=TB;
-  node [shape=box, style=filled, fillcolor=white,
-  fontname="monospace"];
+---FILE-START filename="/home/stevegt/lab/promisebase/x/layers.md"---
+# Layered Architecture Overview
+The Promisebase codebase can be structured into multiple layers.
+This document describes a possible separation into at least three
+distinct layers that work together to provide 
+content-addressable storage, high-level domain logic, and user
+interfaces. In addition, a message storage module supporting DAGs 
+and timeline or hypergraph structures can be used to record event
+histories.
 
-  UI [label="User Interfaces\n(CLI, Web, FUSE)"];
-  Message [label="Message Layer"];
-  Timeline [label="Timeline & Versioning"];
-  Ingest [label="Ingestion Layer"];
-  HGraph [label="Hypergraph\nLayer\n(Git-like, Threads)"];
-  DB [label="High-Level Database\n(db) Layer"];
-  Refs [label="Refs\n(Logical Ref Layer)"];
-  HashKV [label="Content-Addressable\n(hashkv) Layer"];
-  Rabin [label="Rabin Chunking"];
-  KV_Hashed [label="KV Store\n(Hashed Objects)"];
-  KV_Refs [label="KV Store\n(Refs)"];
-  DirTree [label="Directory Tree\nImport/Export"];
-  ContainerImage [label="Container Image"];
+## 1. Storage/KV Layer
+This is the lowest level and is responsible for raw data storage.
+It provides a minimal key-value interface with operations such as:
+- Get, Put, and Delete for arbitrary byte sequences.
+- Enforced key naming rules (alphanumeric, no slashes) to ensure file
+  safety.
+- A simple file-based backend that can later be replaced if needed.
 
-  // Primary flows from multiple roots.
-  UI -> DB [label="0.90", color="green"];
-  Message -> HGraph [label="0.88", color="green"];
-  Timeline -> HGraph [label="0.88", color="green"];
-  Ingest -> DB [label="0.75", color="yellow"];
-  HGraph -> DB [label="0.80", color="green"];
+The KV layer underlies all other layers by mapping keys to stored bytes,
+ensuring data persistence and basic retrieval semantics.
 
-  // Alternative connections from roots.
-  UI -> HashKV [label="0.65", color="red"];
-  Message -> HashKV [label="0.80", color="green"];
-  Timeline -> HashKV [label="0.80", color="green"];
-  Ingest -> KV_Hashed [label="0.70", color="yellow"];
-  UI -> Refs [label="0.70", color="yellow"];
+## 2. Content-Addressable (hashkv) Layer
+The hashkv layer sits directly above the KV layer. Its main functions are:
+- To expose an io.Reader/io.Writer interface that computes a content
+  hash upon writing.
+- To store data as content-addressable blocks, where the key is the hash
+  returned by the KV layer.
+- To encapsulate low-level file handling such as header management,
+  temporary file usage, and renaming.
+- To serve as an adapter between high-level domain logic and the raw KV
+  operations.
 
-  // Ref integration via storage backend.
-  HGraph -> Refs [label="0.90", color="green"];
-  Refs -> KV_Refs [label="0.85", color="green"];
+By abstracting content addressing, this layer ensures data integrity and
+deduplication across the system while hiding raw storage details.
 
-  // High-level DB flows.
-  DB -> HashKV [label="0.90", color="green"];
-  DB -> KV_Hashed [label="0.70", color="yellow"];
+## 3. High-Level Database (db) Layer
+The db layer sits at the top of the core storage stack and implements the
+domain logic of Promisebase. It manages and manipulates Merkle trees,
+stream abstractions, and block deduplication. Object lookup and 
+verification are performed using the underlying hashkv functions. In 
+addition, this layer assembles transactions and enforces business rules 
+based on content-addressed objects.
 
-  // Rabin chunking is placed above hashkv.
-  HashKV -> Rabin [label="0.95", color="green"];
-  Rabin -> KV_Hashed [label="0.95", color="green"];
+This layer depends on the hashkv layer for all low-level read/write
+operations and focuses on the semantics of the data rather than on the
+details of its storage.
 
-  // Directory tree module integrates with several layers.
-  DB -> DirTree [label="0.85", color="green"];
-  DirTree -> KV_Hashed [label="0.80", color="green"];
-  DirTree -> HashKV [label="0.80", color="green"];
-  DirTree -> Refs [label="0.85", color="green"];
+## 4. Message and Timeline Layer
+A separate module can handle message storage and event timelines. In this
+layer, each message includes the hash(es) of its parent message(s) to form
+a directed acyclic graph (DAG). This structure records the sequence of 
+commands or events, much like a commit history or worldline. In parallel, 
+a tree or hypergraph structure can be used to store timelines for events 
+or commands, enabling the tracing of multiple concurrent branches.
 
-  // Container image layer as an alternative UI leaf.
-  UI -> ContainerImage [label="0.75", color="yellow"];
-  ContainerImage -> DirTree [label="0.90", color="green"];
+- Pros:
+  - Provides a clear historical record of changes using a DAG structure.
+  - Enhances auditability and permits reconstruction of event histories.
+  - Supports complex workflows by representing branching timelines.
+- Cons:
+  - Increases system complexity and may require extensive refactoring.
+  - Maintenance of a DAG or hypergraph can incur additional overhead.
+  - Integration with other modules demands careful consistency checks.
 
-  // Alternative paths from Refs directly to KV.
-  Refs -> KV_Refs [label="0.85", color="green"];
-}
----FILE-END filename="/home/stevegt/lab/promisebase/x/layers.dot"---
+## Layer Interactions
+- The **DB layer** calls functions in the hashkv layer to store and retrieve
+  high-level objects (blocks, trees, streams). It uses the resulting content
+  identifiers to maintain referential integrity.
+- The **hashkv layer** converts data writes into content addresses and passes
+  them to the KV layer. It similarly translates KV reads into an io.Reader for
+  the DB layer.
+- The **KV layer** underpins the system by providing basic storage, leaving
+  higher-level concerns (such as content addressing and domain logic) to the
+  upper layers.
+- The **Message and Timeline layer** interacts with the DB layer to record
+  messages as DAG nodes and to manage timelines for events or commands. It
+  supplies interfaces for tracing history and supports command sourcing.
+
+By cleanly separating responsibilities, the system benefits in terms of 
+modularity, testing, and the ability to swap out implementations at each
+layer if needed.
+
+Additional interface layers, such as FUSE mounts or web and CLI frontends,
+may be built on top of the DB layer to provide user interaction with the
+system.
+---FILE-END filename="/home/stevegt/lab/promisebase/x/layers.md"---

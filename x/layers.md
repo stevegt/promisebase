@@ -1,10 +1,11 @@
 # Layered Architecture Overview
 The Promisebase codebase can be structured into multiple layers.
 This document describes a possible separation into at least three
-distinct layers that work together to provide content-addressable
-storage, high-level domain logic, and user interfaces. In addition, a
-message storage module supporting DAGs and timeline or hypergraph
-structures can be used to record event histories.
+distinct layers that work together to provide 
+content-addressable storage, high-level domain logic, and user
+interfaces. In addition, a message storage module supporting DAGs 
+and timeline or hypergraph structures can be used to record event
+histories.
 
 ## 1. Storage/KV Layer
 This is the lowest level and is responsible for raw data storage.
@@ -28,16 +29,16 @@ The hashkv layer sits directly above the KV layer. Its main functions are:
 - To serve as an adapter between high-level domain logic and the raw KV
   operations.
 
-By abstracting content addressing, this layer ensures data integrity
-and deduplication across the system while hiding raw storage details.
+By abstracting content addressing, this layer ensures data integrity and
+deduplication across the system while hiding raw storage details.
 
 ## 3. High-Level Database (db) Layer
 The db layer sits at the top of the core storage stack and implements the
 domain logic of Promisebase. It manages and manipulates Merkle trees,
-stream abstractions, and block deduplication. Object lookup and verification
-are performed using the underlying hashkv functions. In addition, this
-layer assembles transactions and enforces business rules based on
-content-addressed objects.
+stream abstractions, and block deduplication. Object lookup and 
+verification are performed using the underlying hashkv functions. In 
+addition, this layer assembles transactions and enforces business rules 
+based on content-addressed objects.
 
 This layer depends on the hashkv layer for all low-level read/write
 operations and focuses on the semantics of the data rather than on the
@@ -46,9 +47,9 @@ details of its storage.
 ## 4. Message and Timeline Layer
 A separate module can handle message storage and event timelines. In this
 layer, each message includes the hash(es) of its parent message(s) to form
-a directed acyclic graph (DAG). This structure records the sequence of
-commands or events, much like a commit history or worldline. In parallel,
-a tree or hypergraph structure can be used to store timelines for events
+a directed acyclic graph (DAG). This structure records the sequence of 
+commands or events, much like a commit history or worldline. In parallel, 
+a tree or hypergraph structure can be used to store timelines for events 
 or commands, enabling the tracing of multiple concurrent branches.
 
 - Pros:
@@ -61,24 +62,23 @@ or commands, enabling the tracing of multiple concurrent branches.
   - Integration with other modules demands careful consistency checks.
 
 ## Layer Interactions
-- The **DB layer** calls functions in the hashkv layer to store and
-  retrieve high-level objects (blocks, trees, streams). It uses the
-  resulting content identifiers to maintain referential integrity.
-- The **hashkv layer** converts data writes into content addresses and
-  passes them to the KV layer. It similarly translates KV reads into an
-  io.Reader for the DB layer.
-- The **KV layer** underpins the system by providing basic storage,
-  leaving higher-level concerns (such as content addressing and domain
-  logic) to the upper layers.
-- The **Message and Timeline layer** interacts with the DB layer to
-  record messages as DAG nodes and to manage timelines for events or
-  commands. It supplies interfaces for tracing history and supports
-  command sourcing.
+- The **DB layer** calls functions in the hashkv layer to store and retrieve
+  high-level objects (blocks, trees, streams). It uses the resulting content
+  identifiers to maintain referential integrity.
+- The **hashkv layer** converts data writes into content addresses and passes
+  them to the KV layer. It similarly translates KV reads into an io.Reader for
+  the DB layer.
+- The **KV layer** underpins the system by providing basic storage, leaving
+  higher-level concerns (such as content addressing and domain logic) to the
+  upper layers.
+- The **Message and Timeline layer** interacts with the DB layer to record
+  messages as DAG nodes and to manage timelines for events or commands. It
+  supplies interfaces for tracing history and supports command sourcing.
 
-By cleanly separating responsibilities, the system benefits in terms
-of modularity, testing, and the ability to swap out implementations at
-each layer if needed.
+By cleanly separating responsibilities, the system benefits in terms of 
+modularity, testing, and the ability to swap out implementations at each
+layer if needed.
 
-Additional interface layers, such as FUSE mounts or web and CLI
-frontends, may be built on top of the DB layer to provide user
-interaction with the system.
+Additional interface layers, such as FUSE mounts or web and CLI frontends,
+may be built on top of the DB layer to provide user interaction with the
+system.
