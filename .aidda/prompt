@@ -1,15 +1,22 @@
 discuss layers.dot
 
-Discuss the design of the layering of the system as expressed in
-layers.dot. The dot file shows various layers of the system,
-Each layer points to the layer below it.  Each edge is labeled with
-the estimated probability that the combination of layers will work well
-together.  The layers at the top of the diagram are the highest-level
-layers, and the layers at the bottom are the lowest-level layers that
-interact directly with the storage system.  Each edge is colored to
-indicate the estimated probability that the combination of layers will
-work well together, with green for the most promising combinations and
-red for the least promising combinations.
+The dot file shows various layers of the system, Each layer points to
+the layer below it.  The layers at the top of the diagram are the
+highest-level layers, and the layers at the bottom are the
+lowest-level layers that interact directly with the storage system.
+Each edge is labeled with the estimated probability that the
+combination of layers will work well together, and is colored
+accordingly -- green for the most promising combinations and red for
+the least promising combinations.
+
+- Discuss possible improvements to the design of the layering of the
+  system as expressed in layers.dot.  Make the architecture cleaner
+  and more elegant.  Consider adding or removing layers, changing the
+  names of layers, and changing the relationships between layers.  
+- Add interface method names to the each layer box, to clarify the
+  relationships between layers.  For example, the kv layer should
+  support Write(io.Writer), Read(io.Reader), Rename(oldkey, newkey
+  string), and Delete(key string).
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
