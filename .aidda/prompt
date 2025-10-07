@@ -1,6 +1,11 @@
-discuss chunking
+rework due to chunking reality
 
-How does the current chunking code work?  
+We don'tneed the file-like Reader/Writer interfaces at lower layers,
+because the chunking code already stores and passes around each chunk
+in RAM.  
+
+- Remove the reader/writer interfaces from the iokv layer, and rename
+  it 'kv', with a more traditional key-value store interface.  
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to

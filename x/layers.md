@@ -38,18 +38,19 @@ between high-level domain logic and the raw KV operations.
 - Delete(cid string) error
 
 **Rabin Chunking Integration:**  
-The hashkv layer also integrates Rabin chunking to divide incoming data 
-into content–defined chunks. This chunking employs a rolling hash with a 
-predefined polynomial to determine variable–length chunk boundaries, helping 
-to maximize deduplication by isolating repeated segments across different data writes.
+The hashkv layer also integrates Rabin chunking to divide incoming data
+into content–defined chunks. This chunking employs a rolling hash with
+a predefined polynomial to determine variable–length chunk boundaries,
+helping to maximize deduplication by isolating repeated segments across
+different data writes.
 
 ## 3. High-Level Database (db) Layer
 The db layer sits at the top of the core storage stack and implements the
 domain logic of Promisebase. It manages and manipulates Merkle trees,
-stream abstractions, and block deduplication. Object lookup and verification
-are performed using the underlying hashkv functions. This layer depends on
-hashkv for all low-level operations and focuses on data semantics rather than
-storage details.
+stream abstractions, and block deduplication. Object lookup and
+verification are performed using the underlying hashkv functions. This
+layer depends on hashkv for all low-level operations and focuses on data
+semantics rather than storage details.
 
 **Interface Methods:**
 - PutBlock(algo string, data []byte) (Block, error)  
@@ -60,10 +61,10 @@ storage details.
 - AppendBlock(…) (Tree, error)
 
 ## 4. Message and Timeline Layer
-A separate module handles message storage and event timelines.
-This layer records each message as a DAG node that includes parent
-references. It captures a sequence of commands or events analogous to
-a commit history or timeline.
+A separate module handles message storage and event timelines. This layer
+records each message as a DAG node that includes parent references. It
+captures a sequence of commands or events analogous to a commit history
+or timeline.
 
 **Interface Methods:**
 - RecordMessage(msg Message) error  
@@ -73,15 +74,12 @@ a commit history or timeline.
 - Pros:
   - Provides a clear historical record of changes using a DAG
     structure.
-  - Enhances auditability and permits reconstruction of event
-    histories.
+  - Enhances auditability and permits reconstruction of event histories.
   - Supports complex workflows with branching timelines.
 
 - Cons:
-  - Increases system complexity and may require extensive
-    refactoring.
-  - Maintenance of a DAG or hypergraph can incur additional
-    overhead.
+  - Increases system complexity and may require extensive refactoring.
+  - Maintenance of a DAG or hypergraph can incur additional overhead.
   - Integration with other modules demands careful consistency
     checks.
 
@@ -99,10 +97,10 @@ a commit history or timeline.
   record messages as DAG nodes and to manage event timelines. It supplies
   interfaces for tracing history and supports command sourcing.
 
-By cleanly separating responsibilities, the system benefits in terms of
-modularity, testing, and the ability to swap out implementations at each
-layer if needed.
+By cleanly separating responsibilities, the system benefits in terms
+of modularity, testing, and the ability to swap out implementations at
+each layer if needed.
 
-Additional interface layers, such as FUSE mounts or web/CLI frontends, may
-be built on top of the DB layer to provide user interaction with the
+Additional interface layers, such as FUSE mounts or web/CLI frontends,
+may be built on top of the DB layer to provide user interaction with the
 system.

@@ -3,7 +3,7 @@ Each node represents a module or layer and edges indicate flows. */
 digraph Layers {
   rankdir=TB;
   node [shape=box, style=filled, fillcolor=white,
-  fontname="monospace"];
+    fontname="monospace"];
 
   UI [label="User Interfaces\n(CLI, Web, FUSE)\nRender(), Notify()"];
   Message [label="Message Layer\nRecordMessage(), GetMessage(),\nListMessages()"];
@@ -13,7 +13,7 @@ digraph Layers {
   Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
   HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
   Rabin [label="Rabin Chunking\nChunk()"];
-  iokv [label="IOKV Layer\n(io.Reader/io.Writer interface)"];
+  kv [label="KV Layer\n(Basic key-value interface)"];
   KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
   KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
   DirTree [label="Directory Tree\nImport/Export\nExport(), Import()"];
@@ -38,15 +38,15 @@ digraph Layers {
   DB -> HashKV [label="0.90", color="green"];
   DB -> Refs [label="0.90", color="green"];
 
-  // Rabin chunking is placed above IOKV layer.
+  // Rabin chunking is placed above KV layer.
   HashKV -> Rabin [label="0.90", color="green"];
-  Rabin -> iokv [label="0.95", color="green"];
-  iokv -> KV_Hashed [label="0.95", color="green"];
-  iokv -> KV_Refs [label="0.85", color="green"];
+  HashKV -> kv [label="0.95", color="green"];
+  kv -> KV_Hashed [label="0.95", color="green"];
+  kv -> KV_Refs [label="0.85", color="green"];
 
   // Directory tree module integrates with several layers.
   DB -> DirTree [label="0.85", color="green"];
-  DirTree -> iokv [label="0.80", color="green"];
+  DirTree -> kv [label="0.80", color="green"];
   DirTree -> HashKV [label="0.80", color="green"];
   DirTree -> Refs [label="0.85", color="green"];
 
@@ -54,5 +54,5 @@ digraph Layers {
   UI -> ContainerImage [label="0.75", color="yellow"];
   ContainerImage -> DirTree [label="0.90", color="green"];
 
-  Refs -> iokv [label="0.80", color="green"];
+  Refs -> kv [label="0.80", color="green"];
 }
