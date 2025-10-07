@@ -6,45 +6,97 @@ storage, high-level domain logic, and user interfaces. In addition, a
 message storage module supporting DAGs and timeline or hypergraph
 structures can be used to record event histories.
 
-## 1. Storage/KV Layer
-This is the lowest level and is responsible for raw data storage.
-It provides a minimal key–value interface with operations such as:
+## Storage/KV Layer 
+
+This is the lowest level and is responsible for raw data storage. The
+KV layer underlies all other layers by mapping keys to stored bytes,
+ensuring data persistence and basic retrieval semantics.
+
+The KV layer must automatically and transparently create
+subdirectories or nested buckets in the underlying storage system as
+needed to avoid performance degradation from too many files or objects
+in a single directory or bucket. 
+
+Because the chunking code already stores and passes around each chunk
+in RAM, there is no need for a file-like Reader/Writer interface at
+this layer. Instead, the interface should simply expose operations
+such as:
+
 - Get, Put, and Delete for arbitrary byte sequences.
 - Enforced key naming rules (alphanumeric, no slashes) to ensure file
   safety.
-- A simple file-based backend that can later be replaced if needed.
 
-**Interface Methods:**
-- Write(data []byte) error  
-- Read(key string) ([]byte, error)  
-- Close() error  
-- Rename(oldKey, newKey string) error  
-- Delete(key string) error
+## Content-Addressable (hashkv) Layer
 
-The KV layer underlies all other layers by mapping keys to stored
-bytes, ensuring data persistence and basic retrieval semantics.
+The hashkv layer sits directly above the KV layer. Its main function
+is to compute a content hash for each incoming chunk and to store the
+data as content-addressable blocks. Because the chunking code already
+stores and passes around each chunk in RAM, there is no need for a
+file-like Reader/Writer interface at this layer. Instead, the
+interface should simply expose operations such as:
 
-## 2. Content-Addressable (hashkv) Layer
-The hashkv layer sits directly above the KV layer. Its main functions
-are to expose an io.Reader/io.Writer interface that computes a content
-hash upon writing and to store data as content-addressable blocks.
-It encapsulates low–level file handling such as header management,
-temporary file usage, and atomic renaming. It serves as an adapter
-between high-level domain logic and the raw KV operations.
-
-**Interface Methods:**
 - Put(data []byte) (cid string, err error)  
-- Get(cid string) (io.Reader, error)  
+- Get(cid string) ([]byte, error)  
 - Delete(cid string) error
 
-**Rabin Chunking Integration:**  
-The hashkv layer also integrates Rabin chunking to divide incoming data
-into content–defined chunks. This chunking employs a rolling hash with
-a predefined polynomial to determine variable–length chunk boundaries,
-helping to maximize deduplication by isolating repeated segments across
-different data writes.
+## Reference layer
 
-## 3. High-Level Database (db) Layer
+The reference layer builds on top of hashkv to provide human-friendly
+names for content hashes. It manages mutable references that point to
+immutable content identifiers (CIDs). This layer allows users to create,
+update, rename, and delete refs:
+
+- Create(ref string, cid string) error
+- Replace(ref string, cid string) error
+- Rename(oldRef, newRef string) error  
+- Delete(Ref string) error
+- ReadLink(ref string) (cid string, error)
+
+## Streaming layer
+
+The streaming layer builds on top of hashkv and ref to provide a
+higher-level abstraction for managing streams of data. It handles the
+logic for:
+
+- Writing streams by chunking data, hashing each chunk, storing
+  it via hashkv, and building and storing Merkle tree inner nodes to
+  represent the stream data stored in leaf nodes.
+- Reading streams by reference.
+
+It supports an io.Reader/io.Writer interface for stream operations:
+
+- NewStream(ref string) (Stream, error)
+  - if ref is empty, a uuid-based ref is created and can be obtained via
+    Stream.GetRef()
+- Write(data []byte) (int, error)
+- Read([]byte) (int, error)
+- Close() error  
+
+**Rabin Chunking Integration:**  
+
+The streaming layer integrates Rabin chunking to divide incoming data
+into content–defined chunks. This method uses a rolling hash with a
+chosen polynomial to determine variable–length chunk boundaries. The
+resulting chunks, which are kept in memory, are then hashed and stored
+via the KV layer.
+
+## Directory tree layer
+
+The directory tree layer builds on top of hashkv and ref to manage
+the import and export of directory trees. It handles the logic for:
+
+- Importing a directory structure from the filesystem
+- storing each file via the streaming layer, including POSIX metadata
+- storing directory tree nodes via the streaming layer, including POSIX metadata
+- Exporting a stored directory tree back to the filesystem, including
+  POSIX metadata
+
+The directory tree layer supports operations such as:
+
+- ImportDir(path string) (cid string, error)  XXX
+
+## High-Level Database (db) Layer
+
 The db layer sits at the top of the core storage stack and implements the
 domain logic of Promisebase. It manages and manipulates Merkle trees,
 stream abstractions, and block deduplication. Object lookup and
@@ -76,7 +128,6 @@ or timeline.
     structure.
   - Enhances auditability and permits reconstruction of event histories.
   - Supports complex workflows with branching timelines.
-
 - Cons:
   - Increases system complexity and may require extensive refactoring.
   - Maintenance of a DAG or hypergraph can incur additional overhead.
@@ -88,8 +139,8 @@ or timeline.
   retrieve high-level objects (blocks, trees, streams). It uses the
   resulting content identifiers to maintain referential integrity.
 - The **hashkv layer** converts data writes into content addresses and
-  passes them to the KV layer. It similarly translates KV reads into an
-  io.Reader for the DB layer.
+  passes them to the KV layer. It similarly translates KV reads into a
+  simple byte array for the DB layer.
 - The **KV layer** underpins the system by providing basic storage,
   leaving higher-level concerns (such as content addressing and domain
   logic) to the upper layers.

@@ -1,11 +1,17 @@
 rework due to chunking reality
 
-We don'tneed the file-like Reader/Writer interfaces at lower layers,
+We don't need the file-like Reader/Writer interfaces at lower layers,
 because the chunking code already stores and passes around each chunk
 in RAM.  
 
-- Remove the reader/writer interfaces from the iokv layer, and rename
-  it 'kv', with a more traditional key-value store interface.  
+- The hashvk layer should provide a Reader/Writer interface.  Writing
+  data returns its hash, and reading data requires its hash.  It is
+  similar in concept to the objects store in git.
+- The refs layer should provide a simple key-value store
+  interface, supporting basic operations like Get, Put, and Delete.
+  Keys must be alphanumeric strings, and must not contain slashes.
+  Values are arbitrary byte slices.  It is similar in concept to the
+  refs store in git.
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to

@@ -26,24 +26,23 @@ The KV layer underlies all other layers by mapping keys to stored
 bytes, ensuring data persistence and basic retrieval semantics.
 
 ## 2. Content-Addressable (hashkv) Layer
-The hashkv layer sits directly above the KV layer. Its main functions
-are to expose an io.Reader/io.Writer interface that computes a content
-hash upon writing and to store data as content-addressable blocks.
-It encapsulates low–level file handling such as header management,
-temporary file usage, and atomic renaming. It serves as an adapter
-between high-level domain logic and the raw KV operations.
+The hashkv layer sits directly above the KV layer. Its main function is
+to compute a content hash for each incoming chunk and to store the data
+as content-addressable blocks. Because the chunking code already stores
+and passes around each chunk in RAM, there is no need for a file-like
+Reader/Writer interface at this layer. Instead, the interface should
+simply expose operations such as:
 
-**Interface Methods:**
 - Put(data []byte) (cid string, err error)  
-- Get(cid string) (io.Reader, error)  
+- Get(cid string) ([]byte, error)  
 - Delete(cid string) error
 
 **Rabin Chunking Integration:**  
-The hashkv layer also integrates Rabin chunking to divide incoming data
-into content–defined chunks. This chunking employs a rolling hash with
-a predefined polynomial to determine variable–length chunk boundaries,
-helping to maximize deduplication by isolating repeated segments across
-different data writes.
+The hashkv layer integrates Rabin chunking to divide incoming data into
+content–defined chunks. This method uses a rolling hash with a chosen
+polynomial to determine variable–length chunk boundaries. The resulting
+chunks, which are kept in memory, are then hashed and stored via the KV
+layer.
 
 ## 3. High-Level Database (db) Layer
 The db layer sits at the top of the core storage stack and implements the
@@ -77,7 +76,6 @@ or timeline.
     structure.
   - Enhances auditability and permits reconstruction of event histories.
   - Supports complex workflows with branching timelines.
-
 - Cons:
   - Increases system complexity and may require extensive refactoring.
   - Maintenance of a DAG or hypergraph can incur additional overhead.
@@ -89,8 +87,8 @@ or timeline.
   retrieve high-level objects (blocks, trees, streams). It uses the
   resulting content identifiers to maintain referential integrity.
 - The **hashkv layer** converts data writes into content addresses and
-  passes them to the KV layer. It similarly translates KV reads into an
-  io.Reader for the DB layer.
+  passes them to the KV layer. It similarly translates KV reads into a
+  simple byte array for the DB layer.
 - The **KV layer** underpins the system by providing basic storage,
   leaving higher-level concerns (such as content addressing and domain
   logic) to the upper layers.
@@ -123,7 +121,7 @@ digraph Layers {
   DB [label="High-Level Database\n(db) Layer\nPutBlock(), GetBlock(),\nPutTree(), GetTree()"];
   Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
   HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
-  Rabin [label="Rabin Chunking\nChunk()"];
+  Rabin [label="Rabin Chunking\n(in-memory chunking)"];
   kv [label="KV Layer\n(Basic key-value interface)"];
   KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
   KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
@@ -151,7 +149,7 @@ digraph Layers {
 
   // Rabin chunking is placed above KV layer.
   HashKV -> Rabin [label="0.90", color="green"];
-  Rabin -> kv [label="0.95", color="green"];
+  HashKV -> kv [label="0.95", color="green"];
   kv -> KV_Hashed [label="0.95", color="green"];
   kv -> KV_Refs [label="0.85", color="green"];
 

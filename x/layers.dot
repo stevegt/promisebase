@@ -12,7 +12,7 @@ digraph Layers {
   DB [label="High-Level Database\n(db) Layer\nPutBlock(), GetBlock(),\nPutTree(), GetTree()"];
   Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
   HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
-  Rabin [label="Rabin Chunking\nChunk()"];
+  Rabin [label="Rabin Chunking\n(in-memory chunking)"];
   kv [label="KV Layer\n(Basic key-value interface)"];
   KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
   KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
