@@ -1,16 +1,19 @@
+/* This graph illustrates the layered architecture for Promisebase.
+Each node represents a module or layer and edges indicate flows. */
 digraph Layers {
   rankdir=TB;
-  node [shape=box, style=filled, fillcolor=white, fontname="monospace"];
+  node [shape=box, style=filled, fillcolor=white,
+  fontname="monospace"];
 
   UI [label="User Interfaces\n(CLI, Web, FUSE)\nRender(), Notify()"];
   Message [label="Message Layer\nRecordMessage(), GetMessage(),\nListMessages()"];
   Timeline [label="Timeline & Versioning\nRecordEvent(), GetEvents()"];
-  Ingest [label="Ingestion Layer\nIngest()"];
   HGraph [label="Hypergraph Layer\n(Git-like, Threads)\nMerge(), Query(),\nTraverse()"];
   DB [label="High-Level Database\n(db) Layer\nPutBlock(), GetBlock(),\nPutTree(), GetTree()"];
   Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
   HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
   Rabin [label="Rabin Chunking\nChunk()"];
+  iokv [label="IOKV Layer\n(io.Reader/io.Writer interface)"];
   KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
   KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
   DirTree [label="Directory Tree\nImport/Export\nExport(), Import()"];
@@ -20,31 +23,30 @@ digraph Layers {
   UI -> DB [label="0.90", color="green"];
   Message -> HGraph [label="0.88", color="green"];
   Timeline -> HGraph [label="0.88", color="green"];
-  Ingest -> DB [label="0.75", color="yellow"];
   HGraph -> DB [label="0.80", color="green"];
 
   // Alternative connections from roots.
   UI -> HashKV [label="0.65", color="red"];
   Message -> HashKV [label="0.80", color="green"];
   Timeline -> HashKV [label="0.80", color="green"];
-  Ingest -> KV_Hashed [label="0.70", color="yellow"];
   UI -> Refs [label="0.70", color="yellow"];
 
   // Ref integration via storage backend.
   HGraph -> Refs [label="0.90", color="green"];
-  Refs -> KV_Refs [label="0.85", color="green"];
 
   // High-level DB flows.
   DB -> HashKV [label="0.90", color="green"];
-  DB -> KV_Hashed [label="0.70", color="yellow"];
+  DB -> Refs [label="0.90", color="green"];
 
-  // Rabin chunking is placed above hashkv.
-  HashKV -> Rabin [label="0.95", color="green"];
-  Rabin -> KV_Hashed [label="0.95", color="green"];
+  // Rabin chunking is placed above IOKV layer.
+  HashKV -> Rabin [label="0.90", color="green"];
+  Rabin -> iokv [label="0.95", color="green"];
+  iokv -> KV_Hashed [label="0.95", color="green"];
+  iokv -> KV_Refs [label="0.85", color="green"];
 
   // Directory tree module integrates with several layers.
   DB -> DirTree [label="0.85", color="green"];
-  DirTree -> KV_Hashed [label="0.80", color="green"];
+  DirTree -> iokv [label="0.80", color="green"];
   DirTree -> HashKV [label="0.80", color="green"];
   DirTree -> Refs [label="0.85", color="green"];
 
@@ -52,6 +54,5 @@ digraph Layers {
   UI -> ContainerImage [label="0.75", color="yellow"];
   ContainerImage -> DirTree [label="0.90", color="green"];
 
-  // Alternative paths from Refs directly to KV.
-  Refs -> KV_Refs [label="0.85", color="green"];
+  Refs -> iokv [label="0.80", color="green"];
 }

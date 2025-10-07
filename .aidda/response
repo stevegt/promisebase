@@ -66,14 +66,19 @@ a commit history or timeline.
 - ListMessages() ([]Message, error)
 
 - Pros:
-  - Provides a clear historical record of changes using a DAG structure.
-  - Enhances auditability and permits reconstruction of event histories.
+  - Provides a clear historical record of changes using a DAG
+    structure.
+  - Enhances auditability and permits reconstruction of event
+    histories.
   - Supports complex workflows with branching timelines.
 
 - Cons:
-  - Increases system complexity and may require extensive refactoring.
-  - Maintenance of a DAG or hypergraph can incur additional overhead.
-  - Integration with other modules demands careful consistency checks.
+  - Increases system complexity and may require extensive
+    refactoring.
+  - Maintenance of a DAG or hypergraph can incur additional
+    overhead.
+  - Integration with other modules demands careful consistency
+    checks.
 
 ## Layer Interactions
 - The **DB layer** calls functions in the hashkv layer to store and
@@ -94,14 +99,18 @@ modularity, testing, and the ability to swap out implementations at each
 layer if needed.
 
 Additional interface layers, such as FUSE mounts or web/CLI frontends, may
-be built on top of the DB layer to provide user interaction with the system.
+be built on top of the DB layer to provide user interaction with the
+system.
 ---FILE-END filename="/home/stevegt/lab/promisebase/x/layers.md"---
 
 
 ---FILE-START filename="/home/stevegt/lab/promisebase/x/layers.dot"---
+/* This graph illustrates the layered architecture for Promisebase.
+Each node represents a module or layer and edges indicate flows. */
 digraph Layers {
   rankdir=TB;
-  node [shape=box, style=filled, fillcolor=white, fontname="monospace"];
+  node [shape=box, style=filled, fillcolor=white,
+  fontname="monospace"];
 
   UI [label="User Interfaces\n(CLI, Web, FUSE)\nRender(), Notify()"];
   Message [label="Message Layer\nRecordMessage(), GetMessage(),\nListMessages()"];
@@ -112,6 +121,7 @@ digraph Layers {
   Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
   HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
   Rabin [label="Rabin Chunking\nChunk()"];
+  iokv [label="IOKV Layer\n(io.Reader/io.Writer interface)"];
   KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
   KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
   DirTree [label="Directory Tree\nImport/Export\nExport(), Import()"];
@@ -128,7 +138,7 @@ digraph Layers {
   UI -> HashKV [label="0.65", color="red"];
   Message -> HashKV [label="0.80", color="green"];
   Timeline -> HashKV [label="0.80", color="green"];
-  Ingest -> KV_Hashed [label="0.70", color="yellow"];
+  Ingest -> iokv [label="0.70", color="yellow"];
   UI -> Refs [label="0.70", color="yellow"];
 
   // Ref integration via storage backend.
@@ -137,15 +147,17 @@ digraph Layers {
 
   // High-level DB flows.
   DB -> HashKV [label="0.90", color="green"];
-  DB -> KV_Hashed [label="0.70", color="yellow"];
+  DB -> iokv [label="0.70", color="yellow"];
 
-  // Rabin chunking is placed above hashkv.
-  HashKV -> Rabin [label="0.95", color="green"];
-  Rabin -> KV_Hashed [label="0.95", color="green"];
+  // Rabin chunking is placed above IOKV layer.
+  HashKV -> Rabin [label="0.90", color="green"];
+  Rabin -> iokv [label="0.95", color="green"];
+  iokv -> KV_Hashed [label="0.95", color="green"];
+  iokv -> KV_Refs [label="0.85", color="green"];
 
   // Directory tree module integrates with several layers.
   DB -> DirTree [label="0.85", color="green"];
-  DirTree -> KV_Hashed [label="0.80", color="green"];
+  DirTree -> iokv [label="0.80", color="green"];
   DirTree -> HashKV [label="0.80", color="green"];
   DirTree -> Refs [label="0.85", color="green"];
 

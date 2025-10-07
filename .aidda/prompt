@@ -9,14 +9,24 @@ combination of layers will work well together, and is colored
 accordingly -- green for the most promising combinations and red for
 the least promising combinations.
 
-- Discuss possible improvements to the design of the layering of the
-  system as expressed in layers.dot.  Make the architecture cleaner
-  and more elegant.  Consider adding or removing layers, changing the
-  names of layers, and changing the relationships between layers.  
-- Add interface method names to the each layer box, to clarify the
-  relationships between layers.  For example, the kv layer should
-  support Write(io.Writer), Read(io.Reader), Rename(oldkey, newkey
-  string), and Delete(key string).
+- Move the two KV stores under an "iokv" layer.
+
+The iokv layer provides an io.Reader/io.Writer interface for storing
+and retrieving data.  The iokv layer provides a file-like interface
+for reading and writing data, and is used by the upper layers.  An
+IOKV object can be created by calling:
+
+func OpenObject(path string) (IOKV, error)
+
+path can be a filesystem-like path, '/' separating directory components.
+
+The IOKV interface is defined as:
+
+type IOKV interface {
+    Read(p []byte) (n int, err error)
+    Write(p []byte) (n int, err error)
+    Close() error
+}
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to

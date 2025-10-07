@@ -65,14 +65,19 @@ a commit history or timeline.
 - ListMessages() ([]Message, error)
 
 - Pros:
-  - Provides a clear historical record of changes using a DAG structure.
-  - Enhances auditability and permits reconstruction of event histories.
+  - Provides a clear historical record of changes using a DAG
+    structure.
+  - Enhances auditability and permits reconstruction of event
+    histories.
   - Supports complex workflows with branching timelines.
 
 - Cons:
-  - Increases system complexity and may require extensive refactoring.
-  - Maintenance of a DAG or hypergraph can incur additional overhead.
-  - Integration with other modules demands careful consistency checks.
+  - Increases system complexity and may require extensive
+    refactoring.
+  - Maintenance of a DAG or hypergraph can incur additional
+    overhead.
+  - Integration with other modules demands careful consistency
+    checks.
 
 ## Layer Interactions
 - The **DB layer** calls functions in the hashkv layer to store and
@@ -93,4 +98,5 @@ modularity, testing, and the ability to swap out implementations at each
 layer if needed.
 
 Additional interface layers, such as FUSE mounts or web/CLI frontends, may
-be built on top of the DB layer to provide user interaction with the system.
+be built on top of the DB layer to provide user interaction with the
+system.
