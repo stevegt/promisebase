@@ -1,21 +1,20 @@
 digraph Layers {
   rankdir=TB;
-  node [shape=box, style=filled, fillcolor=white,
-  fontname="monospace"];
+  node [shape=box, style=filled, fillcolor=white, fontname="monospace"];
 
-  UI [label="User Interfaces\n(CLI, Web, FUSE)"];
-  Message [label="Message Layer"];
-  Timeline [label="Timeline & Versioning"];
-  Ingest [label="Ingestion Layer"];
-  HGraph [label="Hypergraph\nLayer\n(Git-like, Threads)"];
-  DB [label="High-Level Database\n(db) Layer"];
-  Refs [label="Refs\n(Logical Ref Layer)"];
-  HashKV [label="Content-Addressable\n(hashkv) Layer"];
-  Rabin [label="Rabin Chunking"];
-  KV_Hashed [label="KV Store\n(Hashed Objects)"];
-  KV_Refs [label="KV Store\n(Refs)"];
-  DirTree [label="Directory Tree\nImport/Export"];
-  ContainerImage [label="Container Image"];
+  UI [label="User Interfaces\n(CLI, Web, FUSE)\nRender(), Notify()"];
+  Message [label="Message Layer\nRecordMessage(), GetMessage(),\nListMessages()"];
+  Timeline [label="Timeline & Versioning\nRecordEvent(), GetEvents()"];
+  Ingest [label="Ingestion Layer\nIngest()"];
+  HGraph [label="Hypergraph Layer\n(Git-like, Threads)\nMerge(), Query(),\nTraverse()"];
+  DB [label="High-Level Database\n(db) Layer\nPutBlock(), GetBlock(),\nPutTree(), GetTree()"];
+  Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
+  HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
+  Rabin [label="Rabin Chunking\nChunk()"];
+  KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
+  KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
+  DirTree [label="Directory Tree\nImport/Export\nExport(), Import()"];
+  ContainerImage [label="Container Image\nBuildImage(),\nRunContainer()"];
 
   // Primary flows from multiple roots.
   UI -> DB [label="0.90", color="green"];

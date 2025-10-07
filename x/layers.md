@@ -2,8 +2,8 @@
 The Promisebase codebase can be structured into multiple layers.
 This document describes a possible separation into at least three
 distinct layers that work together to provide content-addressable
-storage, high-level domain logic, and user interfaces. In addition,
-a message storage module supporting DAGs and timeline or hypergraph
+storage, high-level domain logic, and user interfaces. In addition, a
+message storage module supporting DAGs and timeline or hypergraph
 structures can be used to record event histories.
 
 ## 1. Storage/KV Layer
@@ -17,7 +17,7 @@ It provides a minimal key-value interface with operations such as:
 **Interface Methods:**
 - Write(data []byte) error  
 - Read(key string) ([]byte, error)  
-- Close() error
+- Close() error  
 - Rename(oldKey, newKey string) error  
 - Delete(key string) error
 
@@ -38,18 +38,17 @@ between high-level domain logic and the raw KV operations.
 - Delete(cid string) error
 
 ## 3. High-Level Database (db) Layer
-The db layer sits at the top of the core storage stack and implements
-the domain logic of Promisebase. It manages and manipulates Merkle trees,
-stream abstractions, and block deduplication. Object lookup and
-verification are performed using the underlying hashkv functions.
-This layer depends on hashkv for all low-level operations and focuses
-on data semantics rather than storage details.
+The db layer sits at the top of the core storage stack and implements the
+domain logic of Promisebase. It manages and manipulates Merkle trees,
+stream abstractions, and block deduplication. Object lookup and verification
+are performed using the underlying hashkv functions. This layer depends on
+hashkv for all low-level operations and focuses on data semantics rather than
+storage details.
 
 **Interface Methods:**
 - PutBlock(algo string, data []byte) (Block, error)  
 - GetBlock(cid string) (io.Reader, error)  
-- PutTree(algo string,
-  children ...Object) (Tree, error)  
+- PutTree(algo string, children ...Object) (Tree, error)  
 - GetTree(cid string) (Tree, error)  
 - OpenStream(name string) (Stream, error)  
 - AppendBlock(…) (Tree, error)
@@ -89,10 +88,9 @@ a commit history or timeline.
   record messages as DAG nodes and to manage event timelines. It supplies
   interfaces for tracing history and supports command sourcing.
 
-By cleanly separating responsibilities, the system benefits in terms
-of modularity, testing, and the ability to swap out implementations at
-each layer if needed.
+By cleanly separating responsibilities, the system benefits in terms of
+modularity, testing, and the ability to swap out implementations at each
+layer if needed.
 
-Additional interface layers, such as FUSE mounts or web/CLI frontends,
-may be built on top of the DB layer to provide user interaction with the
-system.
+Additional interface layers, such as FUSE mounts or web/CLI frontends, may
+be built on top of the DB layer to provide user interaction with the system.

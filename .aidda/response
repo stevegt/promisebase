@@ -3,8 +3,8 @@
 The Promisebase codebase can be structured into multiple layers.
 This document describes a possible separation into at least three
 distinct layers that work together to provide content-addressable
-storage, high-level domain logic, and user interfaces. In addition,
-a message storage module supporting DAGs and timeline or hypergraph
+storage, high-level domain logic, and user interfaces. In addition, a
+message storage module supporting DAGs and timeline or hypergraph
 structures can be used to record event histories.
 
 ## 1. Storage/KV Layer
@@ -18,6 +18,7 @@ It provides a minimal key-value interface with operations such as:
 **Interface Methods:**
 - Write(data []byte) error  
 - Read(key string) ([]byte, error)  
+- Close() error  
 - Rename(oldKey, newKey string) error  
 - Delete(key string) error
 
@@ -38,18 +39,17 @@ between high-level domain logic and the raw KV operations.
 - Delete(cid string) error
 
 ## 3. High-Level Database (db) Layer
-The db layer sits at the top of the core storage stack and implements
-the domain logic of Promisebase. It manages and manipulates Merkle trees,
-stream abstractions, and block deduplication. Object lookup and
-verification are performed using the underlying hashkv functions.
-This layer depends on hashkv for all low-level operations and focuses
-on data semantics rather than storage details.
+The db layer sits at the top of the core storage stack and implements the
+domain logic of Promisebase. It manages and manipulates Merkle trees,
+stream abstractions, and block deduplication. Object lookup and verification
+are performed using the underlying hashkv functions. This layer depends on
+hashkv for all low-level operations and focuses on data semantics rather than
+storage details.
 
 **Interface Methods:**
 - PutBlock(algo string, data []byte) (Block, error)  
 - GetBlock(cid string) (io.Reader, error)  
-- PutTree(algo string,
-  children ...Object) (Tree, error)  
+- PutTree(algo string, children ...Object) (Tree, error)  
 - GetTree(cid string) (Tree, error)  
 - OpenStream(name string) (Stream, error)  
 - AppendBlock(…) (Tree, error)
@@ -89,11 +89,71 @@ a commit history or timeline.
   record messages as DAG nodes and to manage event timelines. It supplies
   interfaces for tracing history and supports command sourcing.
 
-By cleanly separating responsibilities, the system benefits in terms
-of modularity, testing, and the ability to swap out implementations at
-each layer if needed.
+By cleanly separating responsibilities, the system benefits in terms of
+modularity, testing, and the ability to swap out implementations at each
+layer if needed.
 
-Additional interface layers, such as FUSE mounts or web/CLI frontends,
-may be built on top of the DB layer to provide user interaction with the
-system.
+Additional interface layers, such as FUSE mounts or web/CLI frontends, may
+be built on top of the DB layer to provide user interaction with the system.
 ---FILE-END filename="/home/stevegt/lab/promisebase/x/layers.md"---
+
+
+---FILE-START filename="/home/stevegt/lab/promisebase/x/layers.dot"---
+digraph Layers {
+  rankdir=TB;
+  node [shape=box, style=filled, fillcolor=white, fontname="monospace"];
+
+  UI [label="User Interfaces\n(CLI, Web, FUSE)\nRender(), Notify()"];
+  Message [label="Message Layer\nRecordMessage(), GetMessage(),\nListMessages()"];
+  Timeline [label="Timeline & Versioning\nRecordEvent(), GetEvents()"];
+  Ingest [label="Ingestion Layer\nIngest()"];
+  HGraph [label="Hypergraph Layer\n(Git-like, Threads)\nMerge(), Query(),\nTraverse()"];
+  DB [label="High-Level Database\n(db) Layer\nPutBlock(), GetBlock(),\nPutTree(), GetTree()"];
+  Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
+  HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
+  Rabin [label="Rabin Chunking\nChunk()"];
+  KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
+  KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
+  DirTree [label="Directory Tree\nImport/Export\nExport(), Import()"];
+  ContainerImage [label="Container Image\nBuildImage(),\nRunContainer()"];
+
+  // Primary flows from multiple roots.
+  UI -> DB [label="0.90", color="green"];
+  Message -> HGraph [label="0.88", color="green"];
+  Timeline -> HGraph [label="0.88", color="green"];
+  Ingest -> DB [label="0.75", color="yellow"];
+  HGraph -> DB [label="0.80", color="green"];
+
+  // Alternative connections from roots.
+  UI -> HashKV [label="0.65", color="red"];
+  Message -> HashKV [label="0.80", color="green"];
+  Timeline -> HashKV [label="0.80", color="green"];
+  Ingest -> KV_Hashed [label="0.70", color="yellow"];
+  UI -> Refs [label="0.70", color="yellow"];
+
+  // Ref integration via storage backend.
+  HGraph -> Refs [label="0.90", color="green"];
+  Refs -> KV_Refs [label="0.85", color="green"];
+
+  // High-level DB flows.
+  DB -> HashKV [label="0.90", color="green"];
+  DB -> KV_Hashed [label="0.70", color="yellow"];
+
+  // Rabin chunking is placed above hashkv.
+  HashKV -> Rabin [label="0.95", color="green"];
+  Rabin -> KV_Hashed [label="0.95", color="green"];
+
+  // Directory tree module integrates with several layers.
+  DB -> DirTree [label="0.85", color="green"];
+  DirTree -> KV_Hashed [label="0.80", color="green"];
+  DirTree -> HashKV [label="0.80", color="green"];
+  DirTree -> Refs [label="0.85", color="green"];
+
+  // Container image layer as an alternative UI leaf.
+  UI -> ContainerImage [label="0.75", color="yellow"];
+  ContainerImage -> DirTree [label="0.90", color="green"];
+
+  // Alternative paths from Refs directly to KV.
+  Refs -> KV_Refs [label="0.85", color="green"];
+}
+---FILE-END filename="/home/stevegt/lab/promisebase/x/layers.dot"---

@@ -59,6 +59,7 @@ In:
     x/layers.dot
 Out:
     x/layers.md
+    x/layers.dot
 
 .stop
 
