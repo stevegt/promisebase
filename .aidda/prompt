@@ -1,3 +1,52 @@
+discuss chunking
+
+How does the current chunking code work?  
+
+Sysmsg: 
+    You are an expert Go programmer. Please make the requested changes to
+    the given code or documentation. do not modify documentation text
+    arbitrarily -- make only the minimal changes needed.  Always wrap
+    lines at 70 characters.  Use proper markdown formatting -- do not
+    indent paragraphs.  Do not use any special characters - use only
+    hyphens for bullets.  
+In:
+    cmd/pb/pbmain.go
+    db/tree.go
+    db/stream.go
+    db/file.go
+    db/blob.go
+    db/path_test.go
+    db/db_test.go
+    db/pitbase.go
+    db/tree_test.go
+    db/blob_test.go
+    db/chunker_test.go
+    db/db.go
+    db/path.go
+    db/statlink_test.go
+    db/stream_test.go
+    db/bench_test.go
+    db/pitbase_test.go
+    fuse/fuse.go
+    server/container.go
+    server/server_test.go
+    server/server.go
+    slides/main.go
+    x/model.dot
+    x/kvsplit.md
+    x/path-to-cid.md
+    x/gitlike-refs.md
+    x/refchanges.md
+    x/command-sourcing.md
+    x/message-format.md
+    x/layers.md
+    x/layers.dot
+Out:
+    x/layers.md
+    x/layers.dot
+
+.stop
+
 discuss layers.dot
 
 The dot file shows various layers of the system, Each layer points to

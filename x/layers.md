@@ -8,7 +8,7 @@ structures can be used to record event histories.
 
 ## 1. Storage/KV Layer
 This is the lowest level and is responsible for raw data storage.
-It provides a minimal key-value interface with operations such as:
+It provides a minimal key–value interface with operations such as:
 - Get, Put, and Delete for arbitrary byte sequences.
 - Enforced key naming rules (alphanumeric, no slashes) to ensure file
   safety.
@@ -28,7 +28,7 @@ bytes, ensuring data persistence and basic retrieval semantics.
 The hashkv layer sits directly above the KV layer. Its main functions
 are to expose an io.Reader/io.Writer interface that computes a content
 hash upon writing and to store data as content-addressable blocks.
-It encapsulates low-level file handling such as header management,
+It encapsulates low–level file handling such as header management,
 temporary file usage, and atomic renaming. It serves as an adapter
 between high-level domain logic and the raw KV operations.
 
@@ -36,6 +36,12 @@ between high-level domain logic and the raw KV operations.
 - Put(data []byte) (cid string, err error)  
 - Get(cid string) (io.Reader, error)  
 - Delete(cid string) error
+
+**Rabin Chunking Integration:**  
+The hashkv layer also integrates Rabin chunking to divide incoming data 
+into content–defined chunks. This chunking employs a rolling hash with a 
+predefined polynomial to determine variable–length chunk boundaries, helping 
+to maximize deduplication by isolating repeated segments across different data writes.
 
 ## 3. High-Level Database (db) Layer
 The db layer sits at the top of the core storage stack and implements the
