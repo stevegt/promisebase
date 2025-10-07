@@ -1,58 +1,46 @@
-/* This graph illustrates the layered architecture for Promisebase.
-Each node represents a module or layer and edges indicate flows. */
+/* This graph illustrates the layered architecture for
+Promisebase. Each node represents a module or layer and edges
+indicate flows. */
 digraph Layers {
   rankdir=TB;
   node [shape=box, style=filled, fillcolor=white,
     fontname="monospace"];
 
-  UI [label="User Interfaces\n(CLI, Web, FUSE)\nRender(), Notify()"];
-  Message [label="Message Layer\nRecordMessage(), GetMessage(),\nListMessages()"];
-  Timeline [label="Timeline & Versioning\nRecordEvent(), GetEvents()"];
-  HGraph [label="Hypergraph Layer\n(Git-like, Threads)\nMerge(), Query(),\nTraverse()"];
-  DB [label="High-Level Database\n(db) Layer\nPutBlock(), GetBlock(),\nPutTree(), GetTree()"];
-  Refs [label="Refs\n(Logical Ref Layer)\nSetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
-  HashKV [label="Content-Addressable\n(hashkv) Layer\nPut(), Get(), Delete()"];
+  UI [label="User Interfaces\n(CLI, Web, FUSE)"];
+  MsgTimeline [label="Message & Timeline Layer\nRecordMessage(), 
+GetMessage(), ListMessages()"];
+  VCS [label="VCS Layer\nCommit(), Branch(), Merge(), Log(), 
+Checkout()"];
+  DB [label="High-Level Database Layer\nPutBlock(), GetBlock(), 
+PutTree(), GetTree()"];
+  DirTree [label="Directory Tree Layer\nImport(), Export(), Diff(), 
+Cat()"];
+  Stream [label="Streaming Layer\nNewStream(), Write(), Read(), 
+Close()"];
+  Refs [label="Reference Layer\nSetRef(), GetRef(), DeleteRef(), 
+ListRefs()"];
+  HashKV [label="Content-Addressable (hashkv) Layer\nPut(), Get(), 
+Delete()"];
+  KV [label="KV Layer\nGet(), Put(), Delete()"];
   Rabin [label="Rabin Chunking\n(in-memory chunking)"];
-  kv [label="KV Layer\n(Basic key-value interface)"];
-  KV_Hashed [label="KV Store\n(Hashed Objects)\nGet(), Put(), Delete()"];
-  KV_Refs [label="KV Store\n(Refs)\nGet(), Put(), Delete()"];
-  DirTree [label="Directory Tree\nImport/Export\nExport(), Import()"];
-  ContainerImage [label="Container Image\nBuildImage(),\nRunContainer()"];
+  ContainerImage [label="Container Image\nBuildImage(), 
+RunContainer()"];
 
-  // Primary flows from multiple roots.
   UI -> DB [label="0.90", color="green"];
-  Message -> HGraph [label="0.88", color="green"];
-  Timeline -> HGraph [label="0.88", color="green"];
-  HGraph -> DB [label="0.80", color="green"];
-
-  // Alternative connections from roots.
-  UI -> HashKV [label="0.65", color="red"];
-  Message -> HashKV [label="0.80", color="green"];
-  Timeline -> HashKV [label="0.80", color="green"];
-  UI -> Refs [label="0.70", color="yellow"];
-
-  // Ref integration via storage backend.
-  HGraph -> Refs [label="0.90", color="green"];
-
-  // High-level DB flows.
-  DB -> HashKV [label="0.90", color="green"];
-  DB -> Refs [label="0.90", color="green"];
-
-  // Rabin chunking is placed above KV layer.
-  HashKV -> Rabin [label="0.90", color="green"];
-  HashKV -> kv [label="0.95", color="green"];
-  kv -> KV_Hashed [label="0.95", color="green"];
-  kv -> KV_Refs [label="0.85", color="green"];
-
-  // Directory tree module integrates with several layers.
+  UI -> VCS [label="0.75", color="yellow"];
+  UI -> ContainerImage [label="0.75", color="yellow"];
+  MsgTimeline -> DB [label="0.88", color="green"];
+  DB -> Stream [label="0.90", color="green"];
   DB -> DirTree [label="0.85", color="green"];
-  DirTree -> kv [label="0.80", color="green"];
+  DB -> Refs [label="0.90", color="green"];
+  DB -> HashKV [label="0.90", color="green"];
+  VCS -> DirTree [label="0.90", color="green"];
+  VCS -> Stream [label="0.90", color="green"];
   DirTree -> HashKV [label="0.80", color="green"];
   DirTree -> Refs [label="0.85", color="green"];
-
-  // Container image layer as an alternative UI leaf.
-  UI -> ContainerImage [label="0.75", color="yellow"];
+  Stream -> HashKV [label="0.90", color="green"];
+  Stream -> Rabin [label="0.90", color="green"];
+  HashKV -> KV [label="0.95", color="green"];
+  Refs -> KV [label="0.80", color="green"];
   ContainerImage -> DirTree [label="0.90", color="green"];
-
-  Refs -> kv [label="0.80", color="green"];
 }

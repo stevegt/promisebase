@@ -82,18 +82,63 @@ via the KV layer.
 
 ## Directory tree layer
 
-The directory tree layer builds on top of hashkv and ref to manage
-the import and export of directory trees. It handles the logic for:
+The directory tree layer builds on top of hashkv and ref to manage the
+import and export of files and directory trees. It handles the logic
+for:
 
 - Importing a directory structure from the filesystem
-- storing each file via the streaming layer, including POSIX metadata
-- storing directory tree nodes via the streaming layer, including POSIX metadata
+- Importing changes to an existing stored directory tree
+- Storing each new or changed file via the streaming layer, including
+  POSIX metadata
+- Storing new or changed directory tree nodes via the streaming layer,
+  including POSIX metadata
+- Showing differences between two stored directory trees
+- Showing differences between a stored directory tree and the
+  filesystem
+- Filtering and ignoring files during import or comparison based on
+  .gitignore-style patterns
+- Listing the contents of a stored directory tree, including POSIX
+  metadata
 - Exporting a stored directory tree back to the filesystem, including
   POSIX metadata
+- Extracting a single file from a stored directory tree to stdout
+- Extracting a single file from a stored directory tree back to the
+  filesystem, including POSIX metadata
 
 The directory tree layer supports operations such as:
 
-- ImportDir(path string) (cid string, error)  XXX
+- DiffTree(treeCID1, treeCID2 string, options DiffOptions) ([]DiffEntry, error)
+- DiffFS(treeCID string, path string, options DiffOptions) ([]DiffEntry, error)
+- Import(path string) (cid string, error)  
+- List(cid string, options ListOptions) ([]DirEntry, error)
+- Cat(cid string) (io.Reader, error)
+- Export(cid string, path string) error
+
+## VCS layer
+
+The VCS layer builds on top of the directory tree and streaming layers
+to provide version control functionality. It handles the logic for:
+
+- Committing changes to a directory tree, creating a new tree object
+  that references the previous tree and includes metadata such as
+  author, timestamp, and commit message
+- Creating and managing branches and tags as refs that point to specific
+  commit objects
+- Merging branches and resolving conflicts
+- Viewing the history of commits, including metadata and diffs between
+  trees
+- Checking out a specific commit, branch, or tag to restore the
+  directory tree to that state
+
+The VCS layer supports operations such as:
+
+- Commit(treeCID string, message string, author string, parents
+  []string) (commitCID string, error)
+- Branch(name string, commitCID string) error
+- Tag(name string, commitCID string) error
+- Merge(branch1 string, branch2 string) (commitCID string, error)
+- Log(ref string, options LogOptions) ([]CommitEntry, error)
+- Checkout(ref string, path string) error
 
 ## High-Level Database (db) Layer
 
