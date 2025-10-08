@@ -1,12 +1,12 @@
 /* This graph illustrates the layered architecture for
 Promisebase. Each node represents a module or layer and edges
-indicate flows. */
+indicate dependencies as specified in layers.md. */
 digraph Layers {
   rankdir=TB;
   node [shape=box, style=filled, fillcolor=white,
     fontname="monospace"];
 
-  UI [label="User Interfaces\n(CLI, Web, FUSE)"];
+  UI [label="User Interface Layer\n(CLI, Web, FUSE)"];
   MsgTimeline [label="Message & Timeline Layer\nRecordMessage(), 
 GetMessage(), ListMessages()"];
   VCS [label="VCS Layer\nCommit(), Branch(), Merge(), Log(), 
@@ -26,21 +26,20 @@ Delete()"];
   ContainerImage [label="Container Image\nBuildImage(), 
 RunContainer()"];
 
-  UI -> DB [label="0.90", color="green"];
-  UI -> VCS [label="0.75", color="yellow"];
-  UI -> ContainerImage [label="0.75", color="yellow"];
-  MsgTimeline -> DB [label="0.88", color="green"];
-  DB -> Stream [label="0.90", color="green"];
-  DB -> DirTree [label="0.85", color="green"];
-  DB -> Refs [label="0.90", color="green"];
-  DB -> HashKV [label="0.90", color="green"];
-  VCS -> DirTree [label="0.90", color="green"];
-  VCS -> Stream [label="0.90", color="green"];
-  DirTree -> HashKV [label="0.80", color="green"];
-  DirTree -> Refs [label="0.85", color="green"];
-  Stream -> HashKV [label="0.90", color="green"];
-  Stream -> Rabin [label="0.90", color="green"];
-  HashKV -> KV [label="0.95", color="green"];
-  Refs -> KV [label="0.80", color="green"];
+  // Dependencies from layers.md
+  UI -> DB;
+  MsgTimeline -> DB;
+  DB -> HashKV;
+  VCS -> DirTree;
+  VCS -> Stream;
+  VCS -> Refs;
+  DirTree -> HashKV;
+  DirTree -> Refs;
+  DirTree -> Stream;
+  Stream -> HashKV;
+  Stream -> Refs;
+  Stream -> Rabin;
+  HashKV -> KV;
+  Refs -> KV;
   ContainerImage -> DirTree [label="0.90", color="green"];
 }
