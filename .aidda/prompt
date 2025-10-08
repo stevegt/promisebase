@@ -1,6 +1,7 @@
-update dot file from layers.md
+add dependencies to layers.md
 
-Update layers.dot to match the description in layers.md.
+In layers.md, in the section for each layer, list the layers it
+depends on.  
 
 Sysmsg: 
     You are an expert Go programmer. Please make the requested changes to
@@ -8,7 +9,8 @@ Sysmsg:
     arbitrarily -- make only the minimal changes needed.  Always wrap
     lines at 70 characters.  Use proper markdown formatting -- do not
     indent paragraphs.  Do not use any special characters - use only
-    hyphens for bullets.  
+    hyphens for bullets.  Do not delete blank lines between headings
+    and paragraphs.
 In:
     cmd/pb/pbmain.go
     db/tree.go
@@ -43,8 +45,11 @@ In:
     x/layers.dot
 Out:
     x/layers.dot
+    x/layers.md
 
 .stop
+
+Update layers.dot to match the description in layers.md.
 
 discuss layers.dot
 

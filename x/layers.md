@@ -8,23 +8,25 @@ structures can be used to record event histories.
 
 ## Storage/KV Layer 
 
-This is the lowest level and is responsible for raw data storage. The
-KV layer underlies all other layers by mapping keys to stored bytes,
+This is the lowest level and is responsible for raw data storage.
+The KV layer underlies all other layers by mapping keys to stored bytes,
 ensuring data persistence and basic retrieval semantics.
 
 The KV layer must automatically and transparently create
 subdirectories or nested buckets in the underlying storage system as
 needed to avoid performance degradation from too many files or objects
-in a single directory or bucket. 
+in a single directory or bucket.
 
 Because the chunking code already stores and passes around each chunk
 in RAM, there is no need for a file-like Reader/Writer interface at
-this layer. Instead, the interface should simply expose operations
-such as:
-
+this layer. Instead, the interface should simply expose operations such
+as:
 - Get, Put, and Delete for arbitrary byte sequences.
 - Enforced key naming rules (alphanumeric, no slashes) to ensure file
   safety.
+
+Dependencies:
+- None
 
 ## Content-Addressable (hashkv) Layer
 
@@ -32,25 +34,30 @@ The hashkv layer sits directly above the KV layer. Its main function
 is to compute a content hash for each incoming chunk and to store the
 data as content-addressable blocks. Because the chunking code already
 stores and passes around each chunk in RAM, there is no need for a
-file-like Reader/Writer interface at this layer. Instead, the
-interface should simply expose operations such as:
+file-like Reader/Writer interface at this layer. Instead, the interface
+should simply expose operations such as:
 
-- Put(data []byte) (cid string, err error)  
-- Get(cid string) ([]byte, error)  
+- Put(data []byte) (cid string, err error)
+- Get(cid string) ([]byte, error)
 - Delete(cid string) error
+
+Dependencies:
+- KV Layer
 
 ## Reference layer
 
-The reference layer builds on top of hashkv to provide human-friendly
+The reference layer builds on top of kv to provide human-friendly
 names for content hashes. It manages mutable references that point to
 immutable content identifiers (CIDs). This layer allows users to create,
 update, rename, and delete refs:
-
 - Create(ref string, cid string) error
 - Replace(ref string, cid string) error
-- Rename(oldRef, newRef string) error  
-- Delete(Ref string) error
+- Rename(oldRef, newRef string) error
+- Delete(ref string) error
 - ReadLink(ref string) (cid string, error)
+
+Dependencies:
+- kv layer
 
 ## Streaming layer
 
@@ -58,9 +65,10 @@ The streaming layer builds on top of hashkv and ref to provide a
 higher-level abstraction for managing streams of data. It handles the
 logic for:
 
-- Writing streams by chunking data, hashing each chunk, storing
-  it via hashkv, and building and storing Merkle tree inner nodes to
-  represent the stream data stored in leaf nodes.
+- Writing streams by chunking data, hashing each chunk, storing it via
+  hashkv, and building and storing Merkle tree inner nodes to represent
+  the stream data stored in leaf nodes.
+- Assigning a human-friendly ref to each stream via the ref layer.
 - Reading streams by reference.
 
 It supports an io.Reader/io.Writer interface for stream operations:
@@ -72,13 +80,16 @@ It supports an io.Reader/io.Writer interface for stream operations:
 - Read([]byte) (int, error)
 - Close() error  
 
-**Rabin Chunking Integration:**  
-
+**Rabin Chunking Integration:**
 The streaming layer integrates Rabin chunking to divide incoming data
-into content–defined chunks. This method uses a rolling hash with a
-chosen polynomial to determine variable–length chunk boundaries. The
+into content-defined chunks. This method uses a rolling hash with a
+chosen polynomial to determine variable-length chunk boundaries. The
 resulting chunks, which are kept in memory, are then hashed and stored
 via the KV layer.
+
+Dependencies:
+- Content-Addressable (hashkv) Layer
+- Reference layer
 
 ## Directory tree layer
 
@@ -109,10 +120,15 @@ The directory tree layer supports operations such as:
 
 - DiffTree(treeCID1, treeCID2 string, options DiffOptions) ([]DiffEntry, error)
 - DiffFS(treeCID string, path string, options DiffOptions) ([]DiffEntry, error)
-- Import(path string) (cid string, error)  
+- Import(path string) (cid string, error)
 - List(cid string, options ListOptions) ([]DirEntry, error)
 - Cat(cid string) (io.Reader, error)
 - Export(cid string, path string) error
+
+Dependencies:
+- Content-Addressable (hashkv) Layer
+- Reference layer
+- Streaming layer
 
 ## VCS layer
 
@@ -132,30 +148,36 @@ to provide version control functionality. It handles the logic for:
 
 The VCS layer supports operations such as:
 
-- Commit(treeCID string, message string, author string, parents
-  []string) (commitCID string, error)
+- Commit(treeCID string, message string, author string, parents []CID) (commitCID CID, error)
 - Branch(name string, commitCID string) error
 - Tag(name string, commitCID string) error
 - Merge(branch1 string, branch2 string) (commitCID string, error)
 - Log(ref string, options LogOptions) ([]CommitEntry, error)
 - Checkout(ref string, path string) error
 
-## High-Level Database (db) Layer
+Dependencies:
+- Directory tree layer
+- Streaming layer
+- Reference layer
 
+## High-Level Database (db) Layer
 The db layer sits at the top of the core storage stack and implements the
 domain logic of Promisebase. It manages and manipulates Merkle trees,
-stream abstractions, and block deduplication. Object lookup and
-verification are performed using the underlying hashkv functions. This
-layer depends on hashkv for all low-level operations and focuses on data
-semantics rather than storage details.
+stream abstractions, and block deduplication. Object lookup and verification
+are performed using the underlying hashkv functions. This layer depends on
+hashkv for all low-level operations and focuses on data semantics rather
+than storage details.
 
 **Interface Methods:**
-- PutBlock(algo string, data []byte) (Block, error)  
-- GetBlock(cid string) (io.Reader, error)  
-- PutTree(algo string, children ...Object) (Tree, error)  
-- GetTree(cid string) (Tree, error)  
-- OpenStream(name string) (Stream, error)  
+- PutBlock(algo string, data []byte) (Block, error)
+- GetBlock(cid string) (io.Reader, error)
+- PutTree(algo string, children ...Object) (Tree, error)
+- GetTree(cid string) (Tree, error)
+- OpenStream(name string) (Stream, error)
 - AppendBlock(…) (Tree, error)
+
+Dependencies:
+- Content-Addressable (hashkv) Layer
 
 ## 4. Message and Timeline Layer
 A separate module handles message storage and event timelines. This layer
@@ -164,38 +186,14 @@ captures a sequence of commands or events analogous to a commit history
 or timeline.
 
 **Interface Methods:**
-- RecordMessage(msg Message) error  
-- GetMessage(cid string) (Message, error)  
+- RecordMessage(msg Message) error
+- GetMessage(cid string) (Message, error)
 - ListMessages() ([]Message, error)
 
-- Pros:
-  - Provides a clear historical record of changes using a DAG
-    structure.
-  - Enhances auditability and permits reconstruction of event histories.
-  - Supports complex workflows with branching timelines.
-- Cons:
-  - Increases system complexity and may require extensive refactoring.
-  - Maintenance of a DAG or hypergraph can incur additional overhead.
-  - Integration with other modules demands careful consistency
-    checks.
+Dependencies:
+- High-Level Database (db) Layer
 
-## Layer Interactions
-- The **DB layer** calls functions in the hashkv layer to store and
-  retrieve high-level objects (blocks, trees, streams). It uses the
-  resulting content identifiers to maintain referential integrity.
-- The **hashkv layer** converts data writes into content addresses and
-  passes them to the KV layer. It similarly translates KV reads into a
-  simple byte array for the DB layer.
-- The **KV layer** underpins the system by providing basic storage,
-  leaving higher-level concerns (such as content addressing and domain
-  logic) to the upper layers.
-- The **Message and Timeline layer** interacts with the DB layer to
-  record messages as DAG nodes and to manage event timelines. It supplies
-  interfaces for tracing history and supports command sourcing.
-
-By cleanly separating responsibilities, the system benefits in terms
-of modularity, testing, and the ability to swap out implementations at
-each layer if needed.
+## User Interface Layer
 
 Additional interface layers, such as FUSE mounts or web/CLI frontends,
 may be built on top of the DB layer to provide user interaction with the
