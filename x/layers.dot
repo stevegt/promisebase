@@ -7,29 +7,18 @@ digraph Layers {
     fontname="monospace"];
 
   UI [label="User Interface Layer\n(CLI, Web, FUSE)"];
-  MsgTimeline [label="Message & Timeline Layer\nRecordMessage(), 
-GetMessage(), ListMessages()"];
-  VCS [label="VCS Layer\nCommit(), Branch(), Merge(), Log(), 
-Checkout()"];
-  DB [label="High-Level Database Layer\nPutBlock(), GetBlock(), 
-PutTree(), GetTree()"];
-  DirTree [label="Directory Tree Layer\nImport(), Export(), Diff(), 
-Cat()"];
-  Stream [label="Streaming Layer\nNewStream(), Write(), Read(), 
-Close()"];
-  Refs [label="Reference Layer\nSetRef(), GetRef(), DeleteRef(), 
-ListRefs()"];
-  HashKV [label="Content-Addressable (hashkv) Layer\nPut(), Get(), 
-Delete()"];
+  MsgTimeline [label="Message & Timeline Layer\nRecordMessage(), GetMessage(), ListMessages()"];
+  VCS [label="VCS Layer\nCommit(), Branch(), Merge(), Log(), Checkout()"];
+  DirTree [label="Directory Tree Layer\nImport(), Export(), Diff(), Cat()"];
+  Stream [label="Streaming Layer\nNewStream(), Write(), Read(), Close()"];
+  Refs [label="Reference Layer\nSetRef(), GetRef(), DeleteRef(), ListRefs()"];
+  HashKV [label="Content-Addressable (hashkv) Layer\nPut(), Get(), Delete()"];
   KV [label="KV Layer\nGet(), Put(), Delete()"];
   Rabin [label="Rabin Chunking\n(in-memory chunking)"];
-  ContainerImage [label="Container Image\nBuildImage(), 
-RunContainer()"];
 
   // Dependencies from layers.md
-  UI -> DB;
-  MsgTimeline -> DB;
-  DB -> HashKV;
+  UI -> MsgTimeline;
+  MsgTimeline -> VCS;
   VCS -> DirTree;
   VCS -> Stream;
   VCS -> Refs;
@@ -41,5 +30,4 @@ RunContainer()"];
   Stream -> Rabin;
   HashKV -> KV;
   Refs -> KV;
-  ContainerImage -> DirTree [label="0.90", color="green"];
 }

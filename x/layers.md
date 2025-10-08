@@ -57,7 +57,7 @@ update, rename, and delete refs:
 - ReadLink(ref string) (cid string, error)
 
 Dependencies:
-- kv layer
+- KV layer
 
 ## Streaming layer
 
@@ -160,30 +160,10 @@ Dependencies:
 - Streaming layer
 - Reference layer
 
-## High-Level Database (db) Layer
-The db layer sits at the top of the core storage stack and implements the
-domain logic of Promisebase. It manages and manipulates Merkle trees,
-stream abstractions, and block deduplication. Object lookup and verification
-are performed using the underlying hashkv functions. This layer depends on
-hashkv for all low-level operations and focuses on data semantics rather
-than storage details.
-
-**Interface Methods:**
-- PutBlock(algo string, data []byte) (Block, error)
-- GetBlock(cid string) (io.Reader, error)
-- PutTree(algo string, children ...Object) (Tree, error)
-- GetTree(cid string) (Tree, error)
-- OpenStream(name string) (Stream, error)
-- AppendBlock(…) (Tree, error)
-
-Dependencies:
-- Content-Addressable (hashkv) Layer
-
-## 4. Message and Timeline Layer
-A separate module handles message storage and event timelines. This layer
-records each message as a DAG node that includes parent references. It
+## Message and Timeline Layer
+This layer records each message as a DAG node that includes parent references. It
 captures a sequence of commands or events analogous to a commit history
-or timeline.
+or timeline, leveraging the VCS layer for storage and versioning capabilities.
 
 **Interface Methods:**
 - RecordMessage(msg Message) error
@@ -191,10 +171,13 @@ or timeline.
 - ListMessages() ([]Message, error)
 
 Dependencies:
-- High-Level Database (db) Layer
+- VCS Layer
 
 ## User Interface Layer
 
-Additional interface layers, such as FUSE mounts or web/CLI frontends,
-may be built on top of the DB layer to provide user interaction with the
-system.
+Interface layers such as FUSE mounts or web/CLI frontends provide user interaction with the
+system through the Message and Timeline layer.
+
+Dependencies:
+- Message and Timeline Layer
+
