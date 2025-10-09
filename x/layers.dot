@@ -1,6 +1,7 @@
 /* This graph illustrates the layered architecture for
-Promisebase. Each node represents a module or layer and edges
-indicate dependencies as specified in layers.md. */
+Promisebase with "everything's a message" call flow.
+Each node represents a module or layer and edges
+indicate call dependencies. */
 digraph Layers {
   rankdir=TB;
   node [shape=box, style=filled, fillcolor=white,
@@ -11,23 +12,41 @@ digraph Layers {
   VCS [label="VCS Layer\nCommit(), Branch(), Merge(), Log(), Checkout()"];
   DirTree [label="Directory Tree Layer\nImport(), Export(), Diff(), Cat()"];
   Stream [label="Streaming Layer\nNewStream(), Write(), Read(), Close()"];
-  Refs [label="Reference Layer\nSetRef(), GetRef(), DeleteRef(), ListRefs()"];
+  Refs [label="Reference Index Layer\n(Index into Messages)\nSetRef(), GetRef(), DeleteRef(), ListRefs()"];
   HashKV [label="Content-Addressable (hashkv) Layer\nPut(), Get(), Delete()"];
   KV [label="KV Layer\nGet(), Put(), Delete()"];
   Rabin [label="Rabin Chunking\n(in-memory chunking)"];
 
-  // Dependencies from layers.md
-  UI -> MsgTimeline;
-  MsgTimeline -> VCS;
+  // New call flow: UI → [VCS, DirTree, Stream, Refs] → Message → HashKV → KV
+  UI -> VCS;
+  UI -> DirTree;
+  UI -> Stream;
+  UI -> Refs;
+  
+  VCS -> MsgTimeline;
   VCS -> DirTree;
-  VCS -> Stream;
-  VCS -> Refs;
-  DirTree -> HashKV;
-  DirTree -> Refs;
-  DirTree -> Stream;
-  Stream -> HashKV;
-  Stream -> Refs;
-  Stream -> Rabin;
+  DirTree -> MsgTimeline;
+  Stream -> MsgTimeline;
+  Refs -> MsgTimeline;
+  
+  MsgTimeline -> HashKV;
   HashKV -> KV;
-  Refs -> KV;
+  
+  // Stream still uses Rabin for chunking
+  Stream -> Rabin;
+
+  // ContainerManager is a k8s replacement
+  ContainerManager -> VCS;
+  ContainerManager -> DirTree;
+  ContainerManager -> Stream;
+  ContainerManager -> Refs;
+
+  // BareMetalManager is a replacement for legacy DevOps tools
+  BareMetalManager -> VCS;
+  BareMetalManager -> DirTree;
+  BareMetalManager -> Stream;
+  BareMetalManager -> Refs;
+
+
 }
+
