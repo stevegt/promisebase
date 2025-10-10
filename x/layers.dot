@@ -1,7 +1,8 @@
 /* This graph illustrates the layered architecture for
 Promisebase with "everything's a message" call flow.
 Each node represents a module or layer and edges
-indicate call dependencies with labeled function signatures. */
+indicate call dependencies with labeled function signatures.
+Each edge uses a unique color for clarity. */
 digraph Layers {
   rankdir=TB;
   node [shape=box, style=filled, fillcolor=white,
@@ -18,30 +19,31 @@ digraph Layers {
   Rabin [label="Rabin Chunking\n(in-memory chunking)"];
 
   // New call flow: UI → [VCS, DirTree, Stream, Refs] → Message → HashKV → KV
-  UI -> VCS [label="Commit(), Branch(), Merge(),\nLog(), Checkout()"];
-  UI -> DirTree [label="Import(), Export(),\nDiff(), Cat()"];
-  UI -> Stream [label="NewStream(), Write(),\nRead(), Close()"];
-  UI -> Refs [label="SetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
+  UI -> VCS [label="Commit(), Branch(), Merge(),\nLog(), Checkout()", color=red, fontcolor=red];
+  UI -> DirTree [label="Import(), Export(),\nDiff(), Cat()", color=blue, fontcolor=blue];
+  UI -> Stream [label="NewStream(), Write(),\nRead(), Close()", color=green, fontcolor=green];
+  UI -> Refs [label="SetRef(), GetRef(),\nDeleteRef(), ListRefs()", color=purple, fontcolor=purple];
   
-  VCS -> MsgTimeline [label="RecordMessage(),\nGetMessage(), GetParents()"];
-  VCS -> DirTree [label="Import(), Export(), Diff()"];
-  VCS -> Refs [label="SetRef(), GetRef()"];
+  VCS -> MsgTimeline [label="RecordMessage(),\nGetMessage(), GetParents()", color=orange, fontcolor=orange];
+  VCS -> DirTree [label="Import(), Export(), Diff()", color=brown, fontcolor=brown];
+  VCS -> Refs [label="SetRef(), GetRef()", color=hotpink, fontcolor=hotpink];
   
-  DirTree -> Stream [label="NewStream(), Write(),\nRead(), Close()"];
-  DirTree -> Refs [label="GetRef()"];
+  DirTree -> Stream [label="NewStream(), Write(),\nRead(), Close()", color=cyan, fontcolor=cyan];
+  DirTree -> Refs [label="GetRef()", color=magenta, fontcolor=magenta];
   
-  Stream -> MsgTimeline [label="RecordMessage()"];
-  Refs -> MsgTimeline [label="GetMessage()"];
+  Stream -> MsgTimeline [label="RecordMessage()", color=darkgreen, fontcolor=darkgreen];
+  Refs -> MsgTimeline [label="GetMessage()", color=darkblue, fontcolor=darkblue];
   
-  MsgTimeline -> HashKV [label="Put(), Get(), Delete()"];
-  HashKV -> KV [label="Get(), Put(), Delete()"];
+  MsgTimeline -> HashKV [label="Put(), Get(), Delete()", color=darkorange, fontcolor=darkorange];
+  HashKV -> KV [label="Get(), Put(), Delete()", color=darkviolet, fontcolor=darkviolet];
   
   // Stream uses Rabin for chunking
-  Stream -> Rabin [label="chunk()"];
+  Stream -> Rabin [label="chunk()", color=crimson, fontcolor=crimson];
 
   // ContainerManager is a k8s replacement
-  ContainerManager -> VCS [label="Commit(), Branch(),\nCheckout()"];
+  ContainerManager -> VCS [label="Commit(), Branch(),\nCheckout()", color=navy, fontcolor=navy];
 
   // BareMetalManager is a replacement for legacy DevOps tools
-  BareMetalManager -> VCS [label="Commit(), Diff(),\nCheckout()"];
+  BareMetalManager -> VCS [label="Commit(), Diff(),\nCheckout()", color=teal, fontcolor=teal];
 }
+
