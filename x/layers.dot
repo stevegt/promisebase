@@ -25,7 +25,9 @@ digraph Layers {
   
   VCS -> MsgTimeline;
   VCS -> DirTree;
+  VCS -> Refs;
   DirTree -> Stream;
+  DirTree -> Refs;
   Stream -> MsgTimeline;
   Refs -> MsgTimeline;
   
@@ -37,15 +39,9 @@ digraph Layers {
 
   // ContainerManager is a k8s replacement
   ContainerManager -> VCS;
-  ContainerManager -> DirTree;
-  ContainerManager -> Stream;
-  ContainerManager -> Refs;
 
   // BareMetalManager is a replacement for legacy DevOps tools
   BareMetalManager -> VCS;
-  BareMetalManager -> DirTree;
-  BareMetalManager -> Stream;
-  BareMetalManager -> Refs;
 
 
 }
