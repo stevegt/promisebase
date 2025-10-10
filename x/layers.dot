@@ -1,48 +1,47 @@
 /* This graph illustrates the layered architecture for
 Promisebase with "everything's a message" call flow.
 Each node represents a module or layer and edges
-indicate call dependencies. */
+indicate call dependencies with labeled function signatures. */
 digraph Layers {
   rankdir=TB;
   node [shape=box, style=filled, fillcolor=white,
     fontname="monospace"];
 
   UI [label="User Interface Layer\n(CLI, Web, FUSE)"];
-  MsgTimeline [label="Message & Timeline Layer\nRecordMessage(), GetMessage(), ListMessages()"];
-  VCS [label="VCS Layer\nCommit(), Branch(), Merge(), Log(), Checkout()"];
-  DirTree [label="Directory Tree Layer\nImport(), Export(), Diff(), Cat()"];
-  Stream [label="Streaming Layer\nNewStream(), Write(), Read(), Close()"];
-  Refs [label="Reference Index Layer\n(Index into Messages)\nSetRef(), GetRef(), DeleteRef(), ListRefs()"];
-  HashKV [label="Content-Addressable (hashkv) Layer\nPut(), Get(), Delete()"];
-  KV [label="KV Layer\nGet(), Put(), Delete()"];
+  MsgTimeline [label="Message & Timeline Layer"];
+  VCS [label="VCS Layer"];
+  DirTree [label="Directory Tree Layer"];
+  Stream [label="Streaming Layer"];
+  Refs [label="Reference Index Layer\n(Index into Messages)"];
+  HashKV [label="Content-Addressable (hashkv) Layer"];
+  KV [label="KV Layer"];
   Rabin [label="Rabin Chunking\n(in-memory chunking)"];
 
   // New call flow: UI → [VCS, DirTree, Stream, Refs] → Message → HashKV → KV
-  UI -> VCS;
-  UI -> DirTree;
-  UI -> Stream;
-  UI -> Refs;
+  UI -> VCS [label="Commit(), Branch(), Merge(),\nLog(), Checkout()"];
+  UI -> DirTree [label="Import(), Export(),\nDiff(), Cat()"];
+  UI -> Stream [label="NewStream(), Write(),\nRead(), Close()"];
+  UI -> Refs [label="SetRef(), GetRef(),\nDeleteRef(), ListRefs()"];
   
-  VCS -> MsgTimeline;
-  VCS -> DirTree;
-  VCS -> Refs;
-  DirTree -> Stream;
-  DirTree -> Refs;
-  Stream -> MsgTimeline;
-  Refs -> MsgTimeline;
+  VCS -> MsgTimeline [label="RecordMessage(),\nGetMessage(), GetParents()"];
+  VCS -> DirTree [label="Import(), Export(), Diff()"];
+  VCS -> Refs [label="SetRef(), GetRef()"];
   
-  MsgTimeline -> HashKV;
-  HashKV -> KV;
+  DirTree -> Stream [label="NewStream(), Write(),\nRead(), Close()"];
+  DirTree -> Refs [label="GetRef()"];
   
-  // Stream still uses Rabin for chunking
-  Stream -> Rabin;
+  Stream -> MsgTimeline [label="RecordMessage()"];
+  Refs -> MsgTimeline [label="GetMessage()"];
+  
+  MsgTimeline -> HashKV [label="Put(), Get(), Delete()"];
+  HashKV -> KV [label="Get(), Put(), Delete()"];
+  
+  // Stream uses Rabin for chunking
+  Stream -> Rabin [label="chunk()"];
 
   // ContainerManager is a k8s replacement
-  ContainerManager -> VCS;
+  ContainerManager -> VCS [label="Commit(), Branch(),\nCheckout()"];
 
   // BareMetalManager is a replacement for legacy DevOps tools
-  BareMetalManager -> VCS;
-
-
+  BareMetalManager -> VCS [label="Commit(), Diff(),\nCheckout()"];
 }
-

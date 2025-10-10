@@ -1,4 +1,5 @@
 
+
 **update layers.dot to reflect the dependencies listed in layers.md
 
 Please limit your response to 100 words.**
@@ -25,12 +26,9 @@ Error sending query: /home/stevegt/go/1.24.0/pkg/mod/github.com/stevegt/grokker/
 Please limit your response to 100 words.**
 
 
-
-
 # Updated Layers Architecture
 
 The layers.dot file has been updated to accurately reflect the dependency relationships specified in layers.md, removing extraneous components and ensuring proper layer isolation.
-
 
 ## References
 
@@ -50,8 +48,6 @@ The layers.dot file has been updated to accurately reflect the dependency relati
 - [14] [https://www.alliancetek.com/blog/post/2025/01/07/clean-architecture-building-scalable-software.aspx](https://www.alliancetek.com/blog/post/2025/01/07/clean-architecture-building-scalable-software.aspx)
 - [15] [https://www.oreilly.com/library/view/software-architecture-patterns/9781491971437/ch01.html](https://www.oreilly.com/library/view/software-architecture-patterns/9781491971437/ch01.html)
 - [16] [https://www.jit.io/resources/app-security/a-developers-guide-to-dependency-mapping](https://www.jit.io/resources/app-security/a-developers-guide-to-dependency-mapping)
-
-
 
 ## Reasoning
 
@@ -99,6 +95,7 @@ Now I need to update the layers.dot file to match these dependencies exactly. Le
 I'll remove the ContainerImage node since it's not mentioned in layers.md. The updated dot file will focus on the actual dependencies from layers.md, simplifying the graph by removing weighted edges and colors.
 
 
+
 ---
 
 
@@ -108,15 +105,11 @@ I'll remove the ContainerImage node since it's not mentioned in layers.md. The u
 Please limit your response to 100 words.**
 
 
-
-
 # Missing Features for Full-Featured VCS
 
 Based on modern VCS requirements from the search results, the current architecture lacks several critical components for a complete version control system:
 
 **Distributed Operations**: No push/pull/clone functionality for remote repository synchronization[1][2]. **Code Review Integration**: Missing pull request workflows and integrated review capabilities, identified as the "killer feature" of modern VCS[4]. **Conflict Resolution**: While merge is mentioned, detailed conflict resolution mechanisms are absent[1]. **Security Features**: No commit signing, access controls, or audit capabilities[11]. **Performance Optimizations**: Missing shallow clones, partial checkouts, and large file support (Git LFS equivalent)[4]. **Collaboration Tools**: No blame/annotate, hooks system, or CI/CD integration[4][11].
-
-
 
 ## References
 
@@ -138,8 +131,6 @@ Based on modern VCS requirements from the search results, the current architectu
 - [16] [https://www.entrepreneur.com/money-finance/vcs-are-missing-out-on-new-innovative-ideas-heres-why/439916](https://www.entrepreneur.com/money-finance/vcs-are-missing-out-on-new-innovative-ideas-heres-why/439916)
 - [17] [https://www.okoone.com/spark/product-design-research/devops-and-the-future-of-version-control-systems-beyond-git/](https://www.okoone.com/spark/product-design-research/devops-and-the-future-of-version-control-systems-beyond-git/)
 - [18] [https://trio.dev/version-control-systems/](https://trio.dev/version-control-systems/)
-
-
 
 ## Reasoning
 
@@ -184,6 +175,7 @@ Looking at their current VCS layer, they have basic operations but are missing s
 I need to limit this to 100 words, so I'll focus on the most critical missing pieces.
 
 
+
 ---
 
 
@@ -191,8 +183,6 @@ I need to limit this to 100 words, so I'll focus on the most critical missing pi
 **get rid of the db layer and figure out whether message layer is above VCS or below.  move UI to top.
 
 Please limit your response to 100 words.**
-
-
 
 
 # Updated Architecture Without DB Layer
@@ -218,8 +208,6 @@ Removed the DB layer and restructured dependencies. The Message layer now sits a
 - [15] [https://www.ibm.com/think/topics/three-tier-architecture](https://www.ibm.com/think/topics/three-tier-architecture)
 - [16] [https://www.geeksforgeeks.org/system-design/design-patterns-architecture/](https://www.geeksforgeeks.org/system-design/design-patterns-architecture/)
 - [17] [https://www.geeksforgeeks.org/computer-networks/three-tier-client-server-architecture-in-distributed-system/](https://www.geeksforgeeks.org/computer-networks/three-tier-client-server-architecture-in-distributed-system/)
-
-
 
 ## Reasoning
 
@@ -260,6 +248,7 @@ Messages share structural similarities with VCS commits. The logical placement w
 The proposed layer hierarchy creates a clear, logical flow from low-level storage to high-level interaction, with each layer building on the capabilities of those beneath it. This arrangement ensures efficient message management and user experience.
 
 
+
 ---
 
 
@@ -287,8 +276,6 @@ We're already handling:
 Please limit your response to 100 words.**
 
 
-
-
 # Required VCS Layer Enhancements
 
 Perfect clarification! The needed features should integrate into existing layers:
@@ -304,8 +291,6 @@ Perfect clarification! The needed features should integrate into existing layers
 
 This maintains clean separation while adding enterprise-grade security and accountability features that complement promisegrid's distributed collaboration capabilities.
 
-
-
 ## References
 
 - [1] [https://ssl.engineering.nyu.edu/papers/vaidya_cvc_IFIPsec_19.pdf](https://ssl.engineering.nyu.edu/papers/vaidya_cvc_IFIPsec_19.pdf)
@@ -320,8 +305,6 @@ This maintains clean separation while adding enterprise-grade security and accou
 - [10] [https://www.cloudbees.com/blog/git-blame-explained](https://www.cloudbees.com/blog/git-blame-explained)
 - [11] [https://git-scm.com/book/ms/v2/Customizing-Git-Git-Hooks](https://git-scm.com/book/ms/v2/Customizing-Git-Git-Hooks)
 - [12] [https://www.oneidentity.com/learn/what-are-verifiable-credentials-in-cybersecurity.aspx](https://www.oneidentity.com/learn/what-are-verifiable-credentials-in-cybersecurity.aspx)
-
-
 
 ## Reasoning
 
@@ -370,6 +353,7 @@ The features they want to add would likely fit into:
 I should provide a brief response about where these would fit in the architecture.
 
 
+
 ---
 
 
@@ -377,7 +361,6 @@ I should provide a brief response about where these would fit in the architectur
 **update layers.md to agree with layers.dot
 
 Please limit your response to 100 words.**
-
 
 
 
@@ -395,8 +378,6 @@ Please limit your response to 100 words.**
 - [9] [https://facilities.duke.edu/sites/default/files/AIA%20CAD%20Layer%20Guidelines.pdf](https://facilities.duke.edu/sites/default/files/AIA%20CAD%20Layer%20Guidelines.pdf)
 - [10] [https://www.jit.io/resources/app-security/a-developers-guide-to-dependency-mapping](https://www.jit.io/resources/app-security/a-developers-guide-to-dependency-mapping)
 - [11] [https://www.lifeofanarchitect.com/045-documenting-architecture/](https://www.lifeofanarchitect.com/045-documenting-architecture/)
-
-
 
 ## Reasoning
 
@@ -442,6 +423,7 @@ So the key changes needed in layers.md are:
 I need to limit this to 100 words, so I should be concise and just mention the key changes needed.
 
 
+
 ---
 
 
@@ -449,8 +431,6 @@ I need to limit this to 100 words, so I should be concise and just mention the k
 **is it possible that the message layer is actually near the bottom of the stack?  i.e. our job is to archive signed messages and index their contents?  and a signed message might contain e.g. the data that matches a given hash, or the results of a given computation?
 
 Please limit your response to 100 words.**
-
-
 
 
 # Message Layer as Foundation
@@ -493,8 +473,6 @@ The Message layer becomes the primary archive storing signed CWT payloads[4]. Hi
 - [19] [https://queue.acm.org/detail.cfm?id=3664295](https://queue.acm.org/detail.cfm?id=3664295)
 - [20] [https://www.arcserve.com/blog/deep-dive-immutable-storage-how-it-works-ensuring-data-protection-and-ransomware-recovery](https://www.arcserve.com/blog/deep-dive-immutable-storage-how-it-works-ensuring-data-protection-and-ransomware-recovery)
 - [21] [https://ietresearch.onlinelibrary.wiley.com/doi/abs/10.1049/iet-qtc.2020.0008](https://ietresearch.onlinelibrary.wiley.com/doi/abs/10.1049/iet-qtc.2020.0008)
-
-
 
 ## Reasoning
 
@@ -541,6 +519,7 @@ Looking at the message format, messages contain:
 Messages could indeed serve as the fundamental storage unit, with layers above providing higher-level abstractions like version control and directory structures.
 
 
+
 ---
 
 
@@ -548,8 +527,6 @@ Messages could indeed serve as the fundamental storage unit, with layers above p
 **and the protocol CID, then, is a signal to indexers as well as  routers/dispatchers
 
 Please limit your response to 100 words.**
-
-
 
 
 # Protocol CID as Dual Signal
@@ -604,8 +581,6 @@ This creates unified protocol-aware routing and discovery across the distributed
 - [17] [https://codemia.io/knowledge-hub/path/understanding_how_to_manage_message_routing_direction_in_p2p_chordpastry-like_networks](https://codemia.io/knowledge-hub/path/understanding_how_to_manage_message_routing_direction_in_p2p_chordpastry-like_networks)
 - [18] [https://learn.microsoft.com/en-us/windows/win32/search/-search-3x-wds-extidx-prot-implementing](https://learn.microsoft.com/en-us/windows/win32/search/-search-3x-wds-extidx-prot-implementing)
 
-
-
 ## Reasoning
 
 The user is asking about the protocol CID serving as a signal to indexers as well as routers/dispatchers. This is a really interesting insight.
@@ -649,6 +624,7 @@ This is similar to how IPFS content routing works, where the CID both identifies
 I should keep this to 100 words as requested.
 
 
+
 ---
 
 
@@ -658,8 +634,6 @@ I should keep this to 100 words as requested.
 - refs is an index into messages
 
 Please limit your response to 100 words.**
-
-
 
 
 # Revised Architecture: Messages as Foundation
@@ -716,8 +690,6 @@ This aligns with command sourcing principles where messages capture agent intent
 - [17] [https://git-scm.com/book/en/v2/Git-Internals-Git-Objects](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)
 - [18] [https://dl.acm.org/doi/10.5555/3768039.3768070](https://dl.acm.org/doi/10.5555/3768039.3768070)
 
-
-
 ## Reasoning
 
 The user is making a statement about the architecture changes:
@@ -750,6 +722,7 @@ This aligns with the command sourcing document which talks about recording comma
 I should acknowledge this architectural insight and explain how it changes the layer dependencies, keeping it to 100 words.
 
 
+
 ---
 
 
@@ -757,8 +730,6 @@ I should acknowledge this architectural insight and explain how it changes the l
 **messages are source documents, as in accounting
 
 Please limit your response to 100 words.**
-
-
 
 
 # Messages as Computational Source Documents
@@ -801,8 +772,6 @@ The command sourcing layer becomes the "general ledger" while messages serve as 
 - [17] [https://en.wikipedia.org/wiki/Message_passing](https://en.wikipedia.org/wiki/Message_passing)
 - [18] [https://www.richard-towers.com/2020/06/06/content-addressable-storage-postgres.html](https://www.richard-towers.com/2020/06/06/content-addressable-storage-postgres.html)
 
-
-
 ## Reasoning
 
 The user is making the statement "messages are source documents, as in accounting" and wants me to limit my response to 100 words.
@@ -835,6 +804,7 @@ This is a really insightful connection. In traditional accounting, you have sour
 The messages are indeed the "source documents" of the computational accounting system.
 
 
+
 ---
 
 
@@ -846,8 +816,6 @@ reverse the arrows to show the call direction
 
 
 Please limit your response to 100 words.**
-
-
 
 
 # Reversed Call Direction Architecture
@@ -888,8 +856,6 @@ This reflects the actual execution flow where upper layers invoke lower-level se
 - [12] [https://learn.microsoft.com/en-us/visualstudio/modeling/layer-diagrams-guidelines?view=vs-2022](https://learn.microsoft.com/en-us/visualstudio/modeling/layer-diagrams-guidelines?view=vs-2022)
 - [13] [https://khalilstemmler.com/wiki/dependency-inversion/](https://khalilstemmler.com/wiki/dependency-inversion/)
 - [14] [https://learn.microsoft.com/en-us/visualstudio/modeling/layer-diagrams-reference?view=vs-2022](https://learn.microsoft.com/en-us/visualstudio/modeling/layer-diagrams-reference?view=vs-2022)
-
-
 
 ## Reasoning
 
@@ -938,6 +904,7 @@ So call direction:
 The call flow traces how data moves through the system's layers, starting from UI and ending at the core KV storage.
 
 
+
 ---
 
 
@@ -945,8 +912,6 @@ The call flow traces how data moves through the system's layers, starting from U
 **"Just as invoices and receipts provide verifiable evidence of financial transactions[1][5], these signed messages provide cryptographic proof that computational work occurred[2][4]."  -- Nope, i mean messages really are source documents, promises.  We're not talking about "proof of work" here.
 
 Please limit your response to 100 words.**
-
-
 
 
 # Messages as Computational Promises
@@ -987,8 +952,6 @@ The CWT payload contains the promise structure: "I commit to executing this CID 
 - [16] [https://learn.g2.com/proof-of-work-vs-proof-of-stake](https://learn.g2.com/proof-of-work-vs-proof-of-stake)
 - [17] [https://markburgess.org/promises.html](https://markburgess.org/promises.html)
 
-
-
 ## Reasoning
 
 The user is correcting my understanding. They're saying that messages are not "proof that computational work occurred" but rather that messages ARE source documents in the accounting sense - they ARE promises themselves. They're not proof of work completion, but rather documented promises/commitments.
@@ -1016,6 +979,7 @@ So the analogy is:
 The messages are signed commitments/promises, not proofs of completion. This aligns with "Promise Theory" concepts where agents make promises about their future behavior.
 
 
+
 ---
 
 
@@ -1028,8 +992,6 @@ Think of other examples of how a threaded message hypergraph, with indexes, can 
 
 
 Please limit your response to 100 words.**
-
-
 
 
 # Threaded Message Hypergraph Applications
@@ -1088,8 +1050,6 @@ The hypergraph structure naturally handles complex scenarios like collaborative 
 - [17] [https://github.com/indutny/bthread](https://github.com/indutny/bthread)
 - [18] [https://en.wikipedia.org/wiki/Consensus_(computer_science)](https://en.wikipedia.org/wiki/Consensus_(computer_science))
 
-
-
 ## Reasoning
 
 The user is correcting me again. They're saying that I'm still making too many assumptions and not understanding that PromiseGrid is literally an accounting system that can account for both financial and non-financial communications. 
@@ -1137,6 +1097,7 @@ I see a pattern emerging across diverse domains. Each system relies on verifiabl
 The underlying structure allows complex interactions through cryptographically signed assertions that can reference multiple sources, enabling intricate yet traceable communication networks across different contexts.
 
 
+
 ---
 
 
@@ -1144,8 +1105,6 @@ The underlying structure allows complex interactions through cryptographically s
 **is there anything in the universe that we can't represent or work with using this "everything's a message" model?
 
 Please limit your response to 100 words.**
-
-
 
 
 # Fundamental Limits of Message-Based Representation
@@ -1210,8 +1169,6 @@ Please limit your response to 100 words.**
 - [19] [https://plato.stanford.edu/entries/goedel-incompleteness/](https://plato.stanford.edu/entries/goedel-incompleteness/)
 - [20] [https://arxiv.org/pdf/1704.06154.pdf](https://arxiv.org/pdf/1704.06154.pdf)
 
-
-
 ## Reasoning
 
 The user is asking if there's anything in the universe that we can't represent or work with using this "everything's a message" model. They want me to limit my response to 100 words.
@@ -1257,6 +1214,7 @@ Let me think about fundamental limitations:
 I see fundamental computational limits emerge from quantum mechanics, continuous phenomena, and mathematical incompleteness. These domains resist perfect algorithmic representation, revealing deep constraints in our message-based model. Some experiences and mathematical truths remain fundamentally unrepresentable, highlighting the model's intrinsic boundaries.
 
 
+
 ---
 
 
@@ -1264,8 +1222,6 @@ I see fundamental computational limits emerge from quantum mechanics, continuous
 **while we may not be able to represent continuous or incomputable systems with infinite resolution using "everything's a message", we can author messages describing snapshots or observations of those systems, and we can use messages to build models of those systems (keeping in mind that all models are to some degree wrong).
 
 Please limit your response to 100 words.**
-
-
 
 
 # Messages as Observational Framework
@@ -1325,8 +1281,6 @@ The command sourcing layer then tracks how our understanding develops over time 
 - [16] [https://jamesclear.com/all-models-are-wrong](https://jamesclear.com/all-models-are-wrong)
 - [17] [https://www.georgejpappas.org/wp-content/uploads/2024/04/GP07-TAC.pdf](https://www.georgejpappas.org/wp-content/uploads/2024/04/GP07-TAC.pdf)
 
-
-
 ## Reasoning
 
 The user is asking me to think about how the "everything's a message" model can handle continuous or incomputable systems by authoring messages that describe snapshots or observations of those systems, and using messages to build models of those systems, while acknowledging that all models are to some degree wrong.
@@ -1384,8 +1338,6 @@ This aligns with how science actually works - we don't have perfect knowledge of
 Please limit your response to 100 words.**
 
 
-
-
 # Changes for "Everything's a Message" Architecture
 
 **Key changes to layers.dot:**
@@ -1427,8 +1379,6 @@ This reflects Messages as foundational source documents with upper layers buildi
 - [16] [https://www.graphviz.org/pdf/dotguide.pdf](https://www.graphviz.org/pdf/dotguide.pdf)
 - [17] [http://dist-prog-book.com/chapter/3/message-passing.html](http://dist-prog-book.com/chapter/3/message-passing.html)
 
-
-
 ## Reasoning
 
 The user is asking for the changes needed to layers.dot to support "everything's a message" based on the context they've provided. Let me analyze what they've discussed:
@@ -1465,6 +1415,7 @@ Key changes:
 Let me provide a concise response within 100 words.
 
 
+
 ---
 
 
@@ -1476,12 +1427,9 @@ Let me provide a concise response within 100 words.
 Please limit your response to 100 words.**
 
 
-
-
 # Updated Architecture: Message-Centric Call Flow
 
 The layers.dot file has been updated to implement the new "everything's a message" architecture where Message becomes the foundational source document layer.
-
 
 ## References
 
@@ -1501,8 +1449,6 @@ The layers.dot file has been updated to implement the new "everything's a messag
 - [14] [https://blog.ecotone.tech/building-message-driven-framework-foundation/](https://blog.ecotone.tech/building-message-driven-framework-foundation/)
 - [15] [https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs)
 - [16] [https://microservices.io/patterns/microservices.html](https://microservices.io/patterns/microservices.html)
-
-
 
 ## Reasoning
 
@@ -1543,6 +1489,7 @@ Let me update the dependencies section to reflect this new call flow.
 Also, I should update the label for Refs to reflect that it's now an index into messages rather than a separate storage layer.
 
 
+
 ---
 
 
@@ -1550,8 +1497,6 @@ Also, I should update the label for Refs to reflect that it's now an index into 
 **update layers.md to more accurately describe layers.dot
 
 Please limit your response to 100 words.**
-
-
 
 
 # Updated Architecture Documentation
@@ -1565,7 +1510,6 @@ The layers.md file has been updated to reflect the "everything's a message" arch
 **Added sections**: ContainerManager and BareMetalManager layers documented as orchestration interfaces that utilize VCS, DirTree, Stream, and Refs for infrastructure-as-code and configuration management.
 
 **Call flow clarified**: UI → [VCS, DirTree, Stream, Refs] → Message → HashKV → KV
-
 
 ## References
 
@@ -1587,8 +1531,6 @@ The layers.md file has been updated to reflect the "everything's a message" arch
 - [16] [https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/asynchronous-message-based-communication](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/asynchronous-message-based-communication)
 - [17] [https://www.oreilly.com/library/view/software-architecture-patterns/9781491971437/ch01.html](https://www.oreilly.com/library/view/software-architecture-patterns/9781491971437/ch01.html)
 - [18] [https://blog.codacy.com/software-dependency-management](https://blog.codacy.com/software-dependency-management)
-
-
 
 ## Reasoning
 
@@ -1627,6 +1569,97 @@ So I need to update layers.md to reflect this "everything's a message" architect
 Key changes needed:
 1. Move Message layer to be after HashKV (before Refs, Streaming, etc.)
 
+
+
+---
+
+
+
+**move the function call signatures from node labels to the labels of edges that would make the calls.
+
+Please limit your response to 100 words.**
+
+
+
+
+# Updated Layers Architecture with Edge-Labeled Functions
+
+The layers.dot file now shows function call signatures on the edges that invoke them, rather than in node labels, making the call flow and API boundaries more explicit.
+
+
+## References
+
+- [1] [https://graphviz.org/docs/edges/](https://graphviz.org/docs/edges/)
+- [2] [https://forum.graphviz.org/t/fun-with-edge-labels/1643](https://forum.graphviz.org/t/fun-with-edge-labels/1643)
+- [3] [https://graphviz.org/doc/info/attrs.html](https://graphviz.org/doc/info/attrs.html)
+- [4] [https://graphviz.org/doc/info/shapes.html](https://graphviz.org/doc/info/shapes.html)
+- [5] [https://graphviz.readthedocs.io/en/stable/examples.html](https://graphviz.readthedocs.io/en/stable/examples.html)
+- [6] [https://graphviz.readthedocs.io/en/stable/manual.html](https://graphviz.readthedocs.io/en/stable/manual.html)
+- [7] [https://forum.graphviz.org/t/how-to-tell-dot-to-put-the-edge-label-in-a-box/1578](https://forum.graphviz.org/t/how-to-tell-dot-to-put-the-edge-label-in-a-box/1578)
+- [8] [https://forum.graphviz.org/t/how-to-prevent-graphviz-from-moving-nodes-to-accomodate-an-edge/1435](https://forum.graphviz.org/t/how-to-prevent-graphviz-from-moving-nodes-to-accomodate-an-edge/1435)
+- [9] [https://www.cs.umd.edu/class/fall2020/cmsc430/Graphviz.html](https://www.cs.umd.edu/class/fall2020/cmsc430/Graphviz.html)
+- [10] [https://graphviz.org/faq/](https://graphviz.org/faq/)
+- [11] [https://www.geeksforgeeks.org/system-design/how-to-draw-architecture-diagrams/](https://www.geeksforgeeks.org/system-design/how-to-draw-architecture-diagrams/)
+- [12] [https://sparxsystems.com/resources/tutorials/uml2/sequence-diagram.html](https://sparxsystems.com/resources/tutorials/uml2/sequence-diagram.html)
+- [13] [https://www.imaginarycloud.com/blog/software-architecture-diagrams-guide](https://www.imaginarycloud.com/blog/software-architecture-diagrams-guide)
+- [14] [https://developer.ibm.com/articles/the-sequence-diagram/](https://developer.ibm.com/articles/the-sequence-diagram/)
+
+
+
+## Reasoning
+
+The user wants me to move the function call signatures from node labels to the labels of edges that would make the calls. Looking at the current layers.dot file, I can see that nodes have function signatures in their labels, like:
+
+```
+MsgTimeline [label="Message & Timeline Layer\nRecordMessage(), GetMessage(), ListMessages()"];
+VCS [label="VCS Layer\nCommit(), Branch(), Merge(), Log(), Checkout()"];
+DirTree [label="Directory Tree Layer\nImport(), Export(), Diff(), Cat()"];
+Stream [label="Streaming Layer\nNewStream(), Write(), Read(), Close()"];
+Refs [label="Reference Index Layer\n(Index into Messages)\nSetRef(), GetRef(), DeleteRef(), ListRefs()"];
+HashKV [label="Content-Addressable (hashkv) Layer\nPut(), Get(), Delete()"];
+KV [label="KV Layer\nGet(), Put(), Delete()"];
+```
+
+And edges like:
+```
+UI -> VCS;
+UI -> DirTree;
+UI -> Stream;
+UI -> Refs;
+
+VCS -> MsgTimeline;
+VCS -> DirTree;
+VCS -> Refs;
+DirTree -> Stream;
+DirTree -> Refs;
+Stream -> MsgTimeline;
+Refs -> MsgTimeline;
+
+MsgTimeline -> HashKV;
+HashKV -> KV;
+
+Stream -> Rabin;
+```
+
+So the user wants me to:
+1. Remove the function signatures from the node labels
+2. Add the function signatures to the edges that call those functions
+
+For example:
+- `VCS -> MsgTimeline;` would become `VCS -> MsgTimeline [label="RecordMessage(), GetMessage()"];`
+- `MsgTimeline -> HashKV;` would become `MsgTimeline -> HashKV [label="Put(), Get()"];`
+- etc.
+
+Let me think about which functions each edge would call:
+
+
+1. `UI -> VCS` - would call VCS functions like `Commit(), Branch(), Merge(), Log(), Checkout()`
+2. `UI -> DirTree` - would call DirTree functions like `Import(), Export(), Diff(), Cat()`
+3. `UI -> Stream` - would call Stream functions like `NewStream(), Write(), Read(), Close()`
+4. `UI -> Refs` - would call Refs functions like `SetRef(), GetRef(), DeleteRef(), ListRefs()`
+5. `VCS -> MsgTimeline` - VCS would call Message functions like `RecordMessage(), GetMessage()`
+
+Now I need to map out the remaining edges and determine which functions each caller would invoke on the target layer.
 
 
 ---
