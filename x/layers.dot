@@ -25,7 +25,7 @@ digraph Layers {
   
   VCS -> MsgTimeline;
   VCS -> DirTree;
-  DirTree -> MsgTimeline;
+  DirTree -> Stream;
   Stream -> MsgTimeline;
   Refs -> MsgTimeline;
   
