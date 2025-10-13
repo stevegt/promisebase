@@ -3777,3 +3777,49 @@ By using a default case, the code maintains responsiveness and avoids blocking, 
 
 ---
 
+
+
+**there will ever only be one scanWorker or scanDirectory running at a time.  get rid of kv.scanning and the mutex. 
+
+scan only if it's been a while since we scanned it; check the scanResult timestamp and skip scanning if it's been less than 11 seconds since we last scanned.**
+
+
+
+
+# Simplified Scanner with Rate Limiting
+
+Removed `kv.scanning` map and mutex since single-threaded scanWorker guarantees serialization. Added 11-second scan rate limit checking last timestamp before scanning.
+
+
+## References
+
+- [1] [https://leapcell.io/blog/go-sync-once-pattern](https://leapcell.io/blog/go-sync-once-pattern)
+- [2] [https://codersblock.org/posts/ditching-the-mutex/](https://codersblock.org/posts/ditching-the-mutex/)
+- [3] [https://pkg.go.dev/golang.org/x/time/rate](https://pkg.go.dev/golang.org/x/time/rate)
+- [4] [https://nyadgar.com/posts/synchronization-patterns-in-go/](https://nyadgar.com/posts/synchronization-patterns-in-go/)
+- [5] [https://github.com/golang/go/issues/17520](https://github.com/golang/go/issues/17520)
+- [6] [https://gobyexample.com/rate-limiting](https://gobyexample.com/rate-limiting)
+
+
+
+## Reasoning
+
+The user wants me to modify kv.go to:
+1. Get rid of kv.scanning map and the mutex since there will only ever be one scanWorker running at a time
+2. Only scan if it's been a while (>11 seconds) since last scan - check scanResult timestamp
+
+Since there's only one scanWorker goroutine processing one scan at a time, we don't need the scanning map or the mutex for tracking which directories are being scanned. The scanWorker already processes items serially from the channel.
+
+However, we still need some way to track scanStats, but since only one goroutine will be writing to it (scanWorker), we don't need a mutex for that either.
+
+Let me simplify the code:
+1. Remove scanning map
+2. Remove scanMutex 
+3. In scanDirectory, check if we've scanned this directory recently (within 11 seconds)
+4. If so, skip the scan
+
+I need to keep this response to 100 words.
+
+
+---
+

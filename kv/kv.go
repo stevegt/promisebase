@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 	"syscall"
 	"time"
 
@@ -20,8 +19,6 @@ type KV struct {
 	scanTrigger chan string
 	scanCtx     context.Context
 	scanCancel  context.CancelFunc
-	scanning    map[string]bool
-	scanMutex   sync.Mutex
 	scanStats   map[string][]scanResult
 }
 
@@ -39,7 +36,6 @@ func NewKV(dir string) *KV {
 		scanTrigger: make(chan string, 100),
 		scanCtx:     ctx,
 		scanCancel:  cancel,
-		scanning:    make(map[string]bool),
 		scanStats:   make(map[string][]scanResult),
 	}
 
@@ -101,45 +97,36 @@ func (kv *KV) Delete(key string) (err error) {
 	return nil
 }
 
-// scanWorker runs in background, processing scan triggers
+// scanWorker runs in background, processing scan triggers serially
 func (kv *KV) scanWorker() {
 	for {
 		select {
 		case <-kv.scanCtx.Done():
 			return
 		case dir := <-kv.scanTrigger:
-			// Skip if already scanning this directory
-			kv.scanMutex.Lock()
-			if kv.scanning[dir] {
-				kv.scanMutex.Unlock()
-				continue
-			}
-			kv.scanning[dir] = true
-			kv.scanMutex.Unlock()
-
-			// Perform scan and collect stats
 			kv.scanDirectory(dir)
-
-			kv.scanMutex.Lock()
-			delete(kv.scanning, dir)
-			kv.scanMutex.Unlock()
 		}
 	}
 }
 
-// scanDirectory measures directory performance
+// scanDirectory measures directory performance with rate limiting
 func (kv *KV) scanDirectory(dir string) {
-	start := time.Now()
+	// Check if we scanned recently (within 11 seconds)
+	if stats, exists := kv.scanStats[dir]; exists && len(stats) > 0 {
+		lastScan := stats[len(stats)-1].timestamp
+		if time.Since(lastScan) < 11*time.Second {
+			return // Skip scan, too soon
+		}
+	}
 
+	start := time.Now()
 	entries, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return // Directory might not exist yet
 	}
-
 	scanTime := time.Since(start)
 
 	// Store scan result
-	kv.scanMutex.Lock()
 	result := scanResult{
 		entryCount: len(entries),
 		scanTime:   scanTime,
@@ -151,7 +138,6 @@ func (kv *KV) scanDirectory(dir string) {
 	if len(kv.scanStats[dir]) > 10 {
 		kv.scanStats[dir] = kv.scanStats[dir][1:]
 	}
-	kv.scanMutex.Unlock()
 
 	// TODO: Analyze performance curve and trigger split if needed
 }
