@@ -11,6 +11,8 @@ import (
 	. "github.com/stevegt/goadapt"
 )
 
+var StatsLength = 10 // Minimum samples before analysis
+
 // KV provides pure key-value storage with automatic subdirectory creation
 type KV struct {
 	Dir string
@@ -135,11 +137,37 @@ func (kv *KV) scanDirectory(dir string) {
 	kv.scanStats[dir] = append(kv.scanStats[dir], result)
 
 	// Keep only recent results (last 10)
-	if len(kv.scanStats[dir]) > 10 {
+	if len(kv.scanStats[dir]) > StatsLength {
 		kv.scanStats[dir] = kv.scanStats[dir][1:]
 	}
 
-	// TODO: Analyze performance curve and trigger split if needed
+	// Analyze performance curve if we have enough data
+	if len(kv.scanStats[dir]) >= StatsLength {
+		kv.analyzePerformance(dir)
+	}
+}
+
+// analyzePerformance examines scan time curve and triggers splitting if degraded
+func (kv *KV) analyzePerformance(dir string) {
+	stats := kv.scanStats[dir]
+	if len(stats) < 3 {
+		return
+	}
+
+	// Compare earliest and latest samples
+	first := stats
+	last := stats[len(stats)-1]
+
+	// Expected: scan time scales linearly with entry count
+	// If actual time >> expected, directory needs splitting
+	expectedRatio := float64(last.entryCount) / float64(first.entryCount)
+	actualRatio := float64(last.scanTime) / float64(first.scanTime)
+
+	// Trigger split if actual > 2x expected (quadratic behavior)
+	if actualRatio > 2*expectedRatio {
+		// TODO: Implement directory splitting/migration
+		_ = dir // placeholder to avoid unused var warning
+	}
 }
 
 // keyPath converts key to filesystem path with subdirectories
