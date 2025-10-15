@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -52,12 +53,51 @@ func (kv *KV) Close() {
 	kv.scanCancel()
 }
 
-// Get retrieves data for the given key
+// findKeyPath searches for key from shallowest to deepest nesting
+func (kv *KV) findKeyPath(key string) (string, bool) {
+	maxDepth := len(key) / 2
+
+	for depth := 0; depth <= maxDepth; depth++ {
+		path := kv.Dir
+		for i := 0; i < depth; i++ {
+			if i*2+2 <= len(key) {
+				path = filepath.Join(path, key[i*2:i*2+2])
+			}
+		}
+		path = filepath.Join(path, key)
+
+		if exists(path) {
+			return path, true
+		}
+	}
+	return "", false
+}
+
+// defaultKeyPath generates deepest path for new keys
+func (kv *KV) defaultKeyPath(key string) string {
+	path := kv.Dir
+	maxDepth := len(key) / 2
+
+	bestPath := path
+	for i := 0; i < maxDepth; i++ {
+		if i*2+2 <= len(key) {
+			path = filepath.Join(path, key[i*2:i*2+2])
+			// check if path exists and is a directory
+			if exists(path) && isDir(path) {
+				bestPath = path
+			} else {
+				break
+			}
+		}
+	}
+	return filepath.Join(bestPath, key)
+}
+
 func (kv *KV) Get(key string) (data []byte, err error) {
 	defer Return(&err)
 
-	path := kv.keyPath(key)
-	ErrnoIf(!exists(path), syscall.ENOENT, "not found: %s", key)
+	path, found := kv.findKeyPath(key)
+	ErrnoIf(!found, syscall.ENOENT, "not found: %s", key)
 
 	data, err = ioutil.ReadFile(path)
 	Ck(err)
@@ -68,7 +108,7 @@ func (kv *KV) Get(key string) (data []byte, err error) {
 func (kv *KV) Put(key string, data []byte) (err error) {
 	defer Return(&err)
 
-	path := kv.keyPath(key)
+	path := kv.defaultKeyPath(key)
 	dir := filepath.Dir(path)
 
 	err = os.MkdirAll(dir, 0755)
@@ -91,8 +131,8 @@ func (kv *KV) Put(key string, data []byte) (err error) {
 func (kv *KV) Delete(key string) (err error) {
 	defer Return(&err)
 
-	path := kv.keyPath(key)
-	ErrnoIf(!exists(path), syscall.ENOENT, "not found: %s", key)
+	path, found := kv.findKeyPath(key)
+	ErrnoIf(!found, syscall.ENOENT, "not found: %s", key)
 
 	err = os.Remove(path)
 	Ck(err)
@@ -165,18 +205,44 @@ func (kv *KV) analyzePerformance(dir string) {
 
 	// Trigger split if actual > 2x expected (quadratic behavior)
 	if actualRatio > 2*expectedRatio {
-		// TODO: Implement directory splitting/migration
-		_ = dir // placeholder to avoid unused var warning
+		kv.splitDirectory(dir)
 	}
 }
 
-// keyPath converts key to filesystem path with subdirectories
-func (kv *KV) keyPath(key string) string {
-	// Use first 6 characters for two-level subdirectory nesting
-	if len(key) >= 6 {
-		return filepath.Join(kv.Dir, key[:3], key[3:6], key)
+func (kv *KV) splitDirectory(dir string) {
+	entries, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return
 	}
-	return filepath.Join(kv.Dir, key)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		filename := entry.Name()
+		oldPath := filepath.Join(dir, filename)
+		relPath, err := filepath.Rel(kv.Dir, oldPath)
+		if err != nil {
+			continue
+		}
+
+		depth := strings.Count(relPath, string(os.PathSeparator))
+		startIdx := depth * 2
+
+		if len(filename) < startIdx+2 {
+			continue
+		}
+
+		subdir := filename[startIdx : startIdx+2]
+		newDir := filepath.Join(dir, subdir)
+		newPath := filepath.Join(newDir, filename)
+
+		os.MkdirAll(newDir, 0755)
+		os.Rename(oldPath, newPath)
+	}
+
+	delete(kv.scanStats, dir)
 }
 
 func exists(path string) bool {
