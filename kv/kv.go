@@ -83,7 +83,8 @@ func (kv *KV) defaultKeyPath(key string) string {
 		if i*2+2 <= len(key) {
 			path = filepath.Join(path, key[i*2:i*2+2])
 			// check if path exists and is a directory
-			if exists(path) && isDir(path) {
+			fileInfo, err := os.Stat(path)
+			if err == nil && fileInfo.IsDir() {
 				bestPath = path
 			} else {
 				break
@@ -195,7 +196,7 @@ func (kv *KV) analyzePerformance(dir string) {
 	}
 
 	// Compare earliest and latest samples
-	first := stats
+	first := stats[0]
 	last := stats[len(stats)-1]
 
 	// Expected: scan time scales linearly with entry count
