@@ -24,6 +24,7 @@ type KV struct {
 	scanCtx     context.Context
 	scanCancel  context.CancelFunc
 	scanStats   map[string][]scanResult
+	scanTimeWma float64 // Weighted moving average of all scan times
 }
 
 type scanResult struct {
@@ -178,6 +179,8 @@ func (kv *KV) scanDirectory(dir string) {
 	}
 	kv.scanStats[dir] = append(kv.scanStats[dir], result)
 
+	kv.scanTimeWma = 0.9*kv.scanTimeWma + 0.1*float64(scanTime.Milliseconds())
+
 	// Keep only recent results
 	if len(kv.scanStats[dir]) > StatsLength {
 		kv.scanStats[dir] = kv.scanStats[dir][1:]
@@ -193,10 +196,19 @@ func (kv *KV) scanDirectory(dir string) {
 func (kv *KV) analyzePerformance(dir string) {
 	stats := kv.scanStats[dir]
 
-	// simpler approach: if last scan time > 100ms, split
+	/*
+		// simpler approach: if last scan time > 100ms, split
+		last := stats[len(stats)-1]
+		if last.scanTime > 100*time.Millisecond {
+			fmt.Printf("Splitting directory %s due to scan time %v\n", dir, last.scanTime)
+			kv.splitDirectory(dir)
+		}
+	*/
+
+	// statistical approach: split if last scan time > 2*scanTimeWma
 	last := stats[len(stats)-1]
-	if last.scanTime > 100*time.Millisecond {
-		fmt.Printf("Splitting directory %s due to scan time %v\n", dir, last.scanTime)
+	if float64(last.scanTime.Milliseconds()) > 2*kv.scanTimeWma {
+		fmt.Printf("Splitting directory %s due to scan time %v (WMA %.2fms)\n", dir, last.scanTime, kv.scanTimeWma)
 		kv.splitDirectory(dir)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -42,8 +43,8 @@ func BenchmarkDynamicSplitVerified(b *testing.B) {
 	defer kv.Close()
 	StatsLength = 3
 
-	maxDepth := 0
-	checkInterval := 50
+	// maxDepth := 0
+	// checkInterval := 50
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -51,15 +52,17 @@ func BenchmarkDynamicSplitVerified(b *testing.B) {
 		key := fmt.Sprintf("aa%06d", i)
 		kv.Put(key, []byte{byte(i)})
 
-		// Periodically check directory depth
-		if i%checkInterval == 0 {
-			// time.Sleep(50 * time.Millisecond)
-			depth := measureMaxDepth(kv.Dir)
-			if depth > maxDepth {
-				b.Logf("Split detected at iteration %d: depth increased to %d", i, depth)
-				maxDepth = depth
+		/*
+			// Periodically check directory depth
+			if i%checkInterval == 0 {
+				// time.Sleep(50 * time.Millisecond)
+				depth := measureMaxDepth(kv.Dir)
+				if depth > maxDepth {
+					b.Logf("Split detected at iteration %d: depth increased to %d", i, depth)
+					maxDepth = depth
+				}
 			}
-		}
+		*/
 	}
 
 	finalDepth := measureMaxDepth(kv.Dir)
@@ -75,7 +78,9 @@ func measureMaxDepth(root string) int {
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() {
 			rel, _ := filepath.Rel(root, path)
-			depth := len(filepath.SplitList(rel))
+			// split by filepath separator and count depth
+			parts := strings.Split(rel, string(os.PathSeparator))
+			depth := len(parts) - 1 // exclude the file itself
 			if depth > maxDepth {
 				maxDepth = depth
 			}

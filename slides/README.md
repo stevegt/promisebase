@@ -149,7 +149,9 @@ This timing makes sense - remote work highlighted inefficiencies in data distrib
 
 ---
 
-# High-Level Architecture Diagram
+class: diagram
+
+# High-Level Architecture Diagram (old)
 
 ```txt
   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             
