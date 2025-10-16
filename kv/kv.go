@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -154,10 +155,10 @@ func (kv *KV) scanWorker() {
 
 // scanDirectory measures directory performance with rate limiting
 func (kv *KV) scanDirectory(dir string) {
-	// Check if we scanned recently (within 11 seconds)
+	// Check if we scanned recently
 	if stats, exists := kv.scanStats[dir]; exists && len(stats) > 0 {
 		lastScan := stats[len(stats)-1].timestamp
-		if time.Since(lastScan) < 11*time.Second {
+		if time.Since(lastScan) < 1*time.Second {
 			return // Skip scan, too soon
 		}
 	}
@@ -177,7 +178,7 @@ func (kv *KV) scanDirectory(dir string) {
 	}
 	kv.scanStats[dir] = append(kv.scanStats[dir], result)
 
-	// Keep only recent results (last 10)
+	// Keep only recent results
 	if len(kv.scanStats[dir]) > StatsLength {
 		kv.scanStats[dir] = kv.scanStats[dir][1:]
 	}
@@ -191,23 +192,36 @@ func (kv *KV) scanDirectory(dir string) {
 // analyzePerformance examines scan time curve and triggers splitting if degraded
 func (kv *KV) analyzePerformance(dir string) {
 	stats := kv.scanStats[dir]
-	if len(stats) < 3 {
-		return
-	}
 
-	// Compare earliest and latest samples
-	first := stats[0]
+	// simpler approach: if last scan time > 100ms, split
 	last := stats[len(stats)-1]
-
-	// Expected: scan time scales linearly with entry count
-	// If actual time >> expected, directory needs splitting
-	expectedRatio := float64(last.entryCount) / float64(first.entryCount)
-	actualRatio := float64(last.scanTime) / float64(first.scanTime)
-
-	// Trigger split if actual > 2x expected (quadratic behavior)
-	if actualRatio > 2*expectedRatio {
+	if last.scanTime > 100*time.Millisecond {
+		fmt.Printf("Splitting directory %s due to scan time %v\n", dir, last.scanTime)
 		kv.splitDirectory(dir)
 	}
+
+	/*
+		if len(stats) < 3 {
+			return
+		}
+
+			// Compare earliest and latest samples
+			first := stats[0]
+			last := stats[len(stats)-1]
+
+			// Expected: scan time scales linearly with entry count
+			// If actual time >> expected, directory needs splitting
+			expectedRatio := float64(last.entryCount) / float64(first.entryCount)
+			actualRatio := float64(last.scanTime) / float64(first.scanTime)
+			fmt.Printf("Dir: %s, Entries: %d -> %d, Time: %v -> %v, ExpectedRatio: %.2f, ActualRatio: %.2f\n",
+				dir, first.entryCount, last.entryCount, first.scanTime, last.scanTime, expectedRatio, actualRatio)
+
+			// Trigger split if actual > 2x expected (quadratic behavior)
+			if actualRatio > 2*expectedRatio {
+				kv.splitDirectory(dir)
+			}
+	*/
+
 }
 
 func (kv *KV) splitDirectory(dir string) {
