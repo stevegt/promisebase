@@ -550,7 +550,7 @@ promisebase/
 
 ---
 
-# Disk Storage 
+# Disk Storage (old)
 
 **WORM Storage (Write Once Read Many):**
 - Immutable files with cryptographic verification
@@ -568,6 +568,44 @@ block/sha256/d17/370/d173706e5ab6e45e3f99389002d085dc6ad663d4b8140cd983877081964
 └─┬─┘ └──┬─┘ └┬┘ └┬┘ └────────────────────┬────────────────────┘
 class  algo  subdir   full hash for easy debugging
 ```
+
+---
+
+# Disk Storage (new)
+
+- use IPFS Content Identifiers (CIDs) for addressing
+
+**Example CID:**
+
+```
+zb2rhe5P4gXftAwvA4eXQ5HJwsER2owDyS9sKaQRRVQPn93bA
+```
+
+**Human readable translation:**
+
+```
+base58btc - cidv1 - raw - sha2-256-256-6e6ff7950a36187a801613426e858dce686cd7d7e3c0fc42ee0330072d245c95
+```
+
+---
+
+# Path Structure (new)
+
+In order to keep directory sizes manageable, CIDs are split into path
+components of 2 characters each.  The split depth is dynamic, based on
+statistical performance at runtime; large (slow) directories will be
+split when detected.
+
+**This CID:**
+```
+gm3dkmjrmeydambxme2den3dhe2tcmlghezdantcg5stcoldhe2toyrtgmzdiolemnrgczbvmqydkzbtha2wgojwgq2dmnzzgzqwmnjaeawqu
+```
+
+**Might be saved as:**
+```
+gm/3d/km/jr/gm3dkmjrmeydambxme2den3dhe2tcmlghezdantcg5stcoldhe2toyrtgmzdiolemnrgczbvmqydkzbtha2wgojwgq2dmnzzgzqwmnjaeawqu
+```
+
 
 ---
 
