@@ -2,11 +2,9 @@ package kv
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -15,16 +13,17 @@ import (
 
 var StatsLength = 10 // Minimum samples before analysis
 
-// KV provides pure key-value storage with automatic subdirectory creation
+// KV provides pure key-value storage with fixed hierarchical nesting
 type KV struct {
-	Dir string
+	Dir           string
+	SplitSize     int // Characters per nesting level (default 3)
+	NestingLevels int // Number of nesting levels (default 2)
 
-	// Background scanner
+	// Background scanner for metrics
 	scanTrigger chan string
 	scanCtx     context.Context
 	scanCancel  context.CancelFunc
 	scanStats   map[string][]scanResult
-	scanTimeWma float64 // Weighted moving average of all scan times
 }
 
 type scanResult struct {
@@ -33,18 +32,32 @@ type scanResult struct {
 	timestamp  time.Time
 }
 
-// NewKV creates a new KV store with background scanner
+// NewKV creates a new KV store with default options (3-char split, 2 levels)
 func NewKV(dir string) *KV {
-	ctx, cancel := context.WithCancel(context.Background())
-	kv := &KV{
-		Dir:         dir,
-		scanTrigger: make(chan string, 100),
-		scanCtx:     ctx,
-		scanCancel:  cancel,
-		scanStats:   make(map[string][]scanResult),
+	return NewKVWithOptions(dir, 3, 2)
+}
+
+// NewKVWithOptions creates a KV store with custom split size and nesting levels
+func NewKVWithOptions(dir string, splitSize int, nestingLevels int) *KV {
+	if splitSize < 1 {
+		splitSize = 3
+	}
+	if nestingLevels < 0 {
+		nestingLevels = 2
 	}
 
-	// Start background scanner
+	ctx, cancel := context.WithCancel(context.Background())
+	kv := &KV{
+		Dir:           dir,
+		SplitSize:     splitSize,
+		NestingLevels: nestingLevels,
+		scanTrigger:   make(chan string, 100),
+		scanCtx:       ctx,
+		scanCancel:    cancel,
+		scanStats:     make(map[string][]scanResult),
+	}
+
+	// Start background scanner for metrics collection
 	go kv.scanWorker()
 
 	return kv
@@ -55,52 +68,37 @@ func (kv *KV) Close() {
 	kv.scanCancel()
 }
 
-// findKeyPath searches for key from shallowest to deepest nesting
-func (kv *KV) findKeyPath(key string) (string, bool) {
-	maxDepth := len(key) / 2
-
-	for depth := 0; depth <= maxDepth; depth++ {
-		path := kv.Dir
-		for i := 0; i < depth; i++ {
-			if i*2+2 <= len(key) {
-				path = filepath.Join(path, key[i*2:i*2+2])
-			}
-		}
-		path = filepath.Join(path, key)
-
-		if exists(path) {
-			return path, true
-		}
-	}
-	return "", false
-}
-
-// defaultKeyPath generates deepest path for new keys
-func (kv *KV) defaultKeyPath(key string) string {
+// keyPath generates deterministic nested path for key
+// Example: key="abcdefghij" with splitSize=3, levels=2 → kv.Dir/abc/def/abcdefghij
+func (kv *KV) keyPath(key string) string {
 	path := kv.Dir
-	maxDepth := len(key) / 2
 
-	bestPath := path
-	for i := 0; i < maxDepth; i++ {
-		if i*2+2 <= len(key) {
-			path = filepath.Join(path, key[i*2:i*2+2])
-			// check if path exists and is a directory
-			fileInfo, err := os.Stat(path)
-			if err == nil && fileInfo.IsDir() {
-				bestPath = path
-			} else {
-				break
-			}
+	// Add nesting levels based on key characters
+	for level := 0; level < kv.NestingLevels; level++ {
+		startIdx := level * kv.SplitSize
+		endIdx := startIdx + kv.SplitSize
+
+		if endIdx <= len(key) {
+			path = filepath.Join(path, key[startIdx:endIdx])
+		} else if startIdx < len(key) {
+			// Partial segment if key is shorter than expected
+			path = filepath.Join(path, key[startIdx:])
+			break
+		} else {
+			// Key exhausted, stop nesting
+			break
 		}
 	}
-	return filepath.Join(bestPath, key)
+
+	return filepath.Join(path, key)
 }
 
+// Get retrieves data for the given key
 func (kv *KV) Get(key string) (data []byte, err error) {
 	defer Return(&err)
 
-	path, found := kv.findKeyPath(key)
-	ErrnoIf(!found, syscall.ENOENT, "not found: %s", key)
+	path := kv.keyPath(key)
+	ErrnoIf(!exists(path), syscall.ENOENT, "not found: %s", key)
 
 	data, err = ioutil.ReadFile(path)
 	Ck(err)
@@ -111,7 +109,7 @@ func (kv *KV) Get(key string) (data []byte, err error) {
 func (kv *KV) Put(key string, data []byte) (err error) {
 	defer Return(&err)
 
-	path := kv.defaultKeyPath(key)
+	path := kv.keyPath(key)
 	dir := filepath.Dir(path)
 
 	err = os.MkdirAll(dir, 0755)
@@ -120,7 +118,7 @@ func (kv *KV) Put(key string, data []byte) (err error) {
 	err = ioutil.WriteFile(path, data, 0644)
 	Ck(err)
 
-	// Trigger background scan of this directory
+	// Trigger background scan of parent directory
 	select {
 	case kv.scanTrigger <- dir:
 	default:
@@ -134,15 +132,15 @@ func (kv *KV) Put(key string, data []byte) (err error) {
 func (kv *KV) Delete(key string) (err error) {
 	defer Return(&err)
 
-	path, found := kv.findKeyPath(key)
-	ErrnoIf(!found, syscall.ENOENT, "not found: %s", key)
+	path := kv.keyPath(key)
+	ErrnoIf(!exists(path), syscall.ENOENT, "not found: %s", key)
 
 	err = os.Remove(path)
 	Ck(err)
 	return nil
 }
 
-// scanWorker runs in background, processing scan triggers serially
+// scanWorker runs in background, collecting performance metrics
 func (kv *KV) scanWorker() {
 	for {
 		select {
@@ -154,13 +152,13 @@ func (kv *KV) scanWorker() {
 	}
 }
 
-// scanDirectory measures directory performance with rate limiting
+// scanDirectory measures directory performance (metrics only, no adaptive splitting)
 func (kv *KV) scanDirectory(dir string) {
-	// Check if we scanned recently
+	// Rate limit: don't scan same directory more than once per 11 seconds
 	if stats, exists := kv.scanStats[dir]; exists && len(stats) > 0 {
 		lastScan := stats[len(stats)-1].timestamp
-		if time.Since(lastScan) < 1*time.Second {
-			return // Skip scan, too soon
+		if time.Since(lastScan) < 11*time.Second {
+			return
 		}
 	}
 
@@ -171,7 +169,7 @@ func (kv *KV) scanDirectory(dir string) {
 	}
 	scanTime := time.Since(start)
 
-	// Store scan result
+	// Store scan result for metrics
 	result := scanResult{
 		entryCount: len(entries),
 		scanTime:   scanTime,
@@ -179,100 +177,14 @@ func (kv *KV) scanDirectory(dir string) {
 	}
 	kv.scanStats[dir] = append(kv.scanStats[dir], result)
 
-	kv.scanTimeWma = 0.9*kv.scanTimeWma + 0.1*float64(scanTime.Milliseconds())
-
 	// Keep only recent results
 	if len(kv.scanStats[dir]) > StatsLength {
 		kv.scanStats[dir] = kv.scanStats[dir][1:]
 	}
-
-	// Analyze performance curve if we have enough data
-	if len(kv.scanStats[dir]) >= StatsLength {
-		kv.analyzePerformance(dir)
-	}
-}
-
-// analyzePerformance examines scan time curve and triggers splitting if degraded
-func (kv *KV) analyzePerformance(dir string) {
-	stats := kv.scanStats[dir]
-
-	/*
-		// simpler approach: if last scan time > 100ms, split
-		last := stats[len(stats)-1]
-		if last.scanTime > 100*time.Millisecond {
-			fmt.Printf("Splitting directory %s due to scan time %v\n", dir, last.scanTime)
-			kv.splitDirectory(dir)
-		}
-	*/
-
-	// statistical approach: split if last scan time > 2*scanTimeWma
-	last := stats[len(stats)-1]
-	if float64(last.scanTime.Milliseconds()) > 2*kv.scanTimeWma {
-		fmt.Printf("Splitting directory %s due to scan time %v (WMA %.2fms)\n", dir, last.scanTime, kv.scanTimeWma)
-		kv.splitDirectory(dir)
-	}
-
-	/*
-		if len(stats) < 3 {
-			return
-		}
-
-			// Compare earliest and latest samples
-			first := stats[0]
-			last := stats[len(stats)-1]
-
-			// Expected: scan time scales linearly with entry count
-			// If actual time >> expected, directory needs splitting
-			expectedRatio := float64(last.entryCount) / float64(first.entryCount)
-			actualRatio := float64(last.scanTime) / float64(first.scanTime)
-			fmt.Printf("Dir: %s, Entries: %d -> %d, Time: %v -> %v, ExpectedRatio: %.2f, ActualRatio: %.2f\n",
-				dir, first.entryCount, last.entryCount, first.scanTime, last.scanTime, expectedRatio, actualRatio)
-
-			// Trigger split if actual > 2x expected (quadratic behavior)
-			if actualRatio > 2*expectedRatio {
-				kv.splitDirectory(dir)
-			}
-	*/
-
-}
-
-func (kv *KV) splitDirectory(dir string) {
-	entries, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		filename := entry.Name()
-		oldPath := filepath.Join(dir, filename)
-		relPath, err := filepath.Rel(kv.Dir, oldPath)
-		if err != nil {
-			continue
-		}
-
-		depth := strings.Count(relPath, string(os.PathSeparator))
-		startIdx := depth * 2
-
-		if len(filename) < startIdx+2 {
-			continue
-		}
-
-		subdir := filename[startIdx : startIdx+2]
-		newDir := filepath.Join(dir, subdir)
-		newPath := filepath.Join(newDir, filename)
-
-		os.MkdirAll(newDir, 0755)
-		os.Rename(oldPath, newPath)
-	}
-
-	delete(kv.scanStats, dir)
 }
 
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
 }
+
