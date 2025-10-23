@@ -4,26 +4,23 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
-	"time"
 )
 
-func setup(t *testing.T) *KV {
+func setup(t *testing.T) (*KV, string) {
 	dir, err := ioutil.TempDir("", "kv-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	kv := NewKV(dir)
 	t.Cleanup(func() {
-		kv.Close()
 		os.RemoveAll(dir)
 	})
-	return kv
+	return kv, dir
 }
 
 func TestPutGet(t *testing.T) {
-	kv := setup(t)
+	kv, _ := setup(t)
 
 	key := "testkey123"
 	data := []byte("test data")
@@ -43,66 +40,8 @@ func TestPutGet(t *testing.T) {
 	}
 }
 
-func TestDynamicDepth(t *testing.T) {
-	kv := setup(t)
-
-	// Create nested structure manually
-	key := "abcdef1234567890"
-	deepDir := filepath.Join(kv.Dir, "ab", "cd")
-	os.MkdirAll(deepDir, 0755)
-
-	data := []byte("deep test")
-	err := kv.Put(key, data)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Should find it regardless of depth
-	got, err := kv.Get(key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(data, got) {
-		t.Fatalf("expected %q, got %q", data, got)
-	}
-}
-
-func TestSplitting(t *testing.T) {
-	kv := setup(t)
-	StatsLength = 3 // Lower threshold for testing
-
-	// Write many keys to same shallow directory
-	for i := 0; i < 50; i++ {
-		key := string(rune('a'+i%26)) + string(rune('a'+(i/26)%26)) + "testkey"
-		err := kv.Put(key, []byte{byte(i)})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// Allow scanner time to process
-	time.Sleep(100 * time.Millisecond)
-
-	// Verify some keys moved to subdirectories
-	foundDeep := false
-	filepath.Walk(kv.Dir, func(path string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() {
-			depth := len(filepath.SplitList(path)) - len(filepath.SplitList(kv.Dir))
-			if depth > 1 {
-				foundDeep = true
-			}
-		}
-		return nil
-	})
-
-	if !foundDeep {
-		t.Log("Warning: splitting may not have occurred yet")
-	}
-}
-
 func TestDelete(t *testing.T) {
-	kv := setup(t)
+	kv, _ := setup(t)
 
 	key := "deletekey"
 	data := []byte("to be deleted")
@@ -124,10 +63,136 @@ func TestDelete(t *testing.T) {
 }
 
 func TestGetNonExistent(t *testing.T) {
-	kv := setup(t)
+	kv, _ := setup(t)
 
 	_, err := kv.Get("nonexistent")
 	if err == nil {
 		t.Fatal("expected error for nonexistent key")
+	}
+}
+
+func TestDeleteNonExistent(t *testing.T) {
+	kv, _ := setup(t)
+
+	err := kv.Delete("nonexistent")
+	if err == nil {
+		t.Fatal("expected error for nonexistent key")
+	}
+}
+
+func TestCustomOptions(t *testing.T) {
+	dir, err := ioutil.TempDir("", "kv-opts-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	kv := NewKVWithOptions(dir, Options{SplitSize: 2, NestingLevels: 3})
+	if kv.SplitSize != 2 {
+		t.Fatalf("expected SplitSize 2, got %d", kv.SplitSize)
+	}
+	if kv.NestingLevels != 3 {
+		t.Fatalf("expected NestingLevels 3, got %d", kv.NestingLevels)
+	}
+
+	key := "abcdef123456"
+	data := []byte("custom opts test")
+
+	err = kv.Put(key, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := kv.Get(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(data, got) {
+		t.Fatalf("expected %q, got %q", data, got)
+	}
+
+	// XXX look in the filesystem to verify correct path structure
+}
+
+func TestDefaultOptions(t *testing.T) {
+	kv, _ := setup(t)
+
+	if kv.SplitSize != 3 {
+		t.Fatalf("expected default SplitSize 3, got %d", kv.SplitSize)
+	}
+	if kv.NestingLevels != 3 {
+		t.Fatalf("expected default NestingLevels 3, got %d", kv.NestingLevels)
+	}
+
+	// XXX create a key and verify path structure
+}
+
+func TestLongKey(t *testing.T) {
+	kv, _ := setup(t)
+
+	key := "verylongkeyabcdefghijklmnopqrstuvwxyz"
+	data := []byte("long key data")
+
+	err := kv.Put(key, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := kv.Get(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(data, got) {
+		t.Fatalf("expected %q, got %q", data, got)
+	}
+}
+
+func TestShortKey(t *testing.T) {
+	kv, _ := setup(t)
+
+	key := "ab"
+	data := []byte("short key")
+
+	err := kv.Put(key, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := kv.Get(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(data, got) {
+		t.Fatalf("expected %q, got %q", data, got)
+	}
+}
+
+func TestMultiplePuts(t *testing.T) {
+	kv, _ := setup(t)
+
+	// Write 10 keys
+	for i := 0; i < 10; i++ {
+		key := string(rune('a'+(i%26))) + string(rune('a'+(i/26)%26)) + "key"
+		data := []byte{byte(i)}
+		err := kv.Put(key, data)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Verify all keys exist and have correct data
+	for i := 0; i < 10; i++ {
+		key := string(rune('a'+(i%26))) + string(rune('a'+(i/26)%26)) + "key"
+		expected := []byte{byte(i)}
+		got, err := kv.Get(key)
+		if err != nil {
+			t.Fatalf("failed to get key %s: %v", key, err)
+		}
+		if !bytes.Equal(expected, got) {
+			t.Fatalf("key %s: expected %q, got %q", key, expected, got)
+		}
 	}
 }
