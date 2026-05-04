@@ -12,9 +12,16 @@ import (
 
 // randStream supports the io.Reader interface -- see the RandStream
 // function for usage.
+//
+// We use a local *rand.Rand source instead of the math/rand global
+// generator because, as of Go 1.20, rand.Seed is a no-op for the
+// global generator -- meaning a Rewind() that re-seeds the global
+// source no longer reproduces the original byte stream.  See
+// https://pkg.go.dev/math/rand#Seed for details.
 type randStream struct {
 	Size    int64
 	nextPos int64
+	rng     *rand.Rand
 }
 
 func (s *randStream) Read(p []byte) (n int, err error) {
@@ -31,29 +38,27 @@ func (s *randStream) Read(p []byte) (n int, err error) {
 		// we'll create a smaller buffer than p, write into that, and
 		// then copy to p.
 		buf := make([]byte, s.Size-start)
-		_, err = rand.Read(buf)
+		_, err = s.rng.Read(buf)
 		if err != nil {
 			return
 		}
 		n = copy(p, buf)
 	} else {
-		n, err = rand.Read(p)
+		n, err = s.rng.Read(p)
 	}
 	s.nextPos += int64(n)
 	return
 }
 
 func (rs *randStream) Rewind() error {
-	*rs = randStream{Size: rs.Size}
-	rand.Seed(42)
+	*rs = randStream{Size: rs.Size, rng: rand.New(rand.NewSource(42))}
 	return nil
 }
 
 // RandStream supports the io.Reader interface.  It returns a stream
 // that will produce `size` bytes of random data before EOF.
 func RandStream(size int64) (stream *randStream) {
-	stream = &randStream{Size: size}
-	rand.Seed(42)
+	stream = &randStream{Size: size, rng: rand.New(rand.NewSource(42))}
 	return
 }
 
